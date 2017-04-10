@@ -87,3 +87,10 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# idea stuff
+.idea/
+
+# images
+data/imagenet2012-validationset/images/
+data/imagenet2012-validationset/xml_annotations/
