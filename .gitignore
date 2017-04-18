@@ -95,3 +95,4 @@ ENV/
 data/imagenet2012-validationset/images/
 data/imagenet2012-validationset/xml_annotations/
 data/imagenet2012-validationset/features/
+plots/

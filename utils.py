@@ -54,4 +54,9 @@ def make_balanced_subset(names_file='val_images.txt', labels_file='val_labels.tx
     with open(data_path + id_string + 'labels.txt', 'w') as f:
         f.writelines([k + '\n' for k in s_labels])
 
-make_balanced_subset(num_per_label=1, cut_off=200)
+
+def get_feature_files(layer_name, subset_file):
+    with open(data_path + subset_file) as f:
+        names = [k.split('.')[0] for k in f.readlines()]
+        paths = ['./data/features/' + layer_name + '/' + layer_name + '_' + k + '.npy' for k in names]
+    return paths
