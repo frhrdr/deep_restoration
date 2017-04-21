@@ -5,10 +5,8 @@ from skimage.color import grey2rgb
 import os
 import numpy as np
 
-data_path = "./data/imagenet2012-validationset/"
 
-
-def get_batch_generator(batch_size, im_file):
+def get_batchwise_iterator(batch_size, im_file, data_path="./data/imagenet2012-validationset/"):
     with open(im_file) as f:
         image_files = [k.rstrip() for k in f.readlines()]
 
@@ -43,11 +41,11 @@ def vgg_layer_dict(vgg):
     return layers
 
 
-def get_layer_features(layer, batch_size, im_file=data_path + 'subset_cutoff_200_images.txt'):
+def get_layer_features(layer, batch_size, im_file='subset_cutoff_200_images.txt', data_path="./data/imagenet2012-validationset/"):
     if not os.path.exists('./data/features/' + layer):
         os.makedirs('./data/features/' + layer)
 
-    batches = get_batch_generator(batch_size, im_file)
+    batches = get_batchwise_iterator(batch_size, data_path + im_file)
 
     with tf.Session() as sess:
         images = tf.placeholder("float", [batch_size, 224, 224, 3])
@@ -71,7 +69,7 @@ def get_layer_features(layer, batch_size, im_file=data_path + 'subset_cutoff_200
                 np.save('./data/features/' + layer + '/' + layer + '_' + name + '.npy', feature_map)
 
 
-def test_run():
+def test_run(data_path="./data/imagenet2012-validationset/"):
     img1 = vgg_utils.load_image(data_path + "images/ILSVRC2012_val_00000001.JPEG")
     img2 = vgg_utils.load_image(data_path + "images/ILSVRC2012_val_00000002.JPEG")
 
