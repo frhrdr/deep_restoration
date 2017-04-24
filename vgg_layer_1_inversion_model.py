@@ -34,15 +34,24 @@ class VggLayer1Inversion:
         self.layer1_feat = vgg.conv1_1
 
         self.conv_filter = tf.get_variable('conv_filter', shape=[self.params.conv_height, self.params.conv_width,
-                                                             self.feat_channels, self.params.deconv_channels])
-        self.conv = tf.nn.conv2d(self.layer1_feat, filter=self.conv_filter, strides=[1, 1, 1, 1], padding='SAME')
+                                                                 self.feat_channels, self.params.deconv_channels])
+        try_padding = False  # not working
+        if try_padding:
+            pad_vertical = (self.params.conv_height - 1 / 2)
+            pad_horizontal = (self.params.conv_width - 1 / 2)
+            paddings = np.array([[0, 0], [pad_vertical, pad_vertical], [pad_horizontal, pad_horizontal], [0, 0]])
+            self.layer1_feat = tf.pad(self.layer1_feat, paddings, mode='REFLECT')
+            self.conv = tf.nn.conv2d(self.layer1_feat, filter=self.conv_filter, strides=[1, 1, 1, 1], padding='VALID')
+        else:
+            self.conv = tf.nn.conv2d(self.layer1_feat, filter=self.conv_filter, strides=[1, 1, 1, 1], padding='SAME')
+
         self.conv_bias = tf.get_variable('conv_bias', shape=[self.params.deconv_channels])
         self.biased_conv = tf.nn.bias_add(self.conv, self.conv_bias)
 
         self.relu = tf.nn.relu(self.biased_conv)
 
         self.deconv_filter = tf.get_variable('deconv_filter', shape=[self.params.deconv_height, self.params.deconv_width,
-                                                               self.img_channels, self.params.deconv_channels])
+                                                                     self.img_channels, self.params.deconv_channels])
         self.deconv = tf.nn.conv2d_transpose(self.relu, filter=self.deconv_filter,
                                              output_shape=[self.params.batch_size, self.img_hw, self.img_hw,
                                                            self.img_channels],

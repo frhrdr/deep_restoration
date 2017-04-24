@@ -236,8 +236,3 @@ def inv_avg_gram_matrix(layer_name, subset_file='subset_cutoff_200_images.txt'):
     inv_gram = np.linalg.pinv(avg_gram)
     plt.matshow(inv_gram, interpolation='none')
     plt.savefig('./plots/inv_avg_gram_' + layer_name + '.png', format='png', dpi=1500)
-
-for l in layer_list[6:]:
-    avg_covariance_matrix(l)
-
-# avg_covariance_matrix('pool5')
