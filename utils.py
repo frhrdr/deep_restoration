@@ -73,5 +73,3 @@ def find_broken_files(names_file='val_images.txt'):
             skimage.io.imread(p)
         except ValueError:
             print('broken/unreadable file: ' + p)
-
-find_broken_files()
