@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
+import skimage.io
 
 data_path = './data/imagenet2012-validationset/'
 
@@ -60,3 +61,17 @@ def get_feature_files(layer_name, subset_file):
         names = [k.split('.')[0] for k in f.readlines()]
         paths = ['./data/features/' + layer_name + '/' + layer_name + '_' + k + '.npy' for k in names]
     return paths
+
+
+def find_broken_files(names_file='val_images.txt'):
+    with open(data_path + names_file) as f:
+        image_files = [k.rstrip() for k in f.readlines()]
+
+    image_paths = [data_path + 'images/' + k for k in image_files]
+    for p in image_paths:
+        try:
+            skimage.io.imread(p)
+        except ValueError:
+            print('broken/unreadable file: ' + p)
+
+find_broken_files()
