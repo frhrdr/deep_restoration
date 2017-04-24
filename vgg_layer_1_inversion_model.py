@@ -103,7 +103,7 @@ class VggLayer1Inversion:
                                                              feed_dict=feed_dict)
                     self.summary_writer.add_summary(summary_string, count)
 
-                    if (count + 1) % 10 == 0:
+                    if (count + 1) % 100 == 0:
                         self.summary_writer.flush()
                         print('Iteration: ' + str(count + 1) +
                               ' Train Error: ' + str(batch_loss) +
