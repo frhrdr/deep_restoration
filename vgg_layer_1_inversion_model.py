@@ -10,22 +10,13 @@ matplotlib.use('qt5agg', warn=False, force=True)
 import matplotlib.pyplot as plt
 from skimage.color import grey2rgb
 
-Parameters = namedtuple('Paramters', ['conv1_height', 'conv1_width',
-                                      'conv2_height', 'conv2_width', 'conv2_channels',
+Parameters = namedtuple('Paramters', ['conv_height', 'conv_width',
+                                      'deconv_height', 'deconv_width', 'deconv_channels',
                                       'learning_rate', 'batch_size', 'num_iterations',
                                       'optimizer',
                                       'data_path', 'images_file',
                                       'log_path', 'load_path',
                                       'log_freq', 'test_freq'])
-
-params = Parameters(conv1_height=5, conv1_width=5,
-                    conv2_height=5, conv2_width=5, conv2_channels=64,
-                    learning_rate=0.00001, batch_size=10, num_iterations=1000,
-                    optimizer=tf.train.AdamOptimizer,
-                    data_path='./data/imagenet2012-validationset/', images_file='val_images.txt',
-                    log_path='./logs/vgg_inversion_layer_1/run1/',
-                    load_path='./logs/vgg_inversion_layer_1/run1/ckpt-500',
-                    log_freq=500, test_freq=-1)
 
 
 class VggLayer1Inversion:
@@ -33,29 +24,33 @@ class VggLayer1Inversion:
     def __init__(self, params):
         self.params = params
         self.img_channels = 3
+        self.img_hw = 224
         self.feat_channels = 64
-        self.vgg_mean = [103.939, 116.779, 123.68]
+        self.vgg_mean = np.asarray([103.939, 116.779, 123.68])
 
     def build_model(self, img_pl):
         vgg = vgg16.Vgg16()
         vgg.build(img_pl)
-        self.feat1 = vgg.conv1_1
+        self.layer1_feat = vgg.conv1_1
 
-        self.filter1 = tf.get_variable('filter1', shape=[self.params.conv1_height, self.params.conv1_width,
-                                                         self.feat_channels, self.params.conv2_channels])
-        self.conv1 = tf.nn.conv2d(self.feat1, filter=self.filter1, strides=[1, 1, 1, 1], padding='SAME')
-        self.bias1 = tf.get_variable('bias1', shape=[self.params.conv2_channels])
-        self.bconv1 = tf.nn.bias_add(self.conv1, self.bias1)
+        self.conv_filter = tf.get_variable('filter1', shape=[self.params.conv1_height, self.params.conv1_width,
+                                                             self.feat_channels, self.params.conv2_channels])
+        self.conv = tf.nn.conv2d(self.layer1_feat, filter=self.conv_filter, strides=[1, 1, 1, 1], padding='SAME')
+        self.conv_bias = tf.get_variable('bias1', shape=[self.params.conv2_channels])
+        self.biased_conv = tf.nn.bias_add(self.conv, self.conv_bias)
 
-        self.relu = tf.nn.relu(self.bconv1)
+        self.relu = tf.nn.relu(self.biased_conv)
 
-        self.filter2 = tf.get_variable('filter2', shape=[self.params.conv2_height, self.params.conv2_width,
-                                                         self.params.conv2_channels, self.img_channels])
-        self.conv2 = tf.nn.conv2d(self.relu, filter=self.filter2, strides=[1, 1, 1, 1], padding='SAME')
-        self.bias2 = tf.get_variable('bias2', shape=[self.img_channels])
-        self.rec = tf.nn.bias_add(self.conv2, self.bias2)
+        self.deconv_filter = tf.get_variable('filter2', shape=[self.params.conv2_height, self.params.conv2_width,
+                                                               self.img_channels, self.params.conv2_channels])
+        self.deconv = tf.nn.conv2d_transpose(self.relu, filter=self.deconv_filter,
+                                             output_shape=[self.params.batch_size, self.img_hw, self.img_hw,
+                                                           self.img_channels],
+                                             strides=[1, 1, 1, 1], padding='SAME')
+        self.deconv_bias = tf.get_variable('bias2', shape=[self.img_channels])
+        self.reconstruction = tf.nn.bias_add(self.deconv, self.deconv_bias)
 
-        self.loss = tf.losses.mean_squared_error(img_pl, self.rec - self.vgg_mean)
+        self.loss = tf.losses.mean_squared_error(img_pl * 255.0 - self.vgg_mean, self.reconstruction)
 
         self.train_op = self.params.optimizer(learning_rate=self.params.learning_rate).minimize(self.loss)
 
@@ -79,7 +74,6 @@ class VggLayer1Inversion:
                 batch_files = image_files[begin:] + image_files[:end]
             begin = end
 
-            batch_names = [k.split('.')[0] for k in batch_files]
             batch_paths = [self.params.data_path + 'images/' + k for k in batch_files]
             images = []
             for img_path in batch_paths:
@@ -97,7 +91,8 @@ class VggLayer1Inversion:
         batch_gen = self.get_batch_generator()
 
         with tf.Session() as sess:
-            img_pl = tf.placeholder(dtype=tf.float32, shape=[params.batch_size, 224, 224, 3])
+            img_pl = tf.placeholder(dtype=tf.float32,
+                                    shape=[self.params.batch_size, self.img_hw, self.img_hw, self.img_channels])
             self.build_model(img_pl)
             self.build_logging(sess.graph)
             sess.run(tf.global_variables_initializer())
@@ -122,21 +117,46 @@ class VggLayer1Inversion:
         batch_gen = self.get_batch_generator()
 
         with tf.Session() as sess:
-            img_pl = tf.placeholder(dtype=tf.float32, shape=[params.batch_size, 224, 224, 3])
+            img_pl = tf.placeholder(dtype=tf.float32,
+                                    shape=[self.params.batch_size, self.img_hw, self.img_hw, self.img_channels])
             self.build_model(img_pl)
             saver = tf.train.Saver()
             saver.restore(sess, self.params.load_path)
             feed_dict = {img_pl: next(batch_gen)}
-            reconstruction = sess.run([self.rec], feed_dict=feed_dict)
+            reconstruction = sess.run([self.reconstruction], feed_dict=feed_dict)
 
         idx = 0
         img_mat = feed_dict[img_pl][idx, :, :, :]
-        rec_mat = reconstruction[0][idx, :, :, :] + self.vgg_mean
+        rec_mat = reconstruction[0][idx, :, :, :] + np.array(self.vgg_mean)
+        rec_mat /= 255.0
+        print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
+        rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
 
-        plt.imshow(img_mat)
-        plt.savefig(self.params.log_path + 'img' + str(idx) + '.png', format='png')
-        plt.figure()
-        plt.imshow(rec_mat)
-        plt.savefig(self.params.log_path + 'rec' + str(idx) + '.png', format='png')
+        w = h = 4
+        fig = plt.figure(frameon=False)
+        fig.set_size_inches(w, h)
+        ax = plt.Axes(fig, [0., 0., 1., 1.])
+        ax.set_axis_off()
+        fig.add_axes(ax)
+        ax.imshow(img_mat, aspect='auto')
+        plt.savefig(self.params.log_path + 'img' + str(idx) + '.png', dpi=224 / 4, format='png')
+        fig = plt.figure(frameon=False)
+        fig.set_size_inches(w, h)
+        ax = plt.Axes(fig, [0., 0., 1., 1.])
+        ax.set_axis_off()
+        fig.add_axes(ax)
+        ax.imshow(rec_mat, aspect='auto')
+        plt.savefig(self.params.log_path + 'rec' + str(idx) + '.png', dpi=224 / 4, format='png')
+
+
+params = Parameters(conv_height=1, conv_width=1,
+                    deconv_height=3, deconv_width=3, deconv_channels=64,
+                    learning_rate=0.0001, batch_size=10, num_iterations=300,
+                    optimizer=tf.train.AdamOptimizer,
+                    data_path='./data/imagenet2012-validationset/', images_file='val_images.txt',
+                    log_path='./logs/vgg_inversion_layer_1/run3/',
+                    load_path='./logs/vgg_inversion_layer_1/run3/ckpt-300',
+                    log_freq=1000, test_freq=-1)
 
 VggLayer1Inversion(params).train()
+VggLayer1Inversion(params).visualize()
