@@ -26,7 +26,7 @@ class AlexNetLayer1Inversion:
         self.img_channels = 3
         self.img_hw = 224
         self.feat_channels = 96
-        self.vgg_mean = np.asarray([103.939, 116.779, 123.68])
+        self.imagenet_mean = np.mean([103.939, 116.779, 123.68])
 
     def build_model(self, img_pl):
         alexnet = AlexNet()
@@ -59,7 +59,7 @@ class AlexNetLayer1Inversion:
         self.deconv_bias = tf.get_variable('deconv_bias', shape=[self.img_channels])
         self.reconstruction = tf.nn.bias_add(self.deconv, self.deconv_bias)
 
-        self.loss = tf.losses.mean_squared_error(img_pl * 255.0 - self.vgg_mean, self.reconstruction)
+        self.loss = tf.losses.mean_squared_error(img_pl * 255.0 - self.imagenet_mean, self.reconstruction)
 
         self.train_op = self.params.optimizer(learning_rate=self.params.learning_rate).minimize(self.loss)
 
@@ -137,7 +137,7 @@ class AlexNetLayer1Inversion:
 
             idx = 0
             img_mat = feed_dict[img_pl][idx, :, :, :]
-            rec_mat = reconstruction[0][idx, :, :, :] + np.array(self.vgg_mean)
+            rec_mat = reconstruction[0][idx, :, :, :] + np.array(self.imagenet_mean)
             rec_mat /= 255.0
             print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
             rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
