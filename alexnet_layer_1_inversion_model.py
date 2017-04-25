@@ -30,7 +30,7 @@ class AlexNetLayer1Inversion:
 
     def build_model(self, img_pl):
         alexnet = AlexNet()
-        alexnet.build(img_pl)
+        alexnet.build(img_pl, rescale=255.0)
         self.layer1_feat = alexnet.conv1
 
         self.conv_filter = tf.get_variable('conv_filter', shape=[self.params.conv_height, self.params.conv_width,
