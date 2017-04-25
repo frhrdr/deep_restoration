@@ -1,6 +1,5 @@
 import tensorflow as tf
-from tf_vgg import vgg16
-from tf_vgg import utils as vgg_utils
+from tf_alexnet.alexnet import AlexNet
 from collections import namedtuple
 import os
 import time
@@ -9,6 +8,7 @@ import matplotlib
 matplotlib.use('qt5agg', warn=False, force=True)
 import matplotlib.pyplot as plt
 from skimage.color import grey2rgb
+import utils
 
 Parameters = namedtuple('Paramters', ['conv_height', 'conv_width',
                                       'deconv_height', 'deconv_width', 'deconv_channels',
@@ -19,19 +19,19 @@ Parameters = namedtuple('Paramters', ['conv_height', 'conv_width',
                                       'log_freq', 'test_freq'])
 
 
-class VggLayer1Inversion:
+class AlexNetLayer1Inversion:
 
     def __init__(self, params):
         self.params = params
         self.img_channels = 3
         self.img_hw = 224
-        self.feat_channels = 64
+        self.feat_channels = 96
         self.vgg_mean = np.asarray([103.939, 116.779, 123.68])
 
     def build_model(self, img_pl):
-        vgg = vgg16.Vgg16()
-        vgg.build(img_pl)
-        self.layer1_feat = vgg.conv1_1
+        alexnet = AlexNet()
+        alexnet.build(img_pl)
+        self.layer1_feat = alexnet.conv1
 
         self.conv_filter = tf.get_variable('conv_filter', shape=[self.params.conv_height, self.params.conv_width,
                                                                  self.feat_channels, self.params.deconv_channels])
@@ -55,7 +55,7 @@ class VggLayer1Inversion:
         self.deconv = tf.nn.conv2d_transpose(self.relu, filter=self.deconv_filter,
                                              output_shape=[self.params.batch_size, self.img_hw, self.img_hw,
                                                            self.img_channels],
-                                             strides=[1, 1, 1, 1], padding='SAME')
+                                             strides=[1, 4, 4, 1], padding='SAME')
         self.deconv_bias = tf.get_variable('deconv_bias', shape=[self.img_channels])
         self.reconstruction = tf.nn.bias_add(self.deconv, self.deconv_bias)
 
@@ -86,7 +86,7 @@ class VggLayer1Inversion:
             batch_paths = [self.params.data_path + 'images/' + k for k in batch_files]
             images = []
             for img_path in batch_paths:
-                image = vgg_utils.load_image(img_path)
+                image = utils.load_image(img_path)
                 if len(image.shape) == 2:
                     image = grey2rgb(image)
                 images.append(image)
@@ -112,7 +112,7 @@ class VggLayer1Inversion:
                                                              feed_dict=feed_dict)
                     self.summary_writer.add_summary(summary_string, count)
 
-                    if (count + 1) % 100 == 0:
+                    if (count + 1) % 10 == 0:
                         self.summary_writer.flush()
                         print('Iteration: ' + str(count + 1) +
                               ' Train Error: ' + str(batch_loss) +
@@ -135,7 +135,7 @@ class VggLayer1Inversion:
                 feed_dict = {img_pl: next(batch_gen)}
                 reconstruction = sess.run([self.reconstruction], feed_dict=feed_dict)
 
-            idx = 4
+            idx = 0
             img_mat = feed_dict[img_pl][idx, :, :, :]
             rec_mat = reconstruction[0][idx, :, :, :] + np.array(self.vgg_mean)
             rec_mat /= 255.0
@@ -159,14 +159,14 @@ class VggLayer1Inversion:
             plt.savefig(self.params.log_path + 'rec' + str(idx) + '.png', dpi=224 / 4, format='png')
 
 
-# params = Parameters(conv_height=1, conv_width=1,
-#                     deconv_height=3, deconv_width=3, deconv_channels=64,
+# params = Parameters(conv_height=5, conv_width=5,
+#                     deconv_height=5, deconv_width=5, deconv_channels=96,
 #                     learning_rate=0.0001, batch_size=10, num_iterations=300,
 #                     optimizer=tf.train.AdamOptimizer,
 #                     data_path='./data/imagenet2012-validationset/', images_file='val_images.txt',
-#                     log_path='./logs/vgg_inversion_layer_1/run3/',
-#                     load_path='./logs/vgg_inversion_layer_1/run3/ckpt-300',
+#                     log_path='./logs/alexnet_inversion_layer_1/run1/',
+#                     load_path='./logs/alexnet_inversion_layer_1/run1/ckpt-300',
 #                     log_freq=1000, test_freq=-1)
 #
-# VggLayer1Inversion(params).train()
-# VggLayer1Inversion(params).visualize()
+# AlexNetLayer1Inversion(params).train()
+# AlexNetLayer1Inversion(params).visualize()

@@ -1,6 +1,9 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
+import skimage
 import skimage.io
+import skimage.transform
+
 
 data_path = './data/imagenet2012-validationset/'
 
@@ -73,3 +76,19 @@ def find_broken_files(names_file='val_images.txt'):
             skimage.io.imread(p)
         except ValueError:
             print('broken/unreadable file: ' + p)
+
+
+# taken from https://github.com/machrisaa/tensorflow-vgg/utils.py
+# returns image of shape [res[0], res[1], 3]
+# [height, width, depth]
+def load_image(path, res=(224, 224)):
+    img = skimage.io.imread(path)
+    img = img / 255.0
+    assert (0 <= img).all() and (img <= 1.0).all()
+    # we crop image from center
+    short_edge = min(img.shape[:2])
+    yy = int((img.shape[0] - short_edge) / 2)
+    xx = int((img.shape[1] - short_edge) / 2)
+    crop_img = img[yy: yy + short_edge, xx: xx + short_edge]
+    resized_img = skimage.transform.resize(crop_img, res, mode='constant')
+    return resized_img
