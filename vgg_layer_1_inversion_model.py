@@ -26,7 +26,7 @@ class VggLayer1Inversion:
         self.img_channels = 3
         self.img_hw = 224
         self.feat_channels = 64
-        self.vgg_mean = np.asarray([103.939, 116.779, 123.68])
+        self.vgg_mean = np.asarray([103.939, 116.779, 123.68])  # in BGR order
 
     def build_model(self, img_pl):
         vgg = vgg16.Vgg16()
@@ -35,15 +35,8 @@ class VggLayer1Inversion:
 
         self.conv_filter = tf.get_variable('conv_filter', shape=[self.params.conv_height, self.params.conv_width,
                                                                  self.feat_channels, self.params.deconv_channels])
-        try_padding = False  # not working
-        if try_padding:
-            pad_vertical = (self.params.conv_height - 1 / 2)
-            pad_horizontal = (self.params.conv_width - 1 / 2)
-            paddings = np.array([[0, 0], [pad_vertical, pad_vertical], [pad_horizontal, pad_horizontal], [0, 0]])
-            self.layer1_feat = tf.pad(self.layer1_feat, paddings, mode='REFLECT')
-            self.conv = tf.nn.conv2d(self.layer1_feat, filter=self.conv_filter, strides=[1, 1, 1, 1], padding='VALID')
-        else:
-            self.conv = tf.nn.conv2d(self.layer1_feat, filter=self.conv_filter, strides=[1, 1, 1, 1], padding='SAME')
+
+        self.conv = tf.nn.conv2d(self.layer1_feat, filter=self.conv_filter, strides=[1, 1, 1, 1], padding='SAME')
 
         self.conv_bias = tf.get_variable('conv_bias', shape=[self.params.deconv_channels])
         self.biased_conv = tf.nn.bias_add(self.conv, self.conv_bias)
@@ -122,7 +115,7 @@ class VggLayer1Inversion:
                         checkpoint_file = os.path.join(self.params.log_path, 'ckpt')
                         self.saver.save(sess, checkpoint_file, global_step=(count + 1))
 
-    def visualize(self):
+    def visualize(self, img_idx=0):
         batch_gen = self.get_batch_generator()
 
         with tf.Graph().as_default():
@@ -135,9 +128,8 @@ class VggLayer1Inversion:
                 feed_dict = {img_pl: next(batch_gen)}
                 reconstruction = sess.run([self.reconstruction], feed_dict=feed_dict)
 
-            idx = 4
-            img_mat = feed_dict[img_pl][idx, :, :, :]
-            rec_mat = reconstruction[0][idx, :, :, :] + np.array(self.vgg_mean)
+            img_mat = feed_dict[img_pl][img_idx, :, :, :]
+            rec_mat = reconstruction[0][img_idx, :, :, :] + np.array(self.vgg_mean)
             rec_mat /= 255.0
             print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
             rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
@@ -149,24 +141,24 @@ class VggLayer1Inversion:
             ax.set_axis_off()
             fig.add_axes(ax)
             ax.imshow(img_mat, aspect='auto')
-            plt.savefig(self.params.log_path + 'img' + str(idx) + '.png', dpi=224 / 4, format='png')
+            plt.savefig(self.params.log_path + 'img' + str(img_idx) + '.png', dpi=224 / 4, format='png')
             fig = plt.figure(frameon=False)
             fig.set_size_inches(w, h)
             ax = plt.Axes(fig, [0., 0., 1., 1.])
             ax.set_axis_off()
             fig.add_axes(ax)
             ax.imshow(rec_mat, aspect='auto')
-            plt.savefig(self.params.log_path + 'rec' + str(idx) + '.png', dpi=224 / 4, format='png')
+            plt.savefig(self.params.log_path + 'rec' + str(img_idx) + '.png', dpi=224 / 4, format='png')
 
 
-# params = Parameters(conv_height=1, conv_width=1,
-#                     deconv_height=3, deconv_width=3, deconv_channels=64,
-#                     learning_rate=0.0001, batch_size=10, num_iterations=300,
-#                     optimizer=tf.train.AdamOptimizer,
-#                     data_path='./data/imagenet2012-validationset/', images_file='val_images.txt',
-#                     log_path='./logs/vgg_inversion_layer_1/run3/',
-#                     load_path='./logs/vgg_inversion_layer_1/run3/ckpt-300',
-#                     log_freq=1000, test_freq=-1)
-#
+params = Parameters(conv_height=5, conv_width=5,
+                    deconv_height=5, deconv_width=5, deconv_channels=64,
+                    learning_rate=0.0001, batch_size=10, num_iterations=300,
+                    optimizer=tf.train.AdamOptimizer,
+                    data_path='./data/imagenet2012-validationset/', images_file='images.txt',
+                    log_path='./logs/vgg_inversion_layer_1/run5/',
+                    load_path='./logs/vgg_inversion_layer_1/run5/ckpt-3000',
+                    log_freq=1000, test_freq=-1)
+
 # VggLayer1Inversion(params).train()
-# VggLayer1Inversion(params).visualize()
+VggLayer1Inversion(params).visualize(img_idx=7)

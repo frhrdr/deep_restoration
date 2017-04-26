@@ -8,7 +8,7 @@ import skimage.transform
 data_path = './data/imagenet2012-validationset/'
 
 
-def get_labels(xml_data_dir='xml_annotations/', out_file='val_labels.txt', names_file='val_images.txt'):
+def get_labels(xml_data_dir='xml_annotations/', out_file='labels.txt', names_file='images.txt'):
     with open(data_path + names_file) as f:
         names = [k.rstrip() for k in f.readlines()]
 
@@ -23,7 +23,7 @@ def get_labels(xml_data_dir='xml_annotations/', out_file='val_labels.txt', names
         f.writelines([k + '\n' for k in labels])
 
 
-def count_labels(label_file='val_labels.txt'):
+def count_labels(label_file='labels.txt'):
     with open(data_path + label_file) as f:
         labels = [k.rstrip() for k in f.readlines()]
     counter = defaultdict(int)
@@ -33,7 +33,7 @@ def count_labels(label_file='val_labels.txt'):
         print(key, counter[key])
 
 
-def make_balanced_subset(names_file='val_images.txt', labels_file='val_labels.txt', num_per_label=1, cut_off=None):
+def make_balanced_subset(names_file='images.txt', labels_file='labels.txt', num_per_label=1, cut_off=None):
     with open(data_path + names_file) as f:
         names = [k.rstrip() for k in f.readlines()]
     with open(data_path + labels_file) as f:
@@ -66,7 +66,7 @@ def get_feature_files(layer_name, subset_file):
     return paths
 
 
-def find_broken_files(names_file='val_images.txt'):
+def find_broken_files(names_file='images.txt'):
     with open(data_path + names_file) as f:
         image_files = [k.rstrip() for k in f.readlines()]
 
@@ -77,6 +77,18 @@ def find_broken_files(names_file='val_images.txt'):
         except ValueError:
             print('broken/unreadable file: ' + p)
 
+
+def get_img_files_complement(file_a='images.txt', file_b='validate_2k_images.txt',
+                             complement_name='train_48k_images.txt'):
+    with open(data_path + file_a) as f:
+        lines_a = [k.rstrip() for k in f.readlines()]
+    with open(data_path + file_b) as f:
+        lines_b = [k.rstrip() for k in f.readlines()]
+    comp = list(set(lines_a) - set(lines_b))
+
+    print('complement has ' + str(len(comp)) + ' elements')
+    with open(data_path + complement_name, 'w') as f:
+        f.writelines([k + '\n' for k in comp])
 
 # taken from https://github.com/machrisaa/tensorflow-vgg/utils.py
 # returns image of shape [res[0], res[1], 3]

@@ -8,13 +8,13 @@ import matplotlib
 matplotlib.use('qt5agg', warn=False, force=True)
 import matplotlib.pyplot as plt
 from skimage.color import grey2rgb
-import utils
+import filehandling_utils
 
 Parameters = namedtuple('Paramters', ['conv_height', 'conv_width',
                                       'deconv_height', 'deconv_width', 'deconv_channels',
                                       'learning_rate', 'batch_size', 'num_iterations',
                                       'optimizer',
-                                      'data_path', 'images_file',
+                                      'data_path', 'train_images',
                                       'log_path', 'load_path',
                                       'log_freq', 'test_freq'])
 
@@ -35,15 +35,8 @@ class AlexNetLayer1Inversion:
 
         self.conv_filter = tf.get_variable('conv_filter', shape=[self.params.conv_height, self.params.conv_width,
                                                                  self.feat_channels, self.params.deconv_channels])
-        try_padding = False  # not working
-        if try_padding:
-            pad_vertical = (self.params.conv_height - 1 / 2)
-            pad_horizontal = (self.params.conv_width - 1 / 2)
-            paddings = np.array([[0, 0], [pad_vertical, pad_vertical], [pad_horizontal, pad_horizontal], [0, 0]])
-            self.layer1_feat = tf.pad(self.layer1_feat, paddings, mode='REFLECT')
-            self.conv = tf.nn.conv2d(self.layer1_feat, filter=self.conv_filter, strides=[1, 1, 1, 1], padding='VALID')
-        else:
-            self.conv = tf.nn.conv2d(self.layer1_feat, filter=self.conv_filter, strides=[1, 1, 1, 1], padding='SAME')
+
+        self.conv = tf.nn.conv2d(self.layer1_feat, filter=self.conv_filter, strides=[1, 1, 1, 1], padding='SAME')
 
         self.conv_bias = tf.get_variable('conv_bias', shape=[self.params.deconv_channels])
         self.biased_conv = tf.nn.bias_add(self.conv, self.conv_bias)
@@ -86,7 +79,7 @@ class AlexNetLayer1Inversion:
             batch_paths = [self.params.data_path + 'images/' + k for k in batch_files]
             images = []
             for img_path in batch_paths:
-                image = utils.load_image(img_path)
+                image = filehandling_utils.load_image(img_path)
                 if len(image.shape) == 2:
                     image = grey2rgb(image)
                 images.append(image)
@@ -162,7 +155,7 @@ class AlexNetLayer1Inversion:
 #                     deconv_height=5, deconv_width=5, deconv_channels=96,
 #                     learning_rate=0.0001, batch_size=10, num_iterations=300,
 #                     optimizer=tf.train.AdamOptimizer,
-#                     data_path='./data/imagenet2012-validationset/', images_file='val_images.txt',
+#                     data_path='./data/imagenet2012-validationset/', images_file='images.txt',
 #                     log_path='./logs/alexnet_inversion_layer_1/run1/',
 #                     load_path='./logs/alexnet_inversion_layer_1/run1/ckpt-300',
 #                     log_freq=1000, test_freq=-1)

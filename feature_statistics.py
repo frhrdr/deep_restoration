@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use('qt5agg', warn=False, force=True)
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-from utils import get_feature_files
+from filehandling_utils import get_feature_files
 from sklearn.decomposition import PCA, FastICA
 
 
