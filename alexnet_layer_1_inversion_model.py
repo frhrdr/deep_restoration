@@ -122,7 +122,7 @@ class AlexNetLayer1Inversion:
                         checkpoint_file = os.path.join(self.params.log_path, 'ckpt')
                         self.saver.save(sess, checkpoint_file, global_step=(count + 1))
 
-    def visualize(self):
+    def visualize(self, img_idx=0):
         batch_gen = self.get_batch_generator()
 
         with tf.Graph().as_default():
@@ -135,9 +135,8 @@ class AlexNetLayer1Inversion:
                 feed_dict = {img_pl: next(batch_gen)}
                 reconstruction = sess.run([self.reconstruction], feed_dict=feed_dict)
 
-            idx = 0
-            img_mat = feed_dict[img_pl][idx, :, :, :]
-            rec_mat = reconstruction[0][idx, :, :, :] + np.array(self.imagenet_mean)
+            img_mat = feed_dict[img_pl][img_idx, :, :, :]
+            rec_mat = reconstruction[0][img_idx, :, :, :] + np.array(self.imagenet_mean)
             rec_mat /= 255.0
             print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
             rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
@@ -149,14 +148,14 @@ class AlexNetLayer1Inversion:
             ax.set_axis_off()
             fig.add_axes(ax)
             ax.imshow(img_mat, aspect='auto')
-            plt.savefig(self.params.log_path + 'img' + str(idx) + '.png', dpi=224 / 4, format='png')
+            plt.savefig(self.params.log_path + 'img' + str(img_idx) + '.png', dpi=224 / 4, format='png')
             fig = plt.figure(frameon=False)
             fig.set_size_inches(w, h)
             ax = plt.Axes(fig, [0., 0., 1., 1.])
             ax.set_axis_off()
             fig.add_axes(ax)
             ax.imshow(rec_mat, aspect='auto')
-            plt.savefig(self.params.log_path + 'rec' + str(idx) + '.png', dpi=224 / 4, format='png')
+            plt.savefig(self.params.log_path + 'rec' + str(img_idx) + '.png', dpi=224 / 4, format='png')
 
 
 # params = Parameters(conv_height=5, conv_width=5,
