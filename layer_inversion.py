@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tf_vgg import vgg16
+from tf_alexnet import alexnet
 import filehandling_utils
 from collections import namedtuple
 import os
@@ -10,8 +11,11 @@ matplotlib.use('qt5agg', warn=False, force=True)
 import matplotlib.pyplot as plt
 from skimage.color import grey2rgb
 
-Parameters = namedtuple('Paramters', ['conv_height', 'conv_width',
-                                      'deconv_height', 'deconv_width', 'deconv_channels',
+Parameters = namedtuple('Paramters', ['classifier', 'inv_input_name', 'inv_target_name',
+                                      'inv_model',
+                                      'op1_height', 'op1_width', 'op1_strides',
+                                      'op2_height', 'op2_width', 'op2_strides',
+                                      'hidden_channels',
                                       'learning_rate', 'batch_size', 'num_iterations',
                                       'optimizer',
                                       'data_path', 'images_file',
@@ -19,42 +23,74 @@ Parameters = namedtuple('Paramters', ['conv_height', 'conv_width',
                                       'log_freq', 'test_freq'])
 
 
-class VggLayer1Inversion:
+class LayerInversion:
 
     def __init__(self, params):
         self.params = params
-        self.img_channels = 3
+        self.imagenet_mean = np.asarray([123.68, 116.779, 103.939])  # in RGB order
         self.img_hw = 224
-        self.feat_channels = 64
-        self.vgg_mean = np.asarray([103.939, 116.779, 123.68])  # in BGR order
+        self.img_channels = 3
 
     def build_model(self, img_pl):
-        vgg = vgg16.Vgg16()
-        vgg.build(img_pl)
-        self.layer1_feat = vgg.conv1_1
+        if self.params.classifier.lower() == 'vgg16':
+            model = vgg16.Vgg16()
+        elif self.params.classifier.lower() == 'alexnet':
+            model = alexnet.AlexNet()
+        else:
+            raise NotImplementedError
 
-        self.conv_filter = tf.get_variable('conv_filter', shape=[self.params.conv_height, self.params.conv_width,
-                                                                 self.feat_channels, self.params.deconv_channels])
+        model.build(img_pl)
+        graph = tf.get_default_graph()
 
-        self.conv = tf.nn.conv2d(self.layer1_feat, filter=self.conv_filter, strides=[1, 1, 1, 1], padding='SAME')
+        self.inv_input = graph.get_tensor_by_name(self.params.inv_input_name)
+        self.inv_target = graph.get_tensor_by_name(self.params.inv_target_name)
+        self.inv_input_height = self.inv_input.get_shape()[1].value
+        self.inv_input_width = self.inv_input.get_shape()[2].value
+        self.inv_input_channels = self.inv_input.get_shape()[3].value
+        self.inv_target_height = self.inv_target.get_shape()[1].value
+        self.inv_target_width = self.inv_target.get_shape()[2].value
+        self.inv_target_channels = self.inv_target.get_shape()[3].value
 
-        self.conv_bias = tf.get_variable('conv_bias', shape=[self.params.deconv_channels])
-        self.biased_conv = tf.nn.bias_add(self.conv, self.conv_bias)
+        if self.params.inv_model.lower() == 'conv_deconv':
+            reconstruction = self.conv_deconv_model()
+        elif self.params.inv_model.lower() == 'deconv_conv':
+            reconstruction = self.deconv_conv_model()
+        elif self.params.inv_model.lower() == 'deconv_deconv':
+            reconstruction = self.deconv_deconv_model()
+        else:
+            raise NotImplementedError
 
-        self.relu = tf.nn.relu(self.biased_conv)
-
-        self.deconv_filter = tf.get_variable('deconv_filter', shape=[self.params.deconv_height, self.params.deconv_width,
-                                                                     self.img_channels, self.params.deconv_channels])
-        self.deconv = tf.nn.conv2d_transpose(self.relu, filter=self.deconv_filter,
-                                             output_shape=[self.params.batch_size, self.img_hw, self.img_hw,
-                                                           self.img_channels],
-                                             strides=[1, 1, 1, 1], padding='SAME')
-        self.deconv_bias = tf.get_variable('deconv_bias', shape=[self.img_channels])
-        self.reconstruction = tf.nn.bias_add(self.deconv, self.deconv_bias)
-
-        self.loss = tf.losses.mean_squared_error(img_pl * 255.0 - self.vgg_mean, self.reconstruction)
+        self.loss = tf.losses.mean_squared_error(self.inv_target, reconstruction)
 
         self.train_op = self.params.optimizer(learning_rate=self.params.learning_rate).minimize(self.loss)
+
+    def conv_deconv_model(self):
+        conv_filter = tf.get_variable('conv_filter', shape=[self.params.op1_height, self.params.op1_width,
+                                                            self.inv_input_channels, self.params.hidden_channels])
+
+        conv = tf.nn.conv2d(self.inv_input, filter=conv_filter, strides=self.params.op1_strides, padding='SAME')
+
+        conv_bias = tf.get_variable('conv_bias', shape=[self.params.hidden_channels])
+        biased_conv = tf.nn.bias_add(conv, conv_bias)
+
+        relu = tf.nn.relu(biased_conv)
+
+        deconv_filter = tf.get_variable('deconv_filter',
+                                        shape=[self.params.op2_height, self.params.op2_width,
+                                               self.inv_target_channels, self.params.hidden_channels])
+        deconv = tf.nn.conv2d_transpose(relu, filter=deconv_filter,
+                                        output_shape=[self.params.batch_size, self.inv_target_height,
+                                                      self.inv_target_width, self.inv_target_channels],
+                                        strides=self.params.op2_strides, padding='SAME')
+        deconv_bias = tf.get_variable('deconv_bias', shape=[self.inv_target_channels])
+        reconstruction = tf.nn.bias_add(deconv, deconv_bias)
+        return reconstruction
+
+    def deconv_conv_model(self):
+        pass
+
+    def deconv_deconv_model(self):
+        pass
 
     def build_logging(self, graph):
         tf.summary.scalar('mse_loss', self.loss)
@@ -125,13 +161,11 @@ class VggLayer1Inversion:
                 self.build_model(img_pl)
                 saver = tf.train.Saver()
                 saver.restore(sess, self.params.load_path)
-                img = graph.get_tensor_by_name('rgb_scaled:0')
-                print(img.get_shape()[3])
                 feed_dict = {img_pl: next(batch_gen)}
                 reconstruction = sess.run([self.reconstruction], feed_dict=feed_dict)
 
             img_mat = feed_dict[img_pl][img_idx, :, :, :]
-            rec_mat = reconstruction[0][img_idx, :, :, :] + np.array(self.vgg_mean)
+            rec_mat = reconstruction[0][img_idx, :, :, :] + np.array(self.imagenet_mean)
             rec_mat /= 255.0
             print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
             rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
@@ -153,14 +187,17 @@ class VggLayer1Inversion:
             plt.savefig(self.params.log_path + 'rec' + str(img_idx) + '.png', dpi=224 / 4, format='png')
 
 
-params = Parameters(conv_height=5, conv_width=5,
-                    deconv_height=5, deconv_width=5, deconv_channels=64,
-                    learning_rate=0.0001, batch_size=10, num_iterations=300,
+params = Parameters(classifier='vgg16', inv_input_name='conv1_1/relu:0', inv_target_name='rgb_scaled:0',
+                    inv_model='conv_deconv',
+                    op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
+                    op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
+                    hidden_channels=64,
+                    learning_rate=0.0001, batch_size=11, num_iterations=300,
                     optimizer=tf.train.AdamOptimizer,
                     data_path='./data/imagenet2012-validationset/', images_file='images.txt',
                     log_path='./logs/vgg_inversion_layer_1/run5/',
                     load_path='./logs/vgg_inversion_layer_1/run5/ckpt-3000',
                     log_freq=1000, test_freq=-1)
 
-# VggLayer1Inversion(params).train()
-VggLayer1Inversion(params).visualize(img_idx=7)
+LayerInversion(params).train()
+LayerInversion(params).visualize(img_idx=7)
