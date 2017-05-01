@@ -1,14 +1,15 @@
 # deep_restoration - MSc AI Thesis
 
 ### Next Steps:
-- unify vvg and alexnet layer inversion classes
+- unify vvg and alexnet layer inversion classes (done)
 - rework run logging, so used paramters can be read off (dump params into file)
 - redo vgg experiments with BGR mean order
-- find good way to log loss per channel
+- find good way to log loss per channel (done)
 - try deconv-relu-deconv and deconv-relu-conv models
 - test artificial data with uniform areas to test vggnet
 - find second source on image net means
 - train and stack 3 layer inversions, compare to same model trained in one go.
+- track validation set loss
 - pretty up plotting functions
 
 ### Run Keys:

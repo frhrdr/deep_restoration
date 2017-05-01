@@ -18,9 +18,9 @@ Parameters = namedtuple('Paramters', ['classifier', 'inv_input_name', 'inv_targe
                                       'hidden_channels',
                                       'learning_rate', 'batch_size', 'num_iterations',
                                       'optimizer',
-                                      'data_path', 'images_file',
+                                      'data_path', 'train_images_file', 'validation_images_file',
                                       'log_path', 'load_path',
-                                      'log_freq', 'test_freq'])
+                                      'print_freq', 'log_freq', 'test_freq'])
 
 
 class LayerInversion:
@@ -52,15 +52,26 @@ class LayerInversion:
         self.inv_target_channels = self.inv_target.get_shape()[3].value
 
         if self.params.inv_model.lower() == 'conv_deconv':
-            reconstruction = self.conv_deconv_model()
+            self.reconstruction = self.conv_deconv_model()
         elif self.params.inv_model.lower() == 'deconv_conv':
-            reconstruction = self.deconv_conv_model()
+            self.reconstruction = self.deconv_conv_model()
         elif self.params.inv_model.lower() == 'deconv_deconv':
-            reconstruction = self.deconv_deconv_model()
+            self.reconstruction = self.deconv_deconv_model()
         else:
             raise NotImplementedError
 
-        self.loss = tf.losses.mean_squared_error(self.inv_target, reconstruction)
+        if True:
+            reconstruction_channels = tf.split(axis=3, num_or_size_splits=self.reconstruction.get_shape()[3].value,
+                                               value=self.reconstruction)
+            target_channels = tf.split(axis=3, num_or_size_splits=self.inv_target_channels, value=self.inv_target)
+            self.channel_losses = []
+            for idx, (rec, tgt) in enumerate(zip(reconstruction_channels, target_channels)):
+                self.channel_losses.append(tf.losses.mean_squared_error(tgt, rec))
+
+            self.channel_losses_tensor = tf.stack(axis=0, values=self.channel_losses)
+            self.loss = tf.reduce_mean(self.channel_losses_tensor, axis=0)
+        else:
+            self.loss = tf.losses.mean_squared_error(self.inv_target, self.reconstruction)
 
         self.train_op = self.params.optimizer(learning_rate=self.params.learning_rate).minimize(self.loss)
 
@@ -87,19 +98,49 @@ class LayerInversion:
         return reconstruction
 
     def deconv_conv_model(self):
-        pass
+        # assume for now that the hidden layer has the same dims as the output
+        deconv_filter = tf.get_variable('deconv_filter',
+                                        shape=[self.params.op1_height, self.params.op1_width,
+                                               self.params.hidden_channels, self.inv_input_channels])
+        deconv = tf.nn.conv2d_transpose(self.inv_input, filter=deconv_filter,
+                                        output_shape=[self.params.batch_size, self.inv_target_height,
+                                                      self.inv_target_width, self.params.hidden_channels],
+                                        strides=self.params.op1_strides, padding='SAME')
+        deconv_bias = tf.get_variable('deconv_bias', shape=[self.params.hidden_channels])
+        biased_conv = tf.nn.bias_add(deconv, deconv_bias)
+
+        relu = tf.nn.relu(biased_conv)
+
+        conv_filter = tf.get_variable('conv_filter', shape=[self.params.op2_height, self.params.op2_width,
+                                                            self.params.hidden_channels, self.inv_target_channels])
+
+        conv = tf.nn.conv2d(relu, filter=conv_filter, strides=self.params.op2_strides, padding='SAME')
+
+        conv_bias = tf.get_variable('conv_bias', shape=[self.inv_target_channels])
+        reconstruction = tf.nn.bias_add(conv, conv_bias)
+        return reconstruction
 
     def deconv_deconv_model(self):
-        pass
+        return None
 
     def build_logging(self, graph):
         tf.summary.scalar('mse_loss', self.loss)
+        for idx, c_loss in enumerate(self.channel_losses):
+            tf.summary.scalar('loss_channel_' + str(idx), c_loss)
+        tf.summary.histogram('channel_losses', self.channel_losses_tensor)
         self.summary_op = tf.summary.merge_all()
         self.summary_writer = tf.summary.FileWriter(self.params.log_path + '/summaries', graph)
         self.saver = tf.train.Saver()
 
-    def get_batch_generator(self):
-        with open(self.params.data_path + self.params.images_file) as f:
+    def get_batch_generator(self, mode='train'):
+        if mode == 'train':
+            img_file = self.params.train_images_file
+        elif mode == 'validate':
+            img_file = self.params.validation_images_file
+        else:
+            raise NotImplementedError
+
+        with open(self.params.data_path + img_file) as f:
             image_files = [k.rstrip() for k in f.readlines()]
 
         begin = 0
@@ -126,7 +167,7 @@ class LayerInversion:
         if not os.path.exists(self.params.log_path):
             os.makedirs(self.params.log_path)
 
-        batch_gen = self.get_batch_generator()
+        batch_gen = self.get_batch_generator(mode='train')
         with tf.Graph().as_default():
             with tf.Session() as sess:
                 img_pl = tf.placeholder(dtype=tf.float32,
@@ -141,7 +182,7 @@ class LayerInversion:
                                                              feed_dict=feed_dict)
                     self.summary_writer.add_summary(summary_string, count)
 
-                    if (count + 1) % 100 == 0:
+                    if (count + 1) % self.params.print_freq == 0:
                         self.summary_writer.flush()
                         print('Iteration: ' + str(count + 1) +
                               ' Train Error: ' + str(batch_loss) +
@@ -152,7 +193,7 @@ class LayerInversion:
                         self.saver.save(sess, checkpoint_file, global_step=(count + 1))
 
     def visualize(self, img_idx=0):
-        batch_gen = self.get_batch_generator()
+        batch_gen = self.get_batch_generator(mode='validate')
 
         with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
@@ -165,7 +206,7 @@ class LayerInversion:
                 reconstruction = sess.run([self.reconstruction], feed_dict=feed_dict)
 
             img_mat = feed_dict[img_pl][img_idx, :, :, :]
-            rec_mat = reconstruction[0][img_idx, :, :, :] + np.array(self.imagenet_mean)
+            rec_mat = reconstruction[0][img_idx, :, :, :]  # + np.array(self.imagenet_mean)
             rec_mat /= 255.0
             print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
             rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
@@ -186,18 +227,3 @@ class LayerInversion:
             ax.imshow(rec_mat, aspect='auto')
             plt.savefig(self.params.log_path + 'rec' + str(img_idx) + '.png', dpi=224 / 4, format='png')
 
-
-params = Parameters(classifier='vgg16', inv_input_name='conv1_1/relu:0', inv_target_name='rgb_scaled:0',
-                    inv_model='conv_deconv',
-                    op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
-                    op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-                    hidden_channels=64,
-                    learning_rate=0.0001, batch_size=11, num_iterations=300,
-                    optimizer=tf.train.AdamOptimizer,
-                    data_path='./data/imagenet2012-validationset/', images_file='images.txt',
-                    log_path='./logs/vgg_inversion_layer_1/run5/',
-                    load_path='./logs/vgg_inversion_layer_1/run5/ckpt-3000',
-                    log_freq=1000, test_freq=-1)
-
-LayerInversion(params).train()
-LayerInversion(params).visualize(img_idx=7)
