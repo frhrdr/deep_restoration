@@ -20,7 +20,8 @@ Parameters = namedtuple('Paramters', ['classifier', 'inv_input_name', 'inv_targe
                                       'optimizer',
                                       'data_path', 'train_images_file', 'validation_images_file',
                                       'log_path', 'load_path',
-                                      'print_freq', 'log_freq', 'test_freq'])
+                                      'print_freq', 'log_freq', 'test_freq',
+                                      'test_set_size'])
 
 
 class LayerInversion:
@@ -132,6 +133,10 @@ class LayerInversion:
         self.summary_writer = tf.summary.FileWriter(self.params.log_path + '/summaries', graph)
         self.saver = tf.train.Saver()
 
+        if self.params.test_freq > 0:
+            self.val_loss = tf.placeholder(dtype=tf.float32, shape=[], name='val_loss')
+            self.val_loss_log = tf.summary.scalar('validation_loss', self.val_loss)
+
     def get_batch_generator(self, mode='train'):
         if mode == 'train':
             img_file = self.params.train_images_file
@@ -191,6 +196,22 @@ class LayerInversion:
                     if (count + 1) % self.params.log_freq == 0 or (count + 1) == self.params.num_iterations:
                         checkpoint_file = os.path.join(self.params.log_path, 'ckpt')
                         self.saver.save(sess, checkpoint_file, global_step=(count + 1))
+
+                    if self.params.test_freq > 0 and ((count + 1) % self.params.test_freq or
+                                                      (count + 1) == self.params.num_iterations):
+                        val_batch_gen = self.get_batch_generator(mode='validate')
+                        val_loss_acc = 0.0
+                        num_runs = self.params.test_set_size // self.params.batch_size + 1
+                        for val_count in range(num_runs):
+                            val_feed_dict = {img_pl: next(val_batch_gen)}
+                            val_batch_loss = sess.run(self.loss, feed_dict=val_feed_dict)
+                            val_loss_acc += val_batch_loss
+                        val_loss_acc /= num_runs
+                        val_summary_string = sess.run(self.val_loss_log, feed_dict={self.val_loss: val_loss_acc})
+                        self.summary_writer.add_summary(val_summary_string, count)
+                        print('Iteration: ' + str(count + 1) +
+                              ' Validation Error: ' + str(val_loss_acc) +
+                              ' Time: ' + str(time.time() - start_time))
 
     def visualize(self, img_idx=0):
         batch_gen = self.get_batch_generator(mode='validate')
