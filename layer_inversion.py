@@ -240,7 +240,7 @@ class LayerInversion:
                               ' Validation Error: ' + str(val_loss_acc) +
                               ' Time: ' + str(time.time() - start_time))
 
-    def visualize(self, num_images=5, rec_type='rgb_scaled', file_name='test'):
+    def visualize(self, num_images=5, rec_type='rgb_scaled', file_name='img_vs_rec', add_diffs=True):
         actual_batch_size = self.params.batch_size
         assert num_images <= actual_batch_size
         self.params = self.params._replace(batch_size=num_images)
@@ -279,13 +279,28 @@ class LayerInversion:
         print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
         rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
 
-        plot_mat = np.zeros(shape=(rec_mat.shape[0]*rec_mat.shape[1], rec_mat.shape[2]*2, 3))
+        if add_diffs:
+            cols = 4
+        else:
+            cols = 2
+
+        plot_mat = np.zeros(shape=(rec_mat.shape[0]*rec_mat.shape[1], rec_mat.shape[2]*cols, 3))
         for idx in range(rec_mat.shape[0]):
-            plot_mat[idx*rec_mat.shape[1]:(idx+1)*rec_mat.shape[1], :rec_mat.shape[2], :] = img_mat[idx, :, :, :]
-            plot_mat[idx * rec_mat.shape[1]:(idx + 1) * rec_mat.shape[1], rec_mat.shape[2]:, :] = rec_mat[idx, :, :, :]
+            h = rec_mat.shape[1]
+            w = rec_mat.shape[2]
+            plot_mat[idx * h:(idx + 1) * h, :w, :] = img_mat[idx, :, :, :]
+            plot_mat[idx * h:(idx + 1) * h, w:2 * w, :] = rec_mat[idx, :, :, :]
+            if add_diffs:
+                diff = img_mat[idx, :, :, :] - rec_mat[idx, :, :, :]
+                diff -= np.min(diff)
+                diff /= np.max(diff)
+                plot_mat[idx * h:(idx + 1) * h, 2 * w:3 * w, :] = diff
+                abs_diff = np.abs(rec_mat[idx, :, :, :] - img_mat[idx, :, :, :])
+                abs_diff /= np.max(abs_diff)
+                plot_mat[idx * h:(idx + 1) * h, 3 * w:, :] = abs_diff
 
         fig = plt.figure(frameon=False)
-        fig.set_size_inches(2, num_images)
+        fig.set_size_inches(cols, num_images)
         ax = plt.Axes(fig, [0., 0., 1., 1.])
         ax.set_axis_off()
         fig.add_axes(ax)

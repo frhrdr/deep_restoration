@@ -114,3 +114,9 @@ def save_namedtuple(tuple, file_path):
         lines.append(key + ' ' + str(tdict[key]) + '\n')
     with open(file_path, mode='w') as f:
         f.writelines(lines)
+
+
+def selected_imgs(params):
+    p = params._replace(data_path='./data/selected/')
+    p = p._replace(validation_images_file='images.txt')
+    return p
