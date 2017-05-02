@@ -7,7 +7,7 @@ import os
 import time
 import numpy as np
 import matplotlib
-matplotlib.use('qt5agg', warn=False, force=True)
+matplotlib.use('tkagg', force=True)
 import matplotlib.pyplot as plt
 from skimage.color import grey2rgb
 
@@ -240,7 +240,59 @@ class LayerInversion:
                               ' Validation Error: ' + str(val_loss_acc) +
                               ' Time: ' + str(time.time() - start_time))
 
-    def visualize(self, img_idx=0, rec_type='rgb_scaled'):
+    def visualize(self, num_images=5, rec_type='rgb_scaled', file_name='test'):
+        actual_batch_size = self.params.batch_size
+        assert num_images <= actual_batch_size
+        self.params = self.params._replace(batch_size=num_images)
+
+        batch_gen = self.get_batch_generator(mode='validate')
+
+        with tf.Graph().as_default():
+            with tf.Session() as sess:
+                img_pl = tf.placeholder(dtype=tf.float32,
+                                        shape=[self.params.batch_size, self.img_hw, self.img_hw, self.img_channels])
+                self.build_model(img_pl)
+                saver = tf.train.Saver()
+                saver.restore(sess, self.params.load_path)
+                feed_dict = {img_pl: next(batch_gen)}
+                reconstruction = sess.run([self.reconstruction], feed_dict=feed_dict)
+
+        self.params = self.params._replace(batch_size=actual_batch_size)
+
+        img_mat = feed_dict[img_pl][:num_images, :, :, :]
+        rec_mat = reconstruction[0][:num_images, :, :, :]
+
+        if rec_type == 'rgb_scaled':
+            rec_mat /= 255.0
+        elif rec_type == 'bgr_normed':
+            rec_mat = rec_mat[:, :, :, ::-1]
+            if self.params.classifier.lower() == 'vgg16':
+                rec_mat = rec_mat + self.imagenet_mean
+            elif self.params.classifier.lower() == 'alexnet':
+                rec_mat = rec_mat + np.mean(self.imagenet_mean)
+            else:
+                raise NotImplementedError
+            rec_mat /= 255.0
+        else:
+            raise NotImplementedError
+
+        print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
+        rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
+
+        plot_mat = np.zeros(shape=(rec_mat.shape[0]*rec_mat.shape[1], rec_mat.shape[2]*2, 3))
+        for idx in range(rec_mat.shape[0]):
+            plot_mat[idx*rec_mat.shape[1]:(idx+1)*rec_mat.shape[1], :rec_mat.shape[2], :] = img_mat[idx, :, :, :]
+            plot_mat[idx * rec_mat.shape[1]:(idx + 1) * rec_mat.shape[1], rec_mat.shape[2]:, :] = rec_mat[idx, :, :, :]
+
+        fig = plt.figure(frameon=False)
+        fig.set_size_inches(2, num_images)
+        ax = plt.Axes(fig, [0., 0., 1., 1.])
+        ax.set_axis_off()
+        fig.add_axes(ax)
+        ax.imshow(plot_mat, aspect='auto')
+        plt.savefig(self.params.log_path + file_name + '.png', format='png', dpi=224)
+
+    def visualize_old(self, img_idx=0, rec_type='rgb_scaled'):
         batch_gen = self.get_batch_generator(mode='validate')
 
         with tf.Graph().as_default() as graph:
@@ -254,7 +306,7 @@ class LayerInversion:
                 reconstruction = sess.run([self.reconstruction], feed_dict=feed_dict)
 
             img_mat = feed_dict[img_pl][img_idx, :, :, :]
-            rec_mat = reconstruction[0][img_idx, :, :, :]  # + np.array(self.imagenet_mean)
+            rec_mat = reconstruction[0][img_idx, :, :, :]
             if rec_type == 'rgb_scaled':
                 rec_mat /= 255.0
             elif rec_type == 'bgr_normed':
