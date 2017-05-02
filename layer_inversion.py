@@ -31,6 +31,7 @@ class LayerInversion:
         self.imagenet_mean = np.asarray([123.68, 116.779, 103.939])  # in RGB order
         self.img_hw = 224
         self.img_channels = 3
+        self.get_loss_per_channel = True
 
     def build_model(self, img_pl):
         if self.params.classifier.lower() == 'vgg16':
@@ -61,7 +62,7 @@ class LayerInversion:
         else:
             raise NotImplementedError
 
-        if True:
+        if self.get_loss_per_channel:
             reconstruction_channels = tf.split(axis=3, num_or_size_splits=self.reconstruction.get_shape()[3].value,
                                                value=self.reconstruction)
             target_channels = tf.split(axis=3, num_or_size_splits=self.inv_target_channels, value=self.inv_target)
@@ -239,7 +240,7 @@ class LayerInversion:
                               ' Validation Error: ' + str(val_loss_acc) +
                               ' Time: ' + str(time.time() - start_time))
 
-    def visualize(self, img_idx=0):
+    def visualize(self, img_idx=0, rec_type='rgb_scaled'):
         batch_gen = self.get_batch_generator(mode='validate')
 
         with tf.Graph().as_default() as graph:
@@ -254,7 +255,20 @@ class LayerInversion:
 
             img_mat = feed_dict[img_pl][img_idx, :, :, :]
             rec_mat = reconstruction[0][img_idx, :, :, :]  # + np.array(self.imagenet_mean)
-            rec_mat /= 255.0
+            if rec_type == 'rgb_scaled':
+                rec_mat /= 255.0
+            elif rec_type == 'bgr_normed':
+                rec_mat = rec_mat[:, :, ::-1]
+                if self.params.classifier.lower() == 'vgg16':
+                    rec_mat = rec_mat + self.imagenet_mean
+                elif self.params.classifier.lower() == 'alexnet':
+                    rec_mat = rec_mat + np.mean(self.imagenet_mean)
+                else:
+                    raise NotImplementedError
+                rec_mat /= 255.0
+            else:
+                raise NotImplementedError
+
             print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
             rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
 
