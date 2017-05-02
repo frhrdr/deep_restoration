@@ -1,14 +1,14 @@
 # deep_restoration - MSc AI Thesis
 
 ### Next Steps:
-- redo vgg experiments with BGR mean order
 - test deconv-relu-deconv and deconv-relu-conv models
-- test artificial data with uniform areas to test vggnet
 - find second source on image net means
 - vary learning rate
-- track source of black spots, try renormalizing again
 - train and stack 3 layer inversions, compare to same model trained in one go.
 - pretty up plotting functions
+- redo vgg experiments with BGR mean order (done)
+- test artificial data with uniform areas to test vggnet (done)
+- track source of black spots, try renormalizing again (done)
 - rework run logging, so used paramters can be read off (done)
 - unify vvg and alexnet layer inversion classes (done)
 - track validation set loss (done)
@@ -27,6 +27,9 @@
 - run2: 11x11 conv 11x11 deconv
 
 ### Notes
+
+
 #### Run Schedule
-- rerun 5x5 l1_cd on vgg with 3x learning rate, see if black spots persist
-- then rerun with norm bgr as target (adapt visualization accordingly)
+- rerun 5x5 l1_cd on vgg with 3x learning rate, see if black spots persist: they do
+- then rerun with norm bgr as target (adapt visualization accordingly):
+vgg16/l1_cd/run3 yields near perfect reconstructions. no grey areas, no black spots.
