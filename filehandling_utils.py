@@ -90,6 +90,7 @@ def get_img_files_complement(file_a='images.txt', file_b='validate_2k_images.txt
     with open(data_path + complement_name, 'w') as f:
         f.writelines([k + '\n' for k in comp])
 
+
 # taken from https://github.com/machrisaa/tensorflow-vgg/utils.py
 # returns image of shape [res[0], res[1], 3]
 # [height, width, depth]
@@ -104,3 +105,12 @@ def load_image(path, res=(224, 224)):
     crop_img = img[yy: yy + short_edge, xx: xx + short_edge]
     resized_img = skimage.transform.resize(crop_img, res, mode='constant')
     return resized_img
+
+
+def save_namedtuple(tuple, file_path):
+    tdict = tuple._asdict()
+    lines = []
+    for key in tdict.keys():
+        lines.append(key + ' ' + str(tdict[key]) + '\n')
+    with open(file_path, mode='w') as f:
+        f.writelines(lines)

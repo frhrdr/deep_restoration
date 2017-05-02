@@ -74,7 +74,10 @@ class LayerInversion:
         else:
             self.loss = tf.losses.mean_squared_error(self.inv_target, self.reconstruction)
 
-        self.train_op = self.params.optimizer(learning_rate=self.params.learning_rate).minimize(self.loss)
+        if self.params.optimizer.lower() == 'adam':
+            self.train_op = tf.train.AdamOptimizer(learning_rate=self.params.learning_rate).minimize(self.loss)
+        else:
+            raise NotImplementedError
 
     def conv_deconv_model(self):
         conv_filter = tf.get_variable('conv_filter', shape=[self.params.op1_height, self.params.op1_width,
@@ -122,7 +125,28 @@ class LayerInversion:
         return reconstruction
 
     def deconv_deconv_model(self):
-        return None
+        deconv_filter_1 = tf.get_variable('deconv_filter_1',
+                                          shape=[self.params.op1_height, self.params.op1_width,
+                                                 self.params.hidden_channels, self.inv_input_channels])
+        deconv_1 = tf.nn.conv2d_transpose(self.inv_input, filter=deconv_filter_1,
+                                          output_shape=[self.params.batch_size, self.inv_target_height,
+                                                        self.inv_target_width, self.params.hidden_channels],
+                                          strides=self.params.op1_strides, padding='SAME')
+        deconv_bias_1 = tf.get_variable('deconv_bias', shape=[self.params.hidden_channels])
+        biased_deconv_1 = tf.nn.bias_add(deconv_1, deconv_bias_1)
+
+        relu = tf.nn.relu(biased_deconv_1)
+
+        deconv_filter_2 = tf.get_variable('deconv_filter_2',
+                                          shape=[self.params.op2_height, self.params.op2_width,
+                                                 self.inv_target_channels, self.params.hidden_channels])
+        deconv_2 = tf.nn.conv2d_transpose(relu, filter=deconv_filter_2,
+                                          output_shape=[self.params.batch_size, self.inv_target_height,
+                                                        self.inv_target_width, self.inv_target_channels],
+                                          strides=self.params.op2_strides, padding='SAME')
+        deconv_bias_2 = tf.get_variable('deconv_bias_2', shape=[self.inv_target_channels])
+        reconstruction = tf.nn.bias_add(deconv_2, deconv_bias_2)
+        return reconstruction
 
     def build_logging(self, graph):
         tf.summary.scalar('mse_loss', self.loss)
@@ -171,6 +195,8 @@ class LayerInversion:
     def train(self):
         if not os.path.exists(self.params.log_path):
             os.makedirs(self.params.log_path)
+
+        filehandling_utils.save_namedtuple(self.params, self.params.log_path + 'params.txt')
 
         batch_gen = self.get_batch_generator(mode='train')
         with tf.Graph().as_default():
