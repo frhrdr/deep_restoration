@@ -223,7 +223,7 @@ class LayerInversion:
                         checkpoint_file = os.path.join(self.params.log_path, 'ckpt')
                         self.saver.save(sess, checkpoint_file, global_step=(count + 1))
 
-                    if self.params.test_freq > 0 and ((count + 1) % self.params.test_freq or
+                    if self.params.test_freq > 0 and ((count + 1) % self.params.test_freq == 0 or
                                                       (count + 1) == self.params.num_iterations):
                         val_batch_gen = self.get_batch_generator(mode='validate')
                         val_loss_acc = 0.0
