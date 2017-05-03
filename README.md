@@ -1,12 +1,12 @@
 # deep_restoration - MSc AI Thesis
 
 ### Next Steps:
-- reproduce cd runs on alexnet
 - evaluate which model (cd, dc, dd) works best on alexnet and vgg
 - step to later layers, for simplicity with vgg first.
 - adapt code to allow stacking models
 - train and stack 3 layer inversions, compare to same model trained in one go.
 - find second source on image net means
+- reproduce cd runs on alexnet (done)
 - vary learning rate (done)
 - redo vgg experiments with BGR mean order (done)
 - test artificial data with uniform areas to test vggnet (done)

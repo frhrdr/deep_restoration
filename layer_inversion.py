@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('tkagg', force=True)
+import matplotlib.pyplot as plt
 import tensorflow as tf
 from tf_vgg import vgg16
 from tf_alexnet import alexnet
@@ -6,9 +9,6 @@ from collections import namedtuple
 import os
 import time
 import numpy as np
-import matplotlib
-matplotlib.use('tkagg', force=True)
-import matplotlib.pyplot as plt
 from skimage.color import grey2rgb
 
 Parameters = namedtuple('Paramters', ['classifier', 'inv_input_name', 'inv_target_name',
@@ -54,11 +54,18 @@ class LayerInversion:
         self.inv_target_channels = self.inv_target.get_shape()[3].value
 
         if self.params.inv_model.lower() == 'conv_deconv':
-            self.reconstruction = self.conv_deconv_model()
+            self.reconstruction = self.conv_deconv_model(self.inv_input)
         elif self.params.inv_model.lower() == 'deconv_conv':
-            self.reconstruction = self.deconv_conv_model()
+            self.reconstruction = self.deconv_conv_model(self.inv_input)
         elif self.params.inv_model.lower() == 'deconv_deconv':
-            self.reconstruction = self.deconv_deconv_model()
+            self.reconstruction = self.deconv_deconv_model(self.inv_input)
+        elif self.params.inv_model.lower() == '3_conv_deconv':
+            with tf.variable_scope('module_1'):
+                one = self.reconstruction = self.conv_deconv_model(self.inv_input)
+            with tf.variable_scope('module_2'):
+                two = self.reconstruction = self.conv_deconv_model(one)
+            with tf.variable_scope('module_3'):
+                self.reconstruction = self.conv_deconv_model(two)
         else:
             raise NotImplementedError
 
@@ -80,11 +87,11 @@ class LayerInversion:
         else:
             raise NotImplementedError
 
-    def conv_deconv_model(self):
+    def conv_deconv_model(self, in_tensor):
         conv_filter = tf.get_variable('conv_filter', shape=[self.params.op1_height, self.params.op1_width,
                                                             self.inv_input_channels, self.params.hidden_channels])
 
-        conv = tf.nn.conv2d(self.inv_input, filter=conv_filter, strides=self.params.op1_strides, padding='SAME')
+        conv = tf.nn.conv2d(in_tensor, filter=conv_filter, strides=self.params.op1_strides, padding='SAME')
 
         conv_bias = tf.get_variable('conv_bias', shape=[self.params.hidden_channels])
         biased_conv = tf.nn.bias_add(conv, conv_bias)
@@ -102,12 +109,12 @@ class LayerInversion:
         reconstruction = tf.nn.bias_add(deconv, deconv_bias)
         return reconstruction
 
-    def deconv_conv_model(self):
+    def deconv_conv_model(self, in_tensor):
         # assume for now that the hidden layer has the same dims as the output
         deconv_filter = tf.get_variable('deconv_filter',
                                         shape=[self.params.op1_height, self.params.op1_width,
                                                self.params.hidden_channels, self.inv_input_channels])
-        deconv = tf.nn.conv2d_transpose(self.inv_input, filter=deconv_filter,
+        deconv = tf.nn.conv2d_transpose(in_tensor, filter=deconv_filter,
                                         output_shape=[self.params.batch_size, self.inv_target_height,
                                                       self.inv_target_width, self.params.hidden_channels],
                                         strides=self.params.op1_strides, padding='SAME')
@@ -125,11 +132,11 @@ class LayerInversion:
         reconstruction = tf.nn.bias_add(conv, conv_bias)
         return reconstruction
 
-    def deconv_deconv_model(self):
+    def deconv_deconv_model(self, in_tensor):
         deconv_filter_1 = tf.get_variable('deconv_filter_1',
                                           shape=[self.params.op1_height, self.params.op1_width,
                                                  self.params.hidden_channels, self.inv_input_channels])
-        deconv_1 = tf.nn.conv2d_transpose(self.inv_input, filter=deconv_filter_1,
+        deconv_1 = tf.nn.conv2d_transpose(in_tensor, filter=deconv_filter_1,
                                           output_shape=[self.params.batch_size, self.inv_target_height,
                                                         self.inv_target_width, self.params.hidden_channels],
                                           strides=self.params.op1_strides, padding='SAME')
@@ -218,7 +225,7 @@ class LayerInversion:
                         self.summary_writer.flush()
                         print('Iteration: ' + str(count + 1) +
                               ' Train Error: ' + str(batch_loss) +
-                              ' Time: ' + str(time.time() - start_time))
+                              ' Time: ' + str((time.time() - start_time) / 60) + 'min')
 
                     if (count + 1) % self.params.log_freq == 0 or (count + 1) == self.params.num_iterations:
                         checkpoint_file = os.path.join(self.params.log_path, 'ckpt')
@@ -238,7 +245,52 @@ class LayerInversion:
                         self.summary_writer.add_summary(val_summary_string, count)
                         print('Iteration: ' + str(count + 1) +
                               ' Validation Error: ' + str(val_loss_acc) +
-                              ' Time: ' + str(time.time() - start_time))
+                              ' Time: ' + str((time.time() - start_time) / 60) + 'min')
+
+    def run_inverse_model(self, inv_input):
+        with tf.Graph().as_default() as graph:
+            with tf.Session() as sess:
+                if self.params.classifier.lower() == 'vgg16':
+                    model = vgg16.Vgg16()
+                elif self.params.classifier.lower() == 'alexnet':
+                    model = alexnet.AlexNet()
+                else:
+                    raise NotImplementedError
+
+                img_pl = tf.placeholder(dtype=tf.float32,
+                                        shape=[self.params.batch_size, self.img_hw, self.img_hw, self.img_channels])
+                model.build(img_pl)
+                input_shape = graph.get_tensor_by_name(self.params.inv_input_name).get_shape()
+                self.inv_input = tf.placeholder('inv_input', shape=input_shape)
+                self.inv_target = graph.get_tensor_by_name(self.params.inv_target_name)
+                self.inv_input_height = self.inv_input.get_shape()[1].value
+                self.inv_input_width = self.inv_input.get_shape()[2].value
+                self.inv_input_channels = self.inv_input.get_shape()[3].value
+                self.inv_target_height = self.inv_target.get_shape()[1].value
+                self.inv_target_width = self.inv_target.get_shape()[2].value
+                self.inv_target_channels = self.inv_target.get_shape()[3].value
+
+                if self.params.inv_model.lower() == 'conv_deconv':
+                    self.reconstruction = self.conv_deconv_model(self.inv_input)
+                elif self.params.inv_model.lower() == 'deconv_conv':
+                    self.reconstruction = self.deconv_conv_model(self.inv_input)
+                elif self.params.inv_model.lower() == 'deconv_deconv':
+                    self.reconstruction = self.deconv_deconv_model(self.inv_input)
+                elif self.params.inv_model.lower() == '3_conv_deconv':
+                    with tf.variable_scope('module_1'):
+                        one = self.reconstruction = self.conv_deconv_model(self.inv_input)
+                    with tf.variable_scope('module_2'):
+                        two = self.reconstruction = self.conv_deconv_model(one)
+                    with tf.variable_scope('module_3'):
+                        self.reconstruction = self.conv_deconv_model(two)
+                else:
+                    raise NotImplementedError
+
+                saver = tf.train.Saver()
+                saver.restore(sess, self.params.log_path)
+
+                rec_mat = sess.run(self.reconstruction, feed_dict={self.inv_input: inv_input})
+                return rec_mat
 
     def visualize(self, num_images=5, rec_type='rgb_scaled', file_name='img_vs_rec', add_diffs=True):
         actual_batch_size = self.params.batch_size
@@ -355,3 +407,81 @@ class LayerInversion:
             ax.imshow(rec_mat, aspect='auto')
             plt.savefig(self.params.log_path + 'rec' + str(img_idx) + '.png', dpi=224 / 4, format='png')
 
+
+def run_stacked_models(params_list, num_images=7, file_name='stacked_inversion'):
+    # extract final feature representation
+    params_list = [p._replace(batch_size=num_images) for p in params_list]
+    li = LayerInversion(params_list[0])
+
+    with tf.Graph().as_default() as graph:
+        with tf.Session() as sess:
+            if params_list[0].classifier.lower() == 'vgg16':
+                model = vgg16.Vgg16()
+            elif params_list[0].classifier.lower() == 'alexnet':
+                model = alexnet.AlexNet()
+            else:
+                raise NotImplementedError
+            img_pl = tf.placeholder(dtype=tf.float32,
+                                    shape=[li.params.batch_size, li.img_hw, li.img_hw, li.img_channels])
+            model.build(img_pl)
+            inv_input_tensor = graph.get_tensor_by_name(li.params.inv_input_name)
+            inv_target_tensor = graph.get_tensor_by_name(li.params.inv_target_name)
+            batch_gen = li.get_batch_generator(mode='validate')
+            img_target = next(batch_gen)
+            inv_input, inv_target = sess.run([inv_input_tensor, inv_target_tensor], feed_dict={img_pl: img_target})
+
+    # pass through models
+    for params in params_list:
+        li = LayerInversion(params)
+        inv_input = li.run_inverse_model(inv_input)
+
+    # visualize final reconstruction
+    img_mat = inv_target
+    rec_mat = inv_input
+    rec_type = 'bgr_normed'
+    add_diffs = True
+
+    if rec_type == 'rgb_scaled':
+        rec_mat /= 255.0
+    elif rec_type == 'bgr_normed':
+        rec_mat = rec_mat[:, :, :, ::-1]
+        if li.params.classifier.lower() == 'vgg16':
+            rec_mat = rec_mat + li.imagenet_mean
+        elif li.params.classifier.lower() == 'alexnet':
+            rec_mat = rec_mat + np.mean(li.imagenet_mean)
+        else:
+            raise NotImplementedError
+        rec_mat /= 255.0
+    else:
+        raise NotImplementedError
+
+    print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
+    rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
+
+    if add_diffs:
+        cols = 4
+    else:
+        cols = 2
+
+    plot_mat = np.zeros(shape=(rec_mat.shape[0] * rec_mat.shape[1], rec_mat.shape[2] * cols, 3))
+    for idx in range(rec_mat.shape[0]):
+        h = rec_mat.shape[1]
+        w = rec_mat.shape[2]
+        plot_mat[idx * h:(idx + 1) * h, :w, :] = img_mat[idx, :, :, :]
+        plot_mat[idx * h:(idx + 1) * h, w:2 * w, :] = rec_mat[idx, :, :, :]
+        if add_diffs:
+            diff = img_mat[idx, :, :, :] - rec_mat[idx, :, :, :]
+            diff -= np.min(diff)
+            diff /= np.max(diff)
+            plot_mat[idx * h:(idx + 1) * h, 2 * w:3 * w, :] = diff
+            abs_diff = np.abs(rec_mat[idx, :, :, :] - img_mat[idx, :, :, :])
+            abs_diff /= np.max(abs_diff)
+            plot_mat[idx * h:(idx + 1) * h, 3 * w:, :] = abs_diff
+
+    fig = plt.figure(frameon=False)
+    fig.set_size_inches(cols, num_images)
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+    ax.imshow(plot_mat, aspect='auto')
+    plt.savefig(file_name + '.png', format='png', dpi=224)
