@@ -261,7 +261,7 @@ class LayerInversion:
                                         shape=[self.params.batch_size, self.img_hw, self.img_hw, self.img_channels])
                 model.build(img_pl)
                 input_shape = graph.get_tensor_by_name(self.params.inv_input_name).get_shape()
-                self.inv_input = tf.placeholder('inv_input', shape=input_shape)
+                self.inv_input = tf.placeholder(dtype=tf.float32, name='inv_input', shape=input_shape)
                 self.inv_target = graph.get_tensor_by_name(self.params.inv_target_name)
                 self.inv_input_height = self.inv_input.get_shape()[1].value
                 self.inv_input_width = self.inv_input.get_shape()[2].value
@@ -287,7 +287,7 @@ class LayerInversion:
                     raise NotImplementedError
 
                 saver = tf.train.Saver()
-                saver.restore(sess, self.params.log_path)
+                saver.restore(sess, self.params.load_path)
 
                 rec_mat = sess.run(self.reconstruction, feed_dict={self.inv_input: inv_input})
                 return rec_mat
@@ -424,8 +424,8 @@ def run_stacked_models(params_list, num_images=7, file_name='stacked_inversion')
             img_pl = tf.placeholder(dtype=tf.float32,
                                     shape=[li.params.batch_size, li.img_hw, li.img_hw, li.img_channels])
             model.build(img_pl)
-            inv_input_tensor = graph.get_tensor_by_name(li.params.inv_input_name)
-            inv_target_tensor = graph.get_tensor_by_name(li.params.inv_target_name)
+            inv_input_tensor = graph.get_tensor_by_name(params_list[0].inv_input_name)
+            inv_target_tensor = graph.get_tensor_by_name(params_list[-1].inv_target_name)
             batch_gen = li.get_batch_generator(mode='validate')
             img_target = next(batch_gen)
             inv_input, inv_target = sess.run([inv_input_tensor, inv_target_tensor], feed_dict={img_pl: img_target})
@@ -434,9 +434,9 @@ def run_stacked_models(params_list, num_images=7, file_name='stacked_inversion')
     for params in params_list:
         li = LayerInversion(params)
         inv_input = li.run_inverse_model(inv_input)
-
+        print(inv_input.shape)
     # visualize final reconstruction
-    img_mat = inv_target
+    img_mat = img_target
     rec_mat = inv_input
     rec_type = 'bgr_normed'
     add_diffs = True

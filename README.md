@@ -1,11 +1,12 @@
 # deep_restoration - MSc AI Thesis
 
 ### Next Steps:
-- evaluate which model (cd, dc, dd) works best on alexnet and vgg
-- step to later layers, for simplicity with vgg first.
-- adapt code to allow stacking models
+- compile results, link latex doc to repo
 - train and stack 3 layer inversions, compare to same model trained in one go.
 - find second source on image net means
+- step to later layers, for simplicity with vgg first. (done)
+- adapt code to allow stacking models (done - for now)
+- evaluate which model (cd, dc, dd) works best on alexnet and vgg (done)
 - reproduce cd runs on alexnet (done)
 - vary learning rate (done)
 - redo vgg experiments with BGR mean order (done)
@@ -36,5 +37,7 @@
 
 
 #### Run Schedule
-
+- vgg pool1 to conv1_2/relu model as dc - stack to see if dccdcd is better than cdcdcd
+- stacked dccdcd pool1 to bgr_normed model - see if results are worse than when layerwise trained
+- further layers in alexnet
 
