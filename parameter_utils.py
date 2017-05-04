@@ -8,7 +8,7 @@ PARAMETER_KEYS = ['classifier', 'inv_input_name', 'inv_target_name',
                  'data_path', 'train_images_file', 'validation_images_file',
                  'log_path', 'load_path',
                  'print_freq', 'log_freq', 'test_freq',
-                 'test_set_size']
+                 'test_set_size', 'channel_losses']
 
 
 def check_params(params):
@@ -23,7 +23,8 @@ def default_params():
                 data_path='./data/imagenet2012-validationset/',
                 train_images_file='train_48k_images.txt',
                 validation_images_file='validate_2k_images.txt',
-                print_freq=100, log_freq=1000, test_freq=100, test_set_size=200)
+                print_freq=100, log_freq=1000, test_freq=100, test_set_size=200,
+                channel_losses=False)
 
 
 def selected_images(params):

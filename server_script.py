@@ -145,8 +145,8 @@ params = dict(classifier='vgg16', inv_input_name='pool1:0', inv_target_name='con
               op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1],
               op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
               hidden_channels=64,
-              log_path='./logs/layer_inversion/vgg16/l3_dc/run1/',
-              load_path='./logs/layer_inversion/vgg16/l3_dc/run1/ckpt-3000')
+              log_path='./logs/layer_inversion/vgg16/l3_dc/run2/',
+              load_path='./logs/layer_inversion/vgg16/l3_dc/run2/ckpt-3000')
 params.update(default_params())
 print(params)
 li = LayerInversion(params)

@@ -21,7 +21,6 @@ class LayerInversion:
         self.imagenet_mean = np.asarray([123.68, 116.779, 103.939])  # in RGB order
         self.img_hw = 224
         self.img_channels = 3
-        self.get_loss_per_channel = True
 
     def build_model(self, img_pl):
         if self.params['classifier'].lower() == 'vgg16':
@@ -59,7 +58,7 @@ class LayerInversion:
         else:
             raise NotImplementedError
 
-        if self.get_loss_per_channel:
+        if self.params['channel_losses']:
             reconstruction_channels = tf.split(axis=3, num_or_size_splits=self.reconstruction.get_shape()[3].value,
                                                value=self.reconstruction)
             target_channels = tf.split(axis=3, num_or_size_splits=self.inv_target_channels, value=self.inv_target)
@@ -214,9 +213,11 @@ class LayerInversion:
 
                     if (count + 1) % self.params['print_freq'] == 0:
                         self.summary_writer.flush()
-                        print('Iteration: ' + str(count + 1) +
-                              ' Train Error: ' + str(batch_loss) +
-                              ' Time: ' + str((time.time() - start_time) / 60) + 'min')
+                        # print('Iteration: ' + str(count + 1) +
+                        #       ' Train Error: ' + str(batch_loss) +
+                        #       ' Time: ' + str((time.time() - start_time) / 60) + 'min')
+                        print(('Iteration: {0:6d} Train Error: {1:8.3f} ' +
+                               'Time: {2:5.1f} min').format(count + 1, batch_loss, (time.time() - start_time) / 60))
 
                     if (count + 1) % self.params['log_freq'] == 0 or (count + 1) == self.params['num_iterations']:
                         checkpoint_file = os.path.join(self.params['log_path'], 'ckpt')
@@ -234,9 +235,8 @@ class LayerInversion:
                         val_loss_acc /= num_runs
                         val_summary_string = sess.run(self.val_loss_log, feed_dict={self.val_loss: val_loss_acc})
                         self.summary_writer.add_summary(val_summary_string, count)
-                        print('Iteration: ' + str(count + 1) +
-                              ' Validation Error: ' + str(val_loss_acc) +
-                              ' Time: ' + str((time.time() - start_time) / 60) + 'min')
+                        print(('Iteration: {0:6d} Validation Error: {1:8.3f} ' +
+                               'Time: {2:5.1f} min').format(count + 1, val_loss_acc, (time.time() - start_time) / 60))
 
     def run_inverse_model(self, inv_input):
         with tf.Graph().as_default() as graph:
