@@ -4,18 +4,7 @@
 - compile results, link latex doc to repo
 - train and stack 3 layer inversions, compare to same model trained in one go.
 - find second source on image net means
-- step to later layers, for simplicity with vgg first. (done)
 - adapt code to allow stacking models (done - for now)
-- evaluate which model (cd, dc, dd) works best on alexnet and vgg (done)
-- reproduce cd runs on alexnet (done)
-- vary learning rate (done)
-- redo vgg experiments with BGR mean order (done)
-- test artificial data with uniform areas to test vggnet (done)
-- track source of black spots, try renormalizing again (done)
-- rework run logging, so used parameters can be read off (done)
-- unify vvg and alexnet layer inversion classes (done)
-- track validation set loss (done)
-- find good way to log loss per channel (done)
 - pretty up plotting functions (done - for now)
 
 ### Run Keys:
