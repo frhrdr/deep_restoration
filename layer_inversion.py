@@ -148,9 +148,10 @@ class LayerInversion:
 
     def build_logging(self, graph):
         tf.summary.scalar('mse_loss', self.loss)
-        for idx, c_loss in enumerate(self.channel_losses):
-            tf.summary.scalar('loss_channel_' + str(idx), c_loss)
-        tf.summary.histogram('channel_losses', self.channel_losses_tensor)
+        if self.params['channel_losses']:
+            for idx, c_loss in enumerate(self.channel_losses):
+                tf.summary.scalar('loss_channel_' + str(idx), c_loss)
+            tf.summary.histogram('channel_losses', self.channel_losses_tensor)
         self.summary_op = tf.summary.merge_all()
         self.summary_writer = tf.summary.FileWriter(self.params['log_path'] + '/summaries', graph)
         self.saver = tf.train.Saver()
