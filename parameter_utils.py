@@ -1,14 +1,12 @@
 PARAMETER_KEYS = ['classifier', 'inv_input_name', 'inv_target_name',
-                 'inv_model',
-                 'op1_height', 'op1_width', 'op1_strides',
-                 'op2_height', 'op2_width', 'op2_strides',
-                 'hidden_channels',
-                 'learning_rate', 'batch_size', 'num_iterations',
-                 'optimizer',
-                 'data_path', 'train_images_file', 'validation_images_file',
-                 'log_path', 'load_path',
-                 'print_freq', 'log_freq', 'test_freq',
-                 'test_set_size', 'channel_losses']
+                  'inv_model_type',
+                  'inv_model_specs',
+                  'learning_rate', 'batch_size', 'num_iterations',
+                  'optimizer',
+                  'data_path', 'train_images_file', 'validation_images_file',
+                  'log_path', 'load_path',
+                  'print_freq', 'log_freq', 'test_freq',
+                  'test_set_size', 'channel_losses']
 
 
 def check_params(params):

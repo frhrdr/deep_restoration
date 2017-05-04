@@ -140,11 +140,12 @@ from parameter_utils import default_params
 #                     load_path='./logs/layer_inversion/vgg16/l3_dc/run1/ckpt-3000',
 #                     print_freq=100, log_freq=1000, test_freq=100, test_set_size=200)
 
+specs = dict(op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1],
+             op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
+             hidden_channels=64,)
 params = dict(classifier='vgg16', inv_input_name='pool1:0', inv_target_name='conv1_2/relu:0',
-              inv_model='deconv_conv',
-              op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1],
-              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-              hidden_channels=64,
+              inv_model_type='deconv_conv',
+              inv_model_specs=specs,
               log_path='./logs/layer_inversion/vgg16/l3_dc/run2/',
               load_path='./logs/layer_inversion/vgg16/l3_dc/run2/ckpt-3000')
 params.update(default_params())
