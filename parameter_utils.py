@@ -1,4 +1,6 @@
-PARAMETER_KEYS = ['classifier', 'inv_input_name', 'inv_target_name',
+from copy import deepcopy
+
+PARAMETER_KEYS = ['classifier',
                   'inv_model_type',
                   'inv_model_specs',
                   'learning_rate', 'batch_size', 'num_iterations',
@@ -8,11 +10,24 @@ PARAMETER_KEYS = ['classifier', 'inv_input_name', 'inv_target_name',
                   'print_freq', 'log_freq', 'test_freq',
                   'test_set_size', 'channel_losses']
 
+MODULE_KEYS = ['inv_input_name', 'inv_target_name', 'target_shape', 'rec_name', 'add_loss']
 
-def check_params(params):
+
+def check_params(params, check_specs=True):
     for key in PARAMETER_KEYS:
         assert key in params.keys(), 'missing parameter: ' + key
         assert params[key] is not None, 'parameter not set: ' + key
+
+    if check_specs:
+        got_rec = False
+        for spec in params['inv_model_specs']:
+            for key in MODULE_KEYS:
+                assert key in spec.keys(), 'missing parameter: ' + key
+                assert spec[key] is not None, 'parameter not set: ' + key
+            if spec['rec_name'] == 'reconstruction':
+                got_rec = True
+        if not got_rec:
+            print('WARNING: No Tensor designated as final reconstruction.')
 
 
 def default_params():
@@ -26,6 +41,7 @@ def default_params():
 
 
 def selected_images(params):
-    params['data_path'] = './data/selected/'
-    params['validation_images_file'] = 'images.txt'
-    return params
+    p = deepcopy(params)
+    p['data_path'] = './data/selected/'
+    p['validation_images_file'] = 'images.txt'
+    return p

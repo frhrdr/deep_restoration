@@ -1,18 +1,18 @@
 # deep_restoration - MSc AI Thesis
 
 ### Next Steps:
+- change architecture: each module specifies in and out tensor (optionally either from last module or classifier) and whether reconstruction becomes part of the loss
+- enable loading weights to continue training
+- create reconstructions for deeper vgg layers and alexnet
+- find a way for loading dosovitskiy's caffe model into tensorflow or extract weights somehow
 - adapt code to allow stacking models (done - for now)
 - pretty up plotting functions (done - for now)
 
 
 ### Notes
-- vgg16/l1_cd/run3 yields near perfect reconstructions. no grey areas, no black spots, hard to tell from the original. this indicates that learning the biases is a problem for some reason.
 - learning rate at 0.0003 seems good. 0.001 becomes a bit unstable (as in vgg16/l1_cd/run4)
-- two difference images for visualization added, one for relative color (optimally grey) and one for absolute difference (optimally black)
+- startin at l4, vgg layers seem to require longer to train. either try upping lr, or train in multiple runs.
 
-- caffe dosovitsky
-- gleichzeitig losses für jedes layer gestapelt
-- bis pooling 2 und für alexnet
 
 #### Run Schedule
 

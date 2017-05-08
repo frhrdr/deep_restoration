@@ -14,76 +14,61 @@ matplotlib.use('tkagg', force=True)
 import matplotlib.pyplot as plt
 
 
-class LayerInversion:
+class NetInversion:
 
     def __init__(self, params):
-        check_params(params, check_specs=False)
+        check_params(params)
         self.params = params
         self.imagenet_mean = np.asarray([123.68, 116.779, 103.939])  # in RGB order
         self.img_hw = 224
         self.img_channels = 3
 
-    def build_model(self, img_pl):
+    def load_classifier(self, img_pl):
         if self.params['classifier'].lower() == 'vgg16':
-            model = vgg16.Vgg16()
+            classifier = vgg16.Vgg16()
         elif self.params['classifier'].lower() == 'alexnet':
-            model = alexnet.AlexNet()
+            classifier = alexnet.AlexNet()
         else:
             raise NotImplementedError
 
-        model.build(img_pl)
+        classifier.build(img_pl)
+
+    def build_model(self):
         graph = tf.get_default_graph()
 
-        inv_input = graph.get_tensor_by_name(self.params['inv_input_name'])
-        inv_target = graph.get_tensor_by_name(self.params['inv_target_name'])
-        inv_target_shape = [k.value for k in inv_target.get_shape()[1:]]
+        if not isinstance(self.params['inv_model_specs'], list):
+            self.params['inv_model_specs'] = [self.params['inv_model_specs']]
 
-        if self.params['inv_model_type'].lower() == 'conv_deconv':
-            reconstruction = conv_deconv_model(inv_input, self.params['inv_model_specs'], inv_target_shape)
-        elif self.params['inv_model_type'].lower() == 'deconv_conv':
-            reconstruction = deconv_conv_model(inv_input, self.params['inv_model_specs'], inv_target_shape)
-        elif self.params['inv_model_type'].lower() == 'deconv_deconv':
-            reconstruction = deconv_deconv_model(inv_input, self.params['inv_model_specs'], inv_target_shape)
-        elif self.params['inv_model_type'].lower() == '3_deconv_conv':
-            with tf.variable_scope('module_1'):
-                inv_target_shape = self.params['inv_model_specs'][0]['target_shape']
-                one = deconv_conv_model(inv_input, self.params['inv_model_specs'][0], inv_target_shape)
-            with tf.variable_scope('module_2'):
-                inv_target_shape = self.params['inv_model_specs'][1]['target_shape']
-                two = deconv_conv_model(one, self.params['inv_model_specs'][1], inv_target_shape)
-            with tf.variable_scope('module_3'):
-                inv_target_shape = self.params['inv_model_specs'][2]['target_shape']
-                reconstruction = deconv_conv_model(two, self.params['inv_model_specs'][2], inv_target_shape)
-        else:
-            raise NotImplementedError
+        loss = 0.0
 
-        reconstruction = tf.identity(reconstruction, name='reconstruction')
+        for idx, spec in enumerate(self.params['inv_model_specs']):
+            inv_input = graph.get_tensor_by_name(spec['inv_input_name'])
+            inv_target = graph.get_tensor_by_name(spec['inv_target_name'])
+            inv_target_shape = [k.value for k in inv_target.get_shape()[1:]]
+            with tf.variable_scope('module_' + str(idx + 1)):
+                if self.params['inv_model_type'].lower() == 'conv_deconv':
+                    reconstruction = conv_deconv_model(inv_input, spec, inv_target_shape)
+                elif self.params['inv_model_type'].lower() == 'deconv_conv':
+                    reconstruction = deconv_conv_model(inv_input, spec, inv_target_shape)
+                elif self.params['inv_model_type'].lower() == 'deconv_deconv':
+                    reconstruction = deconv_deconv_model(inv_input, spec, inv_target_shape)
+                else:
+                    raise NotImplementedError
 
-        channel_losses = []
-        if self.params['channel_losses']:
-            reconstruction_channels = tf.split(axis=3, num_or_size_splits=reconstruction.get_shape()[3].value,
-                                               value=reconstruction)
-            target_channels = tf.split(axis=3, num_or_size_splits=inv_target_shape[2], value=inv_target)
-            for idx, (rec, tgt) in enumerate(zip(reconstruction_channels, target_channels)):
-                channel_losses.append(tf.losses.mean_squared_error(tgt, rec))
+                reconstruction = tf.identity(reconstruction, name=spec['rec_name'])
 
-            channel_losses_tensor = tf.stack(axis=0, values=channel_losses)
-            loss = tf.reduce_mean(channel_losses_tensor, axis=0)
-        else:
-            loss = tf.losses.mean_squared_error(inv_target, reconstruction)
+                if spec['add_loss']:
+                    loss += tf.losses.mean_squared_error(inv_target, reconstruction)
 
         if self.params['optimizer'].lower() == 'adam':
             train_op = tf.train.AdamOptimizer(learning_rate=self.params['learning_rate']).minimize(loss)
         else:
             raise NotImplementedError
 
-        return loss, channel_losses, train_op
+        return loss, train_op
 
-    def build_logging(self, graph, loss, channel_losses):
+    def build_logging(self, graph, loss):
         tf.summary.scalar('mse_loss', loss)
-        if self.params['channel_losses']:
-            for idx, c_loss in enumerate(channel_losses):
-                tf.summary.scalar('loss_channel_' + str(idx), c_loss)
         train_summary_op = tf.summary.merge_all()
         summary_writer = tf.summary.FileWriter(self.params['log_path'] + '/summaries', graph)
         saver = tf.train.Saver()
@@ -133,14 +118,18 @@ class LayerInversion:
         batch_gen = self.get_batch_generator(mode='train')
         with tf.Graph().as_default():
             with tf.Session() as sess:
-                img_pl = tf.placeholder(dtype=tf.float32,
-                                        shape=[self.params['batch_size'], self.img_hw, self.img_hw, self.img_channels])
+                img_pl = tf.placeholder(dtype=tf.float32, shape=[self.params['batch_size'], self.img_hw,
+                                                                 self.img_hw, self.img_channels])
 
-                loss, channel_losses, train_op = self.build_model(img_pl)
-                train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(sess.graph,
-                                                                                                       loss,
-                                                                                                       channel_losses)
-                sess.run(tf.global_variables_initializer())
+                self.load_classifier(img_pl)
+                loss, train_op = self.build_model()
+                train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(sess.graph, loss)
+
+                if self.params['load_path']:
+                    saver.restore(sess, self.params['load_path'])
+                else:
+                    sess.run(tf.global_variables_initializer())
+
                 start_time = time.time()
                 for count in range(self.params['num_iterations']):
                     feed_dict = {img_pl: next(batch_gen)}
@@ -172,50 +161,28 @@ class LayerInversion:
                         print(('Iteration: {0:6d} Validation Error: {1:8.3f} ' +
                                'Time: {2:5.1f} min').format(count + 1, val_loss_acc, (time.time() - start_time) / 60))
 
-    def run_inverse_model(self, inv_input_mat):
+    def run_inverse_model(self, inv_input_mat, ckpt_num=3000):
         with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
-                if self.params['classifier'].lower() == 'vgg16':
-                    model = vgg16.Vgg16()
-                elif self.params['classifier'].lower() == 'alexnet':
-                    model = alexnet.AlexNet()
-                else:
-                    raise NotImplementedError
-
                 img_pl = tf.placeholder(dtype=tf.float32,
                                         shape=[self.params['batch_size'], self.img_hw, self.img_hw, self.img_channels])
-                model.build(img_pl)
-                input_shape = graph.get_tensor_by_name(self.params['inv_input_name']).get_shape()
-                inv_input = tf.placeholder(dtype=tf.float32, name='inv_input', shape=input_shape)
-                inv_target = graph.get_tensor_by_name(self.params['inv_target_name'])
-                inv_target_shape = [k.value for k in inv_target.get_shape()[1:]]
+                self.load_classifier(img_pl)
 
-                if self.params['inv_model_type'].lower() == 'conv_deconv':
-                    reconstruction = conv_deconv_model(inv_input, self.params['inv_model_specs'], inv_target_shape)
+                if not isinstance(self.params['inv_model_specs'], list):
+                    self.params['inv_model_specs'] = [self.params['inv_model_specs']]
+                input_shape = graph.get_tensor_by_name(self.params['inv_model_specs'][0]['inv_input_name']).get_shape()
+                inv_input = tf.placeholder(dtype=tf.float32, name='new_input', shape=input_shape)
+                self.params['inv_model_specs'][0]['inv_input_name'] = 'new_input'
 
-                elif self.params['inv_model_type'].lower() == 'deconv_conv':
-                    reconstruction = deconv_conv_model(inv_input, self.params['inv_model_specs'], inv_target_shape)
-
-                elif self.params['inv_model_type'].lower() == 'deconv_deconv':
-                    reconstruction = deconv_deconv_model(inv_input, self.params['inv_model_specs'], inv_target_shape)
-
-                elif self.params['inv_model_type'].lower() == '3_conv_deconv':
-                    with tf.variable_scope('module_1'):
-                        one = conv_deconv_model(inv_input, self.params['inv_model_specs'][0], inv_target_shape)
-                    with tf.variable_scope('module_2'):
-                        two = conv_deconv_model(one, self.params['inv_model_specs'][1], inv_target_shape)
-                    with tf.variable_scope('module_3'):
-                        reconstruction = conv_deconv_model(two, self.params['inv_model_specs'][2], inv_target_shape)
-                else:
-                    raise NotImplementedError
+                self.build_model()
 
                 saver = tf.train.Saver()
-                saver.restore(sess, self.params['load_path'])
-
+                saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
+                reconstruction = graph.get_tensor_by_name('reconstruction:0')
                 rec_mat = sess.run(reconstruction, feed_dict={inv_input: inv_input_mat})
                 return rec_mat
 
-    def visualize(self, num_images=7, rec_type='bgr_normed', file_name='img_vs_rec', add_diffs=True):
+    def visualize(self, num_images=7, rec_type='bgr_normed', file_name='img_vs_rec', ckpt_num=3000, add_diffs=True):
         actual_batch_size = self.params['batch_size']
         assert num_images <= actual_batch_size
         self.params['batch_size'] = num_images
@@ -226,9 +193,10 @@ class LayerInversion:
             with tf.Session() as sess:
                 img_pl = tf.placeholder(dtype=tf.float32,
                                         shape=[self.params['batch_size'], self.img_hw, self.img_hw, self.img_channels])
-                self.build_model(img_pl)
+                self.load_classifier(img_pl)
+                self.build_model()
                 saver = tf.train.Saver()
-                saver.restore(sess, self.params['load_path'])
+                saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
                 feed_dict = {img_pl: next(batch_gen)}
                 reconstruction = graph.get_tensor_by_name('reconstruction:0')
                 rec_mat = sess.run(reconstruction, feed_dict=feed_dict)
@@ -282,7 +250,7 @@ class LayerInversion:
         ax.imshow(plot_mat, aspect='auto')
         plt.savefig(self.params['log_path'] + file_name + '.png', format='png', dpi=224)
 
-    def visualize_old(self, img_idx=0, rec_type='rgb_scaled'):
+    def visualize_old(self, img_idx=0, rec_type='rgb_scaled', ckpt_num=3000):
         actual_batch_size = self.params['batch_size']
         assert img_idx + 1 <= actual_batch_size
         self.params['batch_size'] = img_idx + 1
@@ -293,9 +261,10 @@ class LayerInversion:
             with tf.Session() as sess:
                 img_pl = tf.placeholder(dtype=tf.float32,
                                         shape=[self.params['batch_size'], self.img_hw, self.img_hw, self.img_channels])
-                self.build_model(img_pl)
+                self.load_classifier(img_pl)
+                self.build_model()
                 saver = tf.train.Saver()
-                saver.restore(sess, self.params['load_path'])
+                saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
                 feed_dict = {img_pl: next(batch_gen)}
                 reconstruction = graph.get_tensor_by_name('reconstruction:0')
                 rec_mat = sess.run(reconstruction, feed_dict=feed_dict)
@@ -343,7 +312,7 @@ def run_stacked_models(params_list, num_images=7, file_name='stacked_inversion')
     for p in params_list:
         p['batch_size'] = num_images
 
-    li = LayerInversion(params_list[0])
+    li = NetInversion(params_list[0])
 
     if params_list[0]['classifier'].lower() == 'vgg16':
         model = vgg16.Vgg16()
@@ -365,7 +334,7 @@ def run_stacked_models(params_list, num_images=7, file_name='stacked_inversion')
 
     # pass through models
     for params in params_list:
-        li = LayerInversion(params)
+        li = NetInversion(params)
         inv_input = li.run_inverse_model(inv_input)
         print(inv_input.shape)
 
