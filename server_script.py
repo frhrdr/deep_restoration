@@ -154,8 +154,8 @@ specs3 = dict(op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
 params = dict(classifier='vgg16', inv_input_name='pool1:0', inv_target_name='bgr_normed:0',
               inv_model_type='3_deconv_conv',
               inv_model_specs=[specs1, specs2, specs3],
-              log_path='./logs/layer_inversion/vgg16/l3_dc/run2/',
-              load_path='./logs/layer_inversion/vgg16/l3_dc/run2/ckpt-3000')
+              log_path='./logs/layer_inversion/vgg16/stack_l123_dc_dc_dc/run2/',
+              load_path='./logs/layer_inversion/vgg16/stack_l123_dc_dc_dc/run2/ckpt-3000')
 params.update(default_params())
 # params['batch_size'] = 2
 print(params)
