@@ -44,13 +44,16 @@ class LayerInversion:
             reconstruction = deconv_conv_model(inv_input, self.params['inv_model_specs'], inv_target_shape)
         elif self.params['inv_model_type'].lower() == 'deconv_deconv':
             reconstruction = deconv_deconv_model(inv_input, self.params['inv_model_specs'], inv_target_shape)
-        elif self.params['inv_model_type'].lower() == '3_conv_deconv':
+        elif self.params['inv_model_type'].lower() == '3_deconv_conv':
             with tf.variable_scope('module_1'):
-                one = conv_deconv_model(inv_input, self.params['inv_model_specs'][0], inv_target_shape)
+                inv_target_shape = self.params['inv_model_specs'][0]['target_shape']
+                one = deconv_conv_model(inv_input, self.params['inv_model_specs'][0], inv_target_shape)
             with tf.variable_scope('module_2'):
-                two = conv_deconv_model(one, self.params['inv_model_specs'][1], inv_target_shape)
+                inv_target_shape = self.params['inv_model_specs'][1]['target_shape']
+                two = deconv_conv_model(one, self.params['inv_model_specs'][1], inv_target_shape)
             with tf.variable_scope('module_3'):
-                reconstruction = conv_deconv_model(two, self.params['inv_model_specs'][2], inv_target_shape)
+                inv_target_shape = self.params['inv_model_specs'][2]['target_shape']
+                reconstruction = deconv_conv_model(two, self.params['inv_model_specs'][2], inv_target_shape)
         else:
             raise NotImplementedError
 
@@ -152,7 +155,7 @@ class LayerInversion:
 
                     if (count + 1) % self.params['log_freq'] == 0 or (count + 1) == self.params['num_iterations']:
                         checkpoint_file = os.path.join(self.params['log_path'], 'ckpt')
-                        saver.save(sess, checkpoint_file, global_step=(count + 1))
+                        saver.save(sess, checkpoint_file, global_step=(count + 1), write_meta_graph=False)
 
                     if self.params['test_freq'] > 0 and ((count + 1) % self.params['test_freq'] == 0 or
                                                          (count + 1) == self.params['num_iterations']):
