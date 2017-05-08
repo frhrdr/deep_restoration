@@ -150,7 +150,7 @@ class LayerInversion:
 
                     if (count + 1) % self.params['print_freq'] == 0:
                         summary_writer.flush()
-                        print(('Iteration: {0:6d} Train Error: {1:8.3f} ' +
+                        print(('Iteration: {0:6d} Training Error:   {1:8.3f} ' +
                                'Time: {2:5.1f} min').format(count + 1, batch_loss, (time.time() - start_time) / 60))
 
                     if (count + 1) % self.params['log_freq'] == 0 or (count + 1) == self.params['num_iterations']:
@@ -215,7 +215,7 @@ class LayerInversion:
                 rec_mat = sess.run(reconstruction, feed_dict={inv_input: inv_input_mat})
                 return rec_mat
 
-    def visualize(self, num_images=5, rec_type='rgb_scaled', file_name='img_vs_rec', add_diffs=True):
+    def visualize(self, num_images=7, rec_type='bgr_normed', file_name='img_vs_rec', add_diffs=True):
         actual_batch_size = self.params['batch_size']
         assert num_images <= actual_batch_size
         self.params['batch_size'] = num_images

@@ -1,163 +1,31 @@
 from layer_inversion import LayerInversion
 from parameter_utils import default_params
 
-# params = Parameters(classifier='alexnet', inv_input_name='conv1/relu:0', inv_target_name='rgb_scaled:0',
-#                     inv_model='conv_deconv',
-#                     op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
-#                     op2_height=5, op2_width=5, op2_strides=[1, 4, 4, 1],
-#                     hidden_channels=96,
-#                     learning_rate=0.0001, batch_size=10, num_iterations=100,
-#                     optimizer=tf.train.AdamOptimizer,
-#                     data_path='./data/imagenet2012-validationset/', images_file='images.txt',
-#                     log_path='./logs/alexnet_inversion_layer_1/run7/',
-#                     load_path='./logs/alexnet_inversion_layer_1/run7/ckpt-100',
-#                     print_freq=10, log_freq=1000, test_freq=-1, test_set_size=2000)
+specs = dict(op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
+             op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
+             hidden_channels=128, target_shape=[112, 112, 128])
 
-# params = Parameters(classifier='alexnet', inv_input_name='conv1/relu:0', inv_target_name='rgb_scaled:0',
-#                     inv_model='deconv_conv',
-#                     op1_height=5, op1_width=5, op1_strides=[1, 4, 4, 1],
-#                     op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-#                     hidden_channels=96,
-#                     learning_rate=0.0001, batch_size=10, num_iterations=3000,
-#                     optimizer=tf.train.AdamOptimizer,
-#                     data_path='./data/imagenet2012-validationset/',
-#                     train_images_file='train_48k_images.txt',
-#                     validation_images_file='validate_2k_images.txt',
-#                     log_path='./logs/layer_inversion/alexnet/l1_dc/run1/',
-#                     load_path='./logs/layer_inversion/alexnet/l1_dc/run1/ckpt-3000',
-#                     print_freq=100, log_freq=1000, test_freq=-1, test_set_size=2000)
-
-# params = Parameters(classifier='vgg16', inv_input_name='conv1_1/relu:0', inv_target_name='rgb_scaled:0',
-#                     inv_model='deconv_conv',
-#                     op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
-#                     op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-#                     hidden_channels=64,
-#                     learning_rate=0.0001, batch_size=10, num_iterations=3000,
-#                     optimizer=tf.train.AdamOptimizer,
-#                     data_path='./data/imagenet2012-validationset/',
-#                     train_images_file='train_48k_images.txt',
-#                     validation_images_file='validate_2k_images.txt',
-#                     log_path='./logs/layer_inversion/vgg16/l1_dc/run1/',
-#                     load_path='./logs/layer_inversion/vgg16/l1_dc/run1/ckpt-3000',
-#                     print_freq=100, log_freq=1000, test_freq=-1, test_set_size=2000)
-
-# params = Parameters(classifier='alexnet', inv_input_name='conv1/relu:0', inv_target_name='bgr_normed:0',
-#                     inv_model='deconv_conv',
-#                     op1_height=11, op1_width=11, op1_strides=[1, 4, 4, 1],
-#                     op2_height=11, op2_width=11, op2_strides=[1, 1, 1, 1],
-#                     hidden_channels=96,
-#                     learning_rate=0.0003, batch_size=32, num_iterations=3000,
-#                     optimizer='adam',
-#                     data_path='./data/imagenet2012-validationset/',
-#                     train_images_file='train_48k_images.txt',
-#                     validation_images_file='validate_2k_images.txt',
-#                     log_path='./logs/layer_inversion/alexnet/l1_dc/run2/',
-#                     load_path='./logs/layer_inversion/alexnet/l1_dc/run2/ckpt-3000',
-#                     print_freq=100, log_freq=1000, test_freq=100, test_set_size=200)
-# print(params)
-# li = LayerInversion(params)
-# li.train()
-#
-# params = Parameters(classifier='alexnet', inv_input_name='conv1/relu:0', inv_target_name='bgr_normed:0',
-#                     inv_model='deconv_deconv',
-#                     op1_height=11, op1_width=11, op1_strides=[1, 4, 4, 1],
-#                     op2_height=11, op2_width=11, op2_strides=[1, 1, 1, 1],
-#                     hidden_channels=96,
-#                     learning_rate=0.0003, batch_size=32, num_iterations=3000,
-#                     optimizer='adam',
-#                     data_path='./data/imagenet2012-validationset/',
-#                     train_images_file='train_48k_images.txt',
-#                     validation_images_file='validate_2k_images.txt',
-#                     log_path='./logs/layer_inversion/alexnet/l1_dd/run1/',
-#                     load_path='./logs/layer_inversion/alexnet/l1_dd/run1/ckpt-3000',
-#                     print_freq=100, log_freq=1000, test_freq=100, test_set_size=200)
-# print(params)
-# li = LayerInversion(params)
-# li.train()
-#
-# params = Parameters(classifier='vgg16', inv_input_name='conv1_2/relu:0', inv_target_name='conv1_1/relu:0',
-#                     inv_model='conv_deconv',
-#                     op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
-#                     op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-#                     hidden_channels=64,
-#                     learning_rate=0.0003, batch_size=32, num_iterations=3000,
-#                     optimizer='adam',
-#                     data_path='./data/imagenet2012-validationset/',
-#                     train_images_file='train_48k_images.txt',
-#                     validation_images_file='validate_2k_images.txt',
-#                     log_path='./logs/layer_inversion/vgg16/l2_cd/run1/',
-#                     load_path='./logs/layer_inversion/vgg16/l2_cd/run1/ckpt-3000',
-#                     print_freq=100, log_freq=1000, test_freq=100, test_set_size=200)
-# print(params)
-# li = LayerInversion(params)
-# li.train()
-
-# params = Parameters(classifier='vgg16', inv_input_name='pool1:0', inv_target_name='conv1_2/relu:0',
-#                     inv_model='conv_deconv',
-#                     op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
-#                     op2_height=5, op2_width=5, op2_strides=[1, 2, 2, 1],
-#                     hidden_channels=64,
-#                     learning_rate=0.0003, batch_size=32, num_iterations=3000,
-#                     optimizer='adam',
-#                     data_path='./data/imagenet2012-validationset/',
-#                     train_images_file='train_48k_images.txt',
-#                     validation_images_file='validate_2k_images.txt',
-#                     log_path='./logs/layer_inversion/vgg16/l3_cd/run1/',
-#                     load_path='./logs/layer_inversion/vgg16/l3_cd/run1/ckpt-3000',
-#                     print_freq=100, log_freq=1000, test_freq=100, test_set_size=200)
-# print(params)
-# li = LayerInversion(params)
-# li.train()
-
-# params = Parameters(classifier='vgg16', inv_input_name='pool1:0', inv_target_name='bgr_normed:0',
-#                     inv_model='deconv_conv',
-#                     op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1],
-#                     op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-#                     hidden_channels=64,
-#                     learning_rate=0.0003, batch_size=32, num_iterations=3000,
-#                     optimizer='adam',
-#                     data_path='./data/imagenet2012-validationset/',
-#                     train_images_file='train_48k_images.txt',
-#                     validation_images_file='validate_2k_images.txt',
-#                     log_path='./logs/layer_inversion/vgg16/l123_cd/run1/',
-#                     load_path='./logs/layer_inversion/vgg16/l123_cd/run1/ckpt-3000',
-#                     print_freq=100, log_freq=1000, test_freq=100, test_set_size=200)
-# print(params)
-# li = LayerInversion(params)
-# li.train()
-
-# params = Parameters(classifier='vgg16', inv_input_name='pool1:0', inv_target_name='conv1_2/relu:0',
-#                     inv_model='deconv_conv',
-#                     op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1],
-#                     op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-#                     hidden_channels=64,
-#                     learning_rate=0.0003, batch_size=32, num_iterations=3000,
-#                     optimizer='adam',
-#                     data_path='./data/imagenet2012-validationset/',
-#                     train_images_file='train_48k_images.txt',
-#                     validation_images_file='validate_2k_images.txt',
-#                     log_path='./logs/layer_inversion/vgg16/l3_dc/run1/',
-#                     load_path='./logs/layer_inversion/vgg16/l3_dc/run1/ckpt-3000',
-#                     print_freq=100, log_freq=1000, test_freq=100, test_set_size=200)
-
-
-specs1 = dict(op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1],
-              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-              hidden_channels=64, target_shape=[224, 224, 64])
-specs2 = dict(op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
-              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-              hidden_channels=64, target_shape=[224, 224, 64])
-specs3 = dict(op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
-              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-              hidden_channels=64, target_shape=[224, 224, 3])
-
-params = dict(classifier='vgg16', inv_input_name='pool1:0', inv_target_name='bgr_normed:0',
-              inv_model_type='3_deconv_conv',
-              inv_model_specs=[specs1, specs2, specs3],
-              log_path='./logs/layer_inversion/vgg16/stack_l123_dc_dc_dc/run2/',
-              load_path='./logs/layer_inversion/vgg16/stack_l123_dc_dc_dc/run2/ckpt-3000')
+params = dict(classifier='vgg16', inv_input_name='conv2_1/relu:0', inv_target_name='pool1:0',
+              inv_model_type='deconv_conv',
+              inv_model_specs=specs,
+              log_path='./logs/layer_inversion/vgg16/l4_dc/run1/',
+              load_path='./logs/layer_inversion/vgg16/l4_dc/run1/ckpt-3000')
 params.update(default_params())
-# params['batch_size'] = 2
+print(params)
+li = LayerInversion(params)
+li.train()
+
+
+specs = dict(op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
+             op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
+             hidden_channels=128, target_shape=[112, 112, 128])
+
+params = dict(classifier='vgg16', inv_input_name='conv2_2/relu:0', inv_target_name='conv2_1/relu:0',
+              inv_model_type='deconv_conv',
+              inv_model_specs=specs,
+              log_path='./logs/layer_inversion/vgg16/l5_dc/run1/',
+              load_path='./logs/layer_inversion/vgg16/l5_dc/run1/ckpt-3000')
+params.update(default_params())
 print(params)
 li = LayerInversion(params)
 li.train()
@@ -165,33 +33,74 @@ li.train()
 
 specs = dict(op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1],
              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-             hidden_channels=64)
-params = dict(classifier='vgg16', inv_input_name='pool1:0', inv_target_name='conv1_2/relu:0',
+             hidden_channels=128, target_shape=[112, 112, 128])
+
+params = dict(classifier='vgg16', inv_input_name='pool2:0', inv_target_name='conv2_2/relu:0',
               inv_model_type='deconv_conv',
               inv_model_specs=specs,
-              log_path='./logs/layer_inversion/vgg16/l3_dc/run2/',
-              load_path='./logs/layer_inversion/vgg16/l3_dc/run2/ckpt-3000')
+              log_path='./logs/layer_inversion/vgg16/l6_dc/run1/',
+              load_path='./logs/layer_inversion/vgg16/l6_dc/run1/ckpt-3000')
 params.update(default_params())
 print(params)
 li = LayerInversion(params)
 li.train()
 
-# params = Parameters(classifier='vgg16', inv_input_name='pool1/relu:0', inv_target_name='bgr_normed:0',
-#                     inv_model='conv_deconv',
-#                     op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
-#                     op2_height=5, op2_width=5, op2_strides=[1, 2, 2, 1],
-#                     hidden_channels=64,
-#                     learning_rate=0.0003, batch_size=32, num_iterations=3000,
-#                     optimizer='adam',
-#                     data_path='./data/imagenet2012-validationset/',
-#                     train_images_file='train_48k_images.txt',
-#                     validation_images_file='validate_2k_images.txt',
-#                     log_path='./logs/layer_inversion/vgg16/l123_cd/run1/',
-#                     load_path='./logs/layer_inversion/vgg16/l123_cd/run1/ckpt-3000',
-#                     print_freq=100, log_freq=1000, test_freq=100, test_set_size=200)
-# print(params)
-# li = LayerInversion(params)
-# li.train()
 
-# for idx in range(7):
-#     li.visualize(img_idx=idx, rec_type='bgr_normed')
+specs = dict(op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
+             op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
+             hidden_channels=256, target_shape=[56, 56, 128])
+
+params = dict(classifier='vgg16', inv_input_name='conv3_1/relu:0', inv_target_name='pool2:0',
+              inv_model_type='deconv_conv',
+              inv_model_specs=specs,
+              log_path='./logs/layer_inversion/vgg16/l7_dc/run1/',
+              load_path='./logs/layer_inversion/vgg16/l7_dc/run1/ckpt-3000')
+params.update(default_params())
+print(params)
+li = LayerInversion(params)
+li.train()
+
+
+specs = dict(op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
+             op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
+             hidden_channels=256, target_shape=[56, 56, 256])
+
+params = dict(classifier='vgg16', inv_input_name='conv3_2/relu:0', inv_target_name='conv3_1/relu:0',
+              inv_model_type='deconv_conv',
+              inv_model_specs=specs,
+              log_path='./logs/layer_inversion/vgg16/l8_dc/run1/',
+              load_path='./logs/layer_inversion/vgg16/l8_dc/run1/ckpt-3000')
+params.update(default_params())
+print(params)
+li = LayerInversion(params)
+li.train()
+
+
+specs = dict(op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
+             op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
+             hidden_channels=256, target_shape=[56, 56, 256])
+
+params = dict(classifier='vgg16', inv_input_name='conv3_3/relu:0', inv_target_name='conv3_2/relu:0',
+              inv_model_type='deconv_conv',
+              inv_model_specs=specs,
+              log_path='./logs/layer_inversion/vgg16/l9_dc/run1/',
+              load_path='./logs/layer_inversion/vgg16/l9_dc/run1/ckpt-3000')
+params.update(default_params())
+print(params)
+li = LayerInversion(params)
+li.train()
+
+
+specs = dict(op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1],
+             op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
+             hidden_channels=256, target_shape=[28, 28, 256])
+
+params = dict(classifier='vgg16', inv_input_name='pool3:0', inv_target_name='conv3_3/relu:0',
+              inv_model_type='deconv_conv',
+              inv_model_specs=specs,
+              log_path='./logs/layer_inversion/vgg16/l10_dc/run1/',
+              load_path='./logs/layer_inversion/vgg16/l10_dc/run1/ckpt-3000')
+params.update(default_params())
+print(params)
+li = LayerInversion(params)
+li.train()
