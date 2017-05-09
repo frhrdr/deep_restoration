@@ -197,13 +197,14 @@ class NetInversion:
                     self.params['inv_model_specs'] = [self.params['inv_model_specs']]
                 input_shape = graph.get_tensor_by_name(self.params['inv_model_specs'][0]['inv_input_name']).get_shape()
                 inv_input = tf.placeholder(dtype=tf.float32, name='new_input', shape=input_shape)
-                self.params['inv_model_specs'][0]['inv_input_name'] = 'new_input'
+                self.params['inv_model_specs'][0]['inv_input_name'] = 'new_input:0'
 
                 self.build_model()
 
                 saver = tf.train.Saver()
                 saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
-                reconstruction = graph.get_tensor_by_name('reconstruction:0')
+                rec_tensor_name = 'module_' + str(len(self.params['inv_model_specs'])) + '/reconstruction:0'
+                reconstruction = graph.get_tensor_by_name(rec_tensor_name)
                 rec_mat = sess.run(reconstruction, feed_dict={inv_input: inv_input_mat})
                 return rec_mat
 
@@ -351,16 +352,20 @@ def run_stacked_models(params_list, num_images=7, file_name='stacked_inversion')
             img_pl = tf.placeholder(dtype=tf.float32,
                                     shape=[li.params['batch_size'], li.img_hw, li.img_hw, li.img_channels])
             model.build(img_pl)
-            inv_input_tensor = graph.get_tensor_by_name(params_list[0]['inv_input_name'])
-            inv_target_tensor = graph.get_tensor_by_name(params_list[-1]['inv_target_name'])
+            inv_input_tensor = graph.get_tensor_by_name(params_list[0]['inv_model_specs'][0]['inv_input_name'])
+            inv_target_tensor = graph.get_tensor_by_name(params_list[-1]['inv_model_specs'][-1]['inv_target_name'])
             batch_gen = li.get_batch_generator(mode='validate')
             img_target = next(batch_gen)
             inv_input, inv_target = sess.run([inv_input_tensor, inv_target_tensor], feed_dict={img_pl: img_target})
 
     # pass through models
     for params in params_list:
+        if 'ckpt_num' in params:
+            ckpt_num = params['ckpt_num']
+        else:
+            ckpt_num = 3000
         li = NetInversion(params)
-        inv_input = li.run_inverse_model(inv_input)
+        inv_input = li.run_inverse_model(inv_input, ckpt_num=ckpt_num)
         print(inv_input.shape)
 
     # visualize final reconstruction
