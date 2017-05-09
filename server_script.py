@@ -17,7 +17,6 @@ params = dict(classifier='alexnet',
               load_path='')
 
 params.update(default_params())
-params['batch_size'] = 2
 print(params)
 ni = NetInversion(params)
 ni.train()
