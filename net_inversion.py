@@ -46,11 +46,11 @@ class NetInversion:
             inv_target = graph.get_tensor_by_name(spec['inv_target_name'])
             inv_target_shape = [k.value for k in inv_target.get_shape()[1:]]
             with tf.variable_scope('module_' + str(idx + 1)):
-                if self.params['inv_model_type'].lower() == 'conv_deconv':
+                if spec['inv_model_type'].lower() == 'conv_deconv':
                     reconstruction = conv_deconv_model(inv_input, spec, inv_target_shape)
-                elif self.params['inv_model_type'].lower() == 'deconv_conv':
+                elif spec['inv_model_type'].lower() == 'deconv_conv':
                     reconstruction = deconv_conv_model(inv_input, spec, inv_target_shape)
-                elif self.params['inv_model_type'].lower() == 'deconv_deconv':
+                elif spec['inv_model_type'].lower() == 'deconv_deconv':
                     reconstruction = deconv_deconv_model(inv_input, spec, inv_target_shape)
                 else:
                     raise NotImplementedError
@@ -60,8 +60,10 @@ class NetInversion:
                 if spec['add_loss']:
                     loss += tf.losses.mean_squared_error(inv_target, reconstruction)
 
+        assert not isinstance(loss, float), 'No loss specified'
         if self.params['optimizer'].lower() == 'adam':
-            train_op = tf.train.AdamOptimizer(learning_rate=self.params['learning_rate']).minimize(loss)
+            adam = tf.train.AdamOptimizer(learning_rate=self.params['learning_rate'])
+            train_op = adam.minimize(loss)
         else:
             raise NotImplementedError
 
@@ -116,7 +118,7 @@ class NetInversion:
         save_dict(self.params, self.params['log_path'] + 'params.txt')
 
         batch_gen = self.get_batch_generator(mode='train')
-        with tf.Graph().as_default():
+        with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
                 img_pl = tf.placeholder(dtype=tf.float32, shape=[self.params['batch_size'], self.img_hw,
                                                                  self.img_hw, self.img_channels])
@@ -126,20 +128,35 @@ class NetInversion:
                 train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(sess.graph, loss)
 
                 if self.params['load_path']:
-                    saver.restore(sess, self.params['load_path'])
+                    global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+                    train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+                    init_vars = [v for v in global_vars if v not in train_vars]
+                    sess.run(tf.variables_initializer(init_vars))
+
+                    if 'layer_inversion' in self.params['load_path']:  # try for backwards compatibility
+                        load_vars = dict()
+                        for var in tf.trainable_variables():
+                            load_vars[var.name[len('module_1/'):-len(':0')]] = var
+                    else:
+                        load_vars = tf.trainable_variables()
+
+                    loader = tf.train.Saver(var_list=load_vars)
+                    loader.restore(sess, self.params['load_path'])
+
                 else:
                     sess.run(tf.global_variables_initializer())
 
                 start_time = time.time()
                 for count in range(self.params['num_iterations']):
                     feed_dict = {img_pl: next(batch_gen)}
+
                     batch_loss, _, summary_string = sess.run([loss, train_op, train_summary_op],
                                                              feed_dict=feed_dict)
                     summary_writer.add_summary(summary_string, count)
 
                     if (count + 1) % self.params['print_freq'] == 0:
                         summary_writer.flush()
-                        print(('Iteration: {0:6d} Training Error:   {1:8.3f} ' +
+                        print(('Iteration: {0:6d} Training Error:   {1:9.2f} ' +
                                'Time: {2:5.1f} min').format(count + 1, batch_loss, (time.time() - start_time) / 60))
 
                     if (count + 1) % self.params['log_freq'] == 0 or (count + 1) == self.params['num_iterations']:
@@ -158,7 +175,7 @@ class NetInversion:
                         val_loss_acc /= num_runs
                         val_summary_string = sess.run(val_summary_op, feed_dict={val_loss: val_loss_acc})
                         summary_writer.add_summary(val_summary_string, count)
-                        print(('Iteration: {0:6d} Validation Error: {1:8.3f} ' +
+                        print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
                                'Time: {2:5.1f} min').format(count + 1, val_loss_acc, (time.time() - start_time) / 60))
 
     def run_inverse_model(self, inv_input_mat, ckpt_num=3000):

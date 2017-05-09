@@ -150,7 +150,7 @@ class LayerInversion:
 
                     if (count + 1) % self.params['print_freq'] == 0:
                         summary_writer.flush()
-                        print(('Iteration: {0:6d} Training Error:   {1:8.3f} ' +
+                        print(('Iteration: {0:6d} Training Error:   {1:9.2f} ' +
                                'Time: {2:5.1f} min').format(count + 1, batch_loss, (time.time() - start_time) / 60))
 
                     if (count + 1) % self.params['log_freq'] == 0 or (count + 1) == self.params['num_iterations']:
@@ -169,7 +169,7 @@ class LayerInversion:
                         val_loss_acc /= num_runs
                         val_summary_string = sess.run(val_summary_op, feed_dict={val_loss: val_loss_acc})
                         summary_writer.add_summary(val_summary_string, count)
-                        print(('Iteration: {0:6d} Validation Error: {1:8.3f} ' +
+                        print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
                                'Time: {2:5.1f} min').format(count + 1, val_loss_acc, (time.time() - start_time) / 60))
 
     def run_inverse_model(self, inv_input_mat):
