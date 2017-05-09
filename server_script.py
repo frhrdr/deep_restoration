@@ -56,6 +56,7 @@ params = dict(classifier='vgg16', inv_input_name='conv3_1/relu:0', inv_target_na
               log_path='./logs/layer_inversion/vgg16/l7_dc/run1/',
               load_path='')
 params.update(default_params())
+params['num_iterations'] = 5000
 print(params)
 li = LayerInversion(params)
 li.train()
@@ -71,6 +72,7 @@ params = dict(classifier='vgg16', inv_input_name='conv3_2/relu:0', inv_target_na
               log_path='./logs/layer_inversion/vgg16/l8_dc/run1/',
               load_path='')
 params.update(default_params())
+params['num_iterations'] = 5000
 print(params)
 li = LayerInversion(params)
 li.train()
@@ -86,6 +88,7 @@ params = dict(classifier='vgg16', inv_input_name='conv3_3/relu:0', inv_target_na
               log_path='./logs/layer_inversion/vgg16/l9_dc/run1/',
               load_path='')
 params.update(default_params())
+params['num_iterations'] = 5000
 print(params)
 li = LayerInversion(params)
 li.train()
@@ -101,6 +104,7 @@ params = dict(classifier='vgg16', inv_input_name='pool3:0', inv_target_name='con
               log_path='./logs/layer_inversion/vgg16/l10_dc/run1/',
               load_path='')
 params.update(default_params())
+params['num_iterations'] = 5000
 print(params)
 li = LayerInversion(params)
 li.train()
