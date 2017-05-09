@@ -118,7 +118,7 @@ class NetInversion:
         save_dict(self.params, self.params['log_path'] + 'params.txt')
 
         batch_gen = self.get_batch_generator(mode='train')
-        with tf.Graph().as_default() as graph:
+        with tf.Graph().as_default():
             with tf.Session() as sess:
                 img_pl = tf.placeholder(dtype=tf.float32, shape=[self.params['batch_size'], self.img_hw,
                                                                  self.img_hw, self.img_channels])
@@ -147,11 +147,15 @@ class NetInversion:
                     sess.run(tf.global_variables_initializer())
 
                 start_time = time.time()
+                train_time = 0.0
                 for count in range(self.params['num_iterations']):
                     feed_dict = {img_pl: next(batch_gen)}
 
+                    batch_start = time.time()
                     batch_loss, _, summary_string = sess.run([loss, train_op, train_summary_op],
                                                              feed_dict=feed_dict)
+                    train_time += time.time() - batch_start
+
                     summary_writer.add_summary(summary_string, count)
 
                     if (count + 1) % self.params['print_freq'] == 0:
@@ -177,6 +181,9 @@ class NetInversion:
                         summary_writer.add_summary(val_summary_string, count)
                         print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
                                'Time: {2:5.1f} min').format(count + 1, val_loss_acc, (time.time() - start_time) / 60))
+                sess_time = time.time() - start_time
+                train_ratio = train_time / sess_time
+                print('Session finished. {0:2.1f}% of the time spent in run calls'.format(train_ratio))
 
     def run_inverse_model(self, inv_input_mat, ckpt_num=3000):
         with tf.Graph().as_default() as graph:
