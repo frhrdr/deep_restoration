@@ -69,10 +69,10 @@ class NetInversion:
 
         return loss, train_op
 
-    def build_logging(self, graph, loss):
+    def build_logging(self, loss):
         tf.summary.scalar('mse_loss', loss)
         train_summary_op = tf.summary.merge_all()
-        summary_writer = tf.summary.FileWriter(self.params['log_path'] + '/summaries', graph)
+        summary_writer = tf.summary.FileWriter(self.params['log_path'] + '/summaries')
         saver = tf.train.Saver()
 
         val_loss = tf.placeholder(dtype=tf.float32, shape=[], name='val_loss')
@@ -125,7 +125,7 @@ class NetInversion:
 
                 self.load_classifier(img_pl)
                 loss, train_op = self.build_model()
-                train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(sess.graph, loss)
+                train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
 
                 if self.params['load_path']:
                     global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
@@ -156,7 +156,8 @@ class NetInversion:
                                                              feed_dict=feed_dict)
                     train_time += time.time() - batch_start
 
-                    summary_writer.add_summary(summary_string, count)
+                    if (count + 1) % self.params['summary_freq'] == 0:
+                        summary_writer.add_summary(summary_string, count)
 
                     if (count + 1) % self.params['print_freq'] == 0:
                         summary_writer.flush()
@@ -182,7 +183,7 @@ class NetInversion:
                         print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
                                'Time: {2:5.1f} min').format(count + 1, val_loss_acc, (time.time() - start_time) / 60))
                 sess_time = time.time() - start_time
-                train_ratio = train_time / sess_time
+                train_ratio = 100.0 * train_time / sess_time
                 print('Session finished. {0:2.1f}% of the time spent in run calls'.format(train_ratio))
 
     def run_inverse_model(self, inv_input_mat, ckpt_num=3000):

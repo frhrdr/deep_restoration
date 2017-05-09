@@ -37,6 +37,7 @@ def default_params():
                 train_images_file='train_48k_images.txt',
                 validation_images_file='validate_2k_images.txt',
                 print_freq=100, log_freq=1000, test_freq=100, test_set_size=200,
+                summary_freq=20,
                 channel_losses=False)
 
 

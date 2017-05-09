@@ -4,25 +4,23 @@ from parameter_utils import default_params
 
 
 spec1 = dict(inv_model_type='deconv_conv',
-             op1_height=11, op1_width=11, op1_strides=[1, 4, 4, 1],
-             op2_height=11, op2_width=11, op2_strides=[1, 1, 1, 1],
-             hidden_channels=96, target_shape=[224, 224, 3],
-             inv_input_name='conv1/relu:0', inv_target_name='bgr_normed:0',
+             op1_height=3, op1_width=3, op1_strides=[1, 2, 2, 1], op1_pad='VALID',
+             op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1], op2_pad='SAME',
+             hidden_channels=96, target_shape=[55, 55, 96],
+             inv_input_name='pool1:0', inv_target_name='conv1/relu:0',
              rec_name='reconstruction', add_loss=True)
 
 params = dict(classifier='alexnet',
               inv_model_type='deconv_conv',
               inv_model_specs=[spec1],
-              log_path='./logs/net_inversion/alexnet/l1_dc/run1/',
-              load_path='./logs/layer_inversion/alexnet/l1_dc/run2/ckpt-3000')
+              log_path='./logs/net_inversion/alexnet/l2_dc/run1/',
+              load_path='')
 
 params.update(default_params())
-params['num_iterations'] = 500
+params['batch_size'] = 2
 print(params)
-
 ni = NetInversion(params)
 ni.train()
-
 
 
 
