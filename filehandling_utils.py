@@ -9,6 +9,7 @@ import warnings
 import os
 
 DATA_PATH = './data/imagenet2012-validationset/'
+# DATA_PATH = './data/selected/'
 
 
 def get_labels(xml_data_dir='xml_annotations/', out_file='labels.txt', names_file='images.txt'):

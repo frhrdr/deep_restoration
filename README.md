@@ -10,6 +10,7 @@
 - create resized dataset for runtime speedups (done)
 - adapt code to allow stacking models (done - for now)
 - pretty up plotting functions (done - for now)
+- fix visualization for net images
 
 
 ### Notes

@@ -18,9 +18,12 @@ spec2 = dict(inv_model_type='deconv_conv',
 
 params = dict(classifier='alexnet',
               inv_model_specs=[spec1, spec2],
-              log_path='./logs/net_inversion/alexnet/l12_2dc/run1/',
+              log_path='./logs/net_inversion/alexnet/l12_2dc/run2/',
               load_path='')
 params.update(default_params())
 print(params)
 ni = NetInversion(params)
 ni.visualize()
+
+ni = NetInversion(selected_images(params))
+ni.visualize(file_name='selected_diff')

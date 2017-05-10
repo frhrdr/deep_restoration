@@ -238,7 +238,7 @@ class NetInversion:
 
         self.params['batch_size'] = actual_batch_size
 
-        img_mat = feed_dict[img_pl]
+        img_mat = feed_dict[img_pl] / 255.0
 
         if rec_type == 'rgb_scaled':
             rec_mat /= 255.0
