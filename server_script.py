@@ -17,8 +17,8 @@ spec2 = dict(inv_model_type='deconv_conv',
 
 params = dict(classifier='alexnet',
               inv_model_specs=[spec1, spec2],
-              log_path='./logs/net_inversion/alexnet/l12_2dc/run2/',
-              load_path='./logs/net_inversion/alexnet/l12_2dc/run1/ckpt-3000')
+              log_path='./logs/net_inversion/alexnet/l12_2dc/run3/',
+              load_path='./logs/net_inversion/alexnet/l12_2dc/run2/ckpt-3000')
 params.update(default_params())
 print(params)
 ni = NetInversion(params)
