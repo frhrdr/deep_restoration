@@ -31,7 +31,7 @@ class NetInversion:
         else:
             raise NotImplementedError
 
-        classifier.build(img_pl)
+        classifier.build(img_pl, rescale=1.0)
 
     def build_model(self):
         graph = tf.get_default_graph()
@@ -80,7 +80,7 @@ class NetInversion:
 
         return train_summary_op, summary_writer, saver, val_loss, val_summary_op
 
-    def get_batch_generator(self, mode='train'):
+    def get_batch_generator(self, mode='train', resize=False):
         if mode == 'train':
             img_file = self.params['train_images_file']
         elif mode == 'validate':
@@ -100,15 +100,22 @@ class NetInversion:
                 end = end - len(image_files)
                 batch_files = image_files[begin:] + image_files[:end]
             begin = end
-
-            batch_paths = [self.params['data_path'] + 'images/' + k for k in batch_files]
-            images = []
-            for img_path in batch_paths:
-                image = filehandling_utils.load_image(img_path)
-                if len(image.shape) == 2:
-                    image = grey2rgb(image)
-                images.append(image)
-            mat = np.stack(images, axis=0)
+            if resize:
+                batch_paths = [self.params['data_path'] + 'images/' + k for k in batch_files]
+                images = []
+                for img_path in batch_paths:
+                    image = filehandling_utils.load_image(img_path, resize=True)
+                    if len(image.shape) == 2:
+                        image = grey2rgb(image)
+                    images.append(image)
+                mat = np.stack(images, axis=0)
+            else:
+                batch_paths = [self.params['data_path'] + 'images_resized/' + k for k in batch_files]
+                images = []
+                for img_path in batch_paths:
+                    image = filehandling_utils.load_image(img_path, resize=False)
+                    images.append(image)
+                mat = np.stack(images, axis=0)
             yield mat
 
     def train(self):

@@ -5,6 +5,7 @@
 - enable loading weights to continue training
 - create reconstructions for deeper vgg layers and alexnet
 - find a way for loading dosovitskiy's caffe model into tensorflow or extract weights somehow
+- create resized dataset for runtime speedups (chose bmp over png for 3x faster acces at cost of 150% space)
 - adapt code to allow stacking models (done - for now)
 - pretty up plotting functions (done - for now)
 
