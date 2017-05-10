@@ -1,7 +1,6 @@
 from copy import deepcopy
 
 PARAMETER_KEYS = ['classifier',
-                  'inv_model_type',
                   'inv_model_specs',
                   'learning_rate', 'batch_size', 'num_iterations',
                   'optimizer',
@@ -10,7 +9,7 @@ PARAMETER_KEYS = ['classifier',
                   'print_freq', 'log_freq', 'test_freq',
                   'test_set_size', 'channel_losses']
 
-MODULE_KEYS = ['inv_input_name', 'inv_target_name', 'target_shape', 'rec_name', 'add_loss']
+MODULE_KEYS = ['inv_model_type', 'inv_input_name', 'inv_target_name', 'target_shape', 'rec_name', 'add_loss']
 
 
 def check_params(params, check_specs=True):

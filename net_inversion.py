@@ -110,7 +110,8 @@ class NetInversion:
                     images.append(image)
                 mat = np.stack(images, axis=0)
             else:
-                batch_paths = [self.params['data_path'] + 'images_resized/' + k for k in batch_files]
+                batch_paths = [self.params['data_path'] + 'images_resized/' +
+                               k[:-len('JPEG')] + 'bmp' for k in batch_files]
                 images = []
                 for img_path in batch_paths:
                     image = filehandling_utils.load_image(img_path, resize=False)

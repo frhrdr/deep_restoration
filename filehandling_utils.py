@@ -4,7 +4,6 @@ import skimage
 import skimage.io
 import skimage.transform
 from skimage.color import grey2rgb
-import numpy as np
 import time
 import warnings
 import os
