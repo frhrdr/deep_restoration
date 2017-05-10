@@ -232,7 +232,8 @@ class NetInversion:
                 saver = tf.train.Saver()
                 saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
                 feed_dict = {img_pl: next(batch_gen)}
-                reconstruction = graph.get_tensor_by_name('reconstruction:0')
+                rec_tensor_name = 'module_' + str(len(self.params['inv_model_specs'])) + '/reconstruction:0'
+                reconstruction = graph.get_tensor_by_name(rec_tensor_name)
                 rec_mat = sess.run(reconstruction, feed_dict=feed_dict)
 
         self.params['batch_size'] = actual_batch_size

@@ -7,42 +7,20 @@ spec1 = dict(inv_model_type='deconv_conv',
              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1], op2_pad='SAME',
              hidden_channels=96, target_shape=[55, 55, 96],
              inv_input_name='pool1:0', inv_target_name='conv1/relu:0',
-             rec_name='reconstruction', add_loss=True)
-
-param1 = dict(classifier='alexnet',
-              inv_model_type='deconv_conv',
-              inv_model_specs=[spec1],
-              log_path='./logs/net_inversion/alexnet/l2_dc/run1/',
-              load_path='')
+             rec_name='conv1_rec', add_loss=True)
 
 spec2 = dict(inv_model_type='deconv_conv',
              op1_height=11, op1_width=11, op1_strides=[1, 4, 4, 1], op1_pad='SAME',
              op2_height=11, op2_width=11, op2_strides=[1, 1, 1, 1], op2_pad='SAME',
-             hidden_channels=96, target_shape=[224, 224, 3],
-             inv_input_name='conv1/relu:0', inv_target_name='bgr_normed:0',
+             hidden_channels=96, target_shape=[224, 224, 96],
+             inv_input_name='module_1/conv1_rec:0', inv_target_name='bgr_normed:0',
              rec_name='reconstruction', add_loss=True)
 
-param2 = dict(classifier='alexnet',
-              inv_model_type='deconv_conv',
-              inv_model_specs=[spec2],
-              log_path='./logs/net_inversion/alexnet/l1_dc/run1/',
-              ckpt_num=500,
+params = dict(classifier='alexnet',
+              inv_model_specs=[spec1, spec2],
+              log_path='./logs/net_inversion/alexnet/l12_2dc/run1/',
               load_path='')
-
-
-param1.update(default_params())
-param2.update(default_params())
-
-run_stacked_models([param1, param2])
-run_stacked_models([selected_images(param1), selected_images(param2)], file_name='stacked_selected')
-# spec1 = dict(op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1],
-#              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-#              hidden_channels=128, target_shape=[112, 112, 128])
-#
-# param1 = dict(classifier='vgg16', inv_input_name='pool2:0', inv_target_name='conv2_2/relu:0',
-#               inv_model_type='deconv_conv',
-#               inv_model_specs=spec1,
-#               log_path='./logs/layer_inversion/vgg16/l6_dc/run1/',
-#               load_path='./logs/layer_inversion/vgg16/l6_dc/run1/ckpt-3000')
-#
-# param1.update(default_params())
+params.update(default_params())
+print(params)
+ni = NetInversion(params)
+ni.visualize()
