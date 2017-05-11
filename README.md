@@ -20,3 +20,5 @@
 
 #### Run Schedule
 
+curet texture
+vedaldi 19
