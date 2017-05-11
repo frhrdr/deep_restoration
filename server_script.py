@@ -62,7 +62,7 @@ spec9 = dict(inv_model_type='deconv_conv',
              op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1], op1_pad='SAME',
              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1], op2_pad='SAME',
              hidden_channels=64, target_shape=[224, 224, 64],
-             inv_input_name='module_8/conv1_2_rec:0', inv_target_name='conv1_1:0',
+             inv_input_name='module_8/conv1_2_rec:0', inv_target_name='conv1_1/relu:0',
              rec_name='conv1_1_rec', add_loss=True)
 
 spec10 = dict(inv_model_type='deconv_conv',
