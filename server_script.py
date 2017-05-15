@@ -77,6 +77,8 @@ params = dict(classifier='vgg16',
               log_path='./logs/net_inversion/vgg16/l1-10_10dc/run3/',
               load_path='./logs/net_inversion/vgg16/l1-10_10dc/run2/ckpt-3000')
 params.update(default_params())
+params['learning_rate'] = 0.000003
+
 print(params)
 ni = NetInversion(params)
 ni.train()
