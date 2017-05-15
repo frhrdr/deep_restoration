@@ -78,8 +78,8 @@ params = dict(classifier='vgg16',
               load_path='')
 params.update(default_params())
 # print(params)
-# ni = NetInversion(params)
-# ni.visualize()
+ni = NetInversion(params)
+ni.visualize()
 
 ni = NetInversion(selected_images(params))
 ni.visualize(file_name='selected_diff')

@@ -13,5 +13,5 @@
 - learning rate at 0.0003 seems good. 0.001 becomes a bit unstable (as in vgg16/l1_cd/run4)
 - startin at l4, vgg layers seem to require longer to train. either try upping lr, or train in multiple runs.
 - chose bmp over png for 3x faster acces at cost of 150% space
-
+- mahendran and vedaldi reference faulty caffe alexnet with first two lrn and mpool layers switched in order. (see discussion here: https://github.com/BVLC/caffe/issues/296) This should be kept in mind when comparing reconstrutions.
 #### Run Schedule
