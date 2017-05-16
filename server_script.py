@@ -9,73 +9,12 @@ params = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', laye
               learning_rate=0.004,
               num_iterations=2000,
               print_freq=50, log_freq=1000, summary_freq=10, lr_lower_freq=500,
-              grad_clip=100.0,
+              grad_clip=1000.0,
               log_path='./logs/mahendran_vedaldi/vgg16/l1/',
               save_as_mat=True)
 
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv1_2/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l2/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'pool1:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l3/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv2_1/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l4/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv2_2/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l5/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'pool2:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l6/'
-invert_layer(params)
 
 params['lambda_tv'] = 5.0
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv3_1/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l7/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv3_2/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l8/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv3_3/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l9/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'pool3:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l10/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv4_1/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l11/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv4_2/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l12/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv4_3/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l13/'
-invert_layer(params)
 
 params['learning_rate'] = 0.004
 params['layer_name'] = 'pool4:0'
@@ -83,11 +22,6 @@ params['log_path'] = './logs/mahendran_vedaldi/vgg16/l14/'
 invert_layer(params)
 
 params['lambda_tv'] = 50.0
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv5_1/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l15/'
-invert_layer(params)
 
 params['learning_rate'] = 0.004
 params['layer_name'] = 'conv5_2/relu:0'
@@ -102,16 +36,6 @@ invert_layer(params)
 params['learning_rate'] = 0.004
 params['layer_name'] = 'pool5:0'
 params['log_path'] = './logs/mahendran_vedaldi/vgg16/l18/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'fc6/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l19/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'fc7/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l20/'
 invert_layer(params)
 
 params['learning_rate'] = 0.004
