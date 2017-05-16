@@ -171,11 +171,13 @@ def mat_to_image(mat_file):
     ax.set_axis_off()
     fig.add_axes(ax)
     ax.imshow(plot_mat, aspect='auto')
-    plt.savefig(mat_file[:len('npy')] + 'png', format='png', dpi=224)
+    save_path = mat_file[:-len('npy')] + 'png'
+    plt.savefig(save_path, format='png', dpi=224)
+    plt.close()
 
 
 def transform_all():
     for l in range(1, 21):
-        for c in range(1, 5):
-            mat_to_image('./logs/mahendran_vedaldi/alexnet/l{0}/rec_{1}.npy'.format(l, c))
+        for c in range(1, 3):
+            mat_to_image('./logs/mahendran_vedaldi/alexnet/l{0}/rec_{1}000.npy'.format(l, c))
 
