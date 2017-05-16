@@ -7,50 +7,50 @@ params = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', laye
               lambda_l2=2.16e+8, lambda_tv=5e-1,
               sigma=2.7098e+4,
               learning_rate=0.004,
-              num_iterations=4000,
+              num_iterations=2000,
               print_freq=50, log_freq=1000, summary_freq=10, lr_lower_freq=500,
               grad_clip=100.0,
               log_path='./logs/mahendran_vedaldi/alexnet/l1/',
               save_as_mat=True)
 
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv2/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/alexnet/l2/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'lrn1:0'
-params['log_path'] = './logs/mahendran_vedaldi/alexnet/l3/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'pool1:0'
-params['log_path'] = './logs/mahendran_vedaldi/alexnet/l4/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv2/lin:0'
-params['log_path'] = './logs/mahendran_vedaldi/alexnet/l5/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'conv2/relu:0'
-params['log_path'] = './logs/mahendran_vedaldi/alexnet/l6/'
-invert_layer(params)
+# invert_layer(params)
+#
+# params['learning_rate'] = 0.004
+# params['layer_name'] = 'conv2/relu:0'
+# params['log_path'] = './logs/mahendran_vedaldi/alexnet/l2/'
+# invert_layer(params)
+#
+# params['learning_rate'] = 0.004
+# params['layer_name'] = 'lrn1:0'
+# params['log_path'] = './logs/mahendran_vedaldi/alexnet/l3/'
+# invert_layer(params)
+#
+# params['learning_rate'] = 0.004
+# params['layer_name'] = 'pool1:0'
+# params['log_path'] = './logs/mahendran_vedaldi/alexnet/l4/'
+# invert_layer(params)
+#
+# params['learning_rate'] = 0.004
+# params['layer_name'] = 'conv2/lin:0'
+# params['log_path'] = './logs/mahendran_vedaldi/alexnet/l5/'
+# invert_layer(params)
+#
+# params['learning_rate'] = 0.004
+# params['layer_name'] = 'conv2/relu:0'
+# params['log_path'] = './logs/mahendran_vedaldi/alexnet/l6/'
+# invert_layer(params)
 
 params['lambda_tv'] = 5.0
 
-params['learning_rate'] = 0.004
-params['layer_name'] = 'lrn2:0'
-params['log_path'] = './logs/mahendran_vedaldi/alexnet/l7/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'pool2:0'
-params['log_path'] = './logs/mahendran_vedaldi/alexnet/l8/'
-invert_layer(params)
+# params['learning_rate'] = 0.004
+# params['layer_name'] = 'lrn2:0'
+# params['log_path'] = './logs/mahendran_vedaldi/alexnet/l7/'
+# invert_layer(params)
+#
+# params['learning_rate'] = 0.004
+# params['layer_name'] = 'pool2:0'
+# params['log_path'] = './logs/mahendran_vedaldi/alexnet/l8/'
+# invert_layer(params)
 
 params['learning_rate'] = 0.004
 params['layer_name'] = 'conv3/lin:0'

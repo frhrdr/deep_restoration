@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('tkagg', force=True)
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 import skimage
@@ -7,6 +9,8 @@ from skimage.color import grey2rgb
 import time
 import warnings
 import os
+import numpy as np
+import matplotlib.pyplot as plt
 
 DATA_PATH = './data/imagenet2012-validationset/'
 # DATA_PATH = './data/selected/'
@@ -157,3 +161,23 @@ def measure_format_access_speeds():
     for c in count:
         image = load_image(DATA_PATH + 'images/ILSVRC2012_val_00000001' + '.JPEG', resize=True)
     print('jpg: ' + str(time.time() - t))
+
+
+def mat_to_image(mat_file):
+    plot_mat = np.load(mat_file)
+    fig = plt.figure(frameon=False)
+    fig.set_size_inches(2, 1)
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+    ax.imshow(plot_mat, aspect='auto')
+    plt.savefig(mat_file[:len('npy')] + 'png', format='png', dpi=224)
+
+
+def transform_all():
+    for l in range(1, 21):
+        for c in range(1, 5):
+            mat_to_image('./logs/mahendran_vedaldi/alexnet/l{0}/rec_{1}.npy'.format(l, c))
+
+
+transform_all()
