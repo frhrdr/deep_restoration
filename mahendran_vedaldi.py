@@ -19,7 +19,8 @@ PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', laye
               num_iterations=10000,
               print_freq=50, log_freq=500, summary_freq=10, lr_lower_freq=500,
               grad_clip=100.0,
-              log_path='./logs/mahendran_vedaldi/run3/')
+              log_path='./logs/mahendran_vedaldi/run3/',
+              save_as_mat=False)
 
 
 def alpha_norm_prior(tensor, alpha):
@@ -125,11 +126,13 @@ def invert_layer(params):
                     # rec_mat = np.minimum(np.maximum(rec_mat * params['sigma'] / 255.0, 0.0), 1.0)
                     rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))  # M&V just rescale
                     plot_mat[:, 224:, :] = rec_mat
-
-                    fig = plt.figure(frameon=False)
-                    fig.set_size_inches(2, 1)
-                    ax = plt.Axes(fig, [0., 0., 1., 1.])
-                    ax.set_axis_off()
-                    fig.add_axes(ax)
-                    ax.imshow(plot_mat, aspect='auto')
-                    plt.savefig(params['log_path'] + 'rec_' + str(count + 1) + '.png', format='png', dpi=224)
+                    if params['save_as_mat']:
+                        np.save(params['log_path'] + 'rec_' + str(count + 1) + '.npy', plot_mat)
+                    else:
+                        fig = plt.figure(frameon=False)
+                        fig.set_size_inches(2, 1)
+                        ax = plt.Axes(fig, [0., 0., 1., 1.])
+                        ax.set_axis_off()
+                        fig.add_axes(ax)
+                        ax.imshow(plot_mat, aspect='auto')
+                        plt.savefig(params['log_path'] + 'rec_' + str(count + 1) + '.png', format='png', dpi=224)

@@ -10,7 +10,8 @@ params = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', laye
               num_iterations=4000,
               print_freq=50, log_freq=1000, summary_freq=10, lr_lower_freq=500,
               grad_clip=100.0,
-              log_path='./logs/mahendran_vedaldi/alexnet/l1/')
+              log_path='./logs/mahendran_vedaldi/alexnet/l1/',
+              save_as_mat=True)
 
 invert_layer(params)
 
