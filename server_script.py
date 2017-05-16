@@ -6,10 +6,10 @@ params = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', laye
               alpha_l2=6, beta_tv=2,
               lambda_l2=2.16e+8, lambda_tv=5e-1,
               sigma=2.7098e+4,
-              learning_rate=0.004,
+              learning_rate=0.0004,
               num_iterations=2000,
               print_freq=50, log_freq=1000, summary_freq=10, lr_lower_freq=500,
-              grad_clip=1000.0,
+              grad_clip=100000000.0,
               log_path='./logs/mahendran_vedaldi/vgg16/l1/',
               save_as_mat=True)
 
