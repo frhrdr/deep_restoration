@@ -9,7 +9,7 @@ params = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', laye
               learning_rate=0.0004,
               num_iterations=2000,
               print_freq=50, log_freq=1000, summary_freq=10, lr_lower_freq=500,
-              grad_clip=100000000.0,
+              grad_clip=1.0,
               log_path='./logs/mahendran_vedaldi/vgg16/l1/',
               save_as_mat=True)
 
