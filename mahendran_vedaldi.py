@@ -8,7 +8,7 @@ import time
 from filehandling_utils import save_dict
 import numpy as np
 import matplotlib.pyplot as plt
-
+import os
 
 PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3_3/relu:0',
               classifier='vgg16',
@@ -42,6 +42,9 @@ def total_variation_prior(tensor, beta):
 
 
 def invert_layer(params):
+    if not os.path.exists(params['log_path']):
+        os.makedirs(params['log_path'])
+
     save_dict(params, params['log_path'] + 'params.txt')
 
     with tf.Graph().as_default() as graph:
@@ -120,7 +123,7 @@ def invert_layer(params):
                     plot_mat[:, :224, :] = img_mat / 255.0
 
                     # rec_mat = np.minimum(np.maximum(rec_mat * params['sigma'] / 255.0, 0.0), 1.0)
-                    rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat)) # seems M&V just rescale
+                    rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))  # M&V just rescale
                     plot_mat[:, 224:, :] = rec_mat
 
                     fig = plt.figure(frameon=False)
@@ -130,6 +133,3 @@ def invert_layer(params):
                     fig.add_axes(ax)
                     ax.imshow(plot_mat, aspect='auto')
                     plt.savefig(params['log_path'] + 'rec_' + str(count + 1) + '.png', format='png', dpi=224)
-
-
-invert_layer(PARAMS)
