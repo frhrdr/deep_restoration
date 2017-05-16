@@ -177,7 +177,8 @@ def mat_to_image(mat_file):
 
 
 def transform_all():
-    for l in range(1, 22):
-        for c in range(1, 3):
-            mat_to_image('./logs/mahendran_vedaldi/vgg16/l{0}/rec_{1}000.npy'.format(l, c))
+    # for l in range(1, 22):
+    l = 21
+    for c in range(1, 3):
+        mat_to_image('./logs/mahendran_vedaldi/vgg16/l{0}/rec_{1}000.npy'.format(l, c))
 

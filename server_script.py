@@ -9,7 +9,7 @@ params = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', laye
               learning_rate=0.004,
               num_iterations=2000,
               print_freq=50, log_freq=1000, summary_freq=10, lr_lower_freq=500,
-              grad_clip=100000.0,
+              grad_clip=10.0,
               log_path='./logs/mahendran_vedaldi/vgg16/l1/',
               save_as_mat=True)
 
@@ -33,15 +33,15 @@ params['layer_name'] = 'conv5_3/relu:0'
 params['log_path'] = './logs/mahendran_vedaldi/vgg16/l17/'
 invert_layer(params)
 
-params['learning_rate'] = 0.004
-params['layer_name'] = 'pool5:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l18/'
-invert_layer(params)
-
-params['learning_rate'] = 0.004
-params['layer_name'] = 'fc8/lin:0'
-params['log_path'] = './logs/mahendran_vedaldi/vgg16/l21/'
-invert_layer(params)
+# params['learning_rate'] = 0.004
+# params['layer_name'] = 'pool5:0'
+# params['log_path'] = './logs/mahendran_vedaldi/vgg16/l18/'
+# invert_layer(params)
+#
+# params['learning_rate'] = 0.004
+# params['layer_name'] = 'fc8/lin:0'
+# params['log_path'] = './logs/mahendran_vedaldi/vgg16/l21/'
+# invert_layer(params)
 
 # from net_inversion import NetInversion
 # from parameter_utils import default_params
