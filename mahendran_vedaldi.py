@@ -1,25 +1,30 @@
-import tensorflow as tf
-from tf_alexnet.alexnet import AlexNet
-from filehandling_utils import load_image
-import time
-import numpy as np
 import matplotlib
 matplotlib.use('tkagg', force=True)
+import tensorflow as tf
+from tf_alexnet.alexnet import AlexNet
+from tf_vgg.vgg16 import Vgg16
+from filehandling_utils import load_image
+import time
+from filehandling_utils import save_dict
+import numpy as np
 import matplotlib.pyplot as plt
 
 
-PARAMS = dict(image_path='./data/selected/images_resized/jacket.bmp', layer_name='conv1/relu:0',
-              alpha=6, beta=2,
-              lambda_a=2.16, lambda_b=0.5,
-              sigma=1,
-              learning_rate=0.1,
-              num_iterations=4000,
-              print_freq=100, log_freq=2000,
-              log_path='./mahendran_vedaldi/run1/')
+PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3_3/relu:0',
+              classifier='vgg16',
+              alpha_l2=6, beta_tv=2,
+              lambda_l2=2.16e+8, lambda_tv=5e+1,
+              sigma=2.7098e+4,
+              learning_rate=0.004,
+              num_iterations=10000,
+              print_freq=50, log_freq=500, summary_freq=10, lr_lower_freq=500,
+              grad_clip=100.0,
+              log_path='./logs/mahendran_vedaldi/run3/')
 
 
 def alpha_norm_prior(tensor, alpha):
-    return tf.norm(tensor - tf.reduce_mean(tensor), ord=alpha)
+    norm = tf.norm(tensor - tf.reduce_mean(tensor, axis=[0, 1, 2]), ord=alpha, axis=3)
+    return tf.reduce_sum(norm ** alpha)
 
 
 def total_variation_prior(tensor, beta):
@@ -37,35 +42,73 @@ def total_variation_prior(tensor, beta):
 
 
 def invert_layer(params):
+    save_dict(params, params['log_path'] + 'params.txt')
+
     with tf.Graph().as_default() as graph:
         with tf.Session() as sess:
             img_mat = load_image(params['image_path'], resize=False)
             image = tf.constant(img_mat, dtype=tf.float32, shape=[1, 224, 224, 3])
-            reconstruction = tf.get_variable('reconstruction', shape=[1, 224, 224, 3], dtype=tf.float32)
-            net_input = tf.concat([image, reconstruction], axis=0)
+            rec_init = tf.abs(tf.random_normal([1, 224, 224, 3], mean=0, stddev=0.0001))
+            reconstruction = tf.get_variable('reconstruction', dtype=tf.float32,
+                                             initializer=rec_init)
+            net_input = tf.concat([image, reconstruction * params['sigma']], axis=0)
 
-            alexnet = AlexNet()
-            alexnet.build(net_input, rescale=1.0)
+            if params['classifier'].lower() == 'vgg16':
+                classifier = Vgg16()
+            elif params['classifier'].lower() == 'alexnet':
+                classifier = AlexNet()
+            else:
+                raise NotImplementedError
+
+            classifier.build(net_input, rescale=1.0)
 
             representation = graph.get_tensor_by_name(params['layer_name'])
+
+            if len(representation.get_shape()) == 2:
+                representation = tf.reshape(representation, shape=[2, -1, 1, 1])
 
             img_rep = tf.slice(representation, [0, 0, 0, 0], [1, -1, -1, -1])
             rec_rep = tf.slice(representation, [1, 0, 0, 0], [1, -1, -1, -1])
 
-            mse_loss = tf.losses.mean_squared_error(img_rep, rec_rep)
-            prior_a = params['lambda_a'] * alpha_norm_prior(reconstruction, params['alpha'])
-            prior_b = params['lambda_b'] * total_variation_prior(reconstruction, params['beta'])
-            loss = mse_loss + prior_a + prior_b
+            mse_loss = tf.reduce_sum((img_rep - rec_rep) ** 2) / tf.reduce_sum(img_rep * img_rep)
+            prior_l2 = params['lambda_l2'] * alpha_norm_prior(reconstruction, params['alpha_l2'])
+            prior_tv = params['lambda_tv'] * total_variation_prior(reconstruction, params['beta_tv'])
+            loss = mse_loss + prior_l2 + prior_tv
 
-            adam = tf.train.AdamOptimizer(learning_rate=params['learning_rate'])
+            lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
+            # optimizer = tf.train.AdamOptimizer(lr_pl)
+            optimizer = tf.train.MomentumOptimizer(lr_pl, momentum=0.9)
+            tvars = tf.trainable_variables()
+            grads = tf.gradients(loss, tvars)
+            tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
+            tg_clipped = [(tf.clip_by_value(k[0], -params['grad_clip'], params['grad_clip']), k[1])
+                          for k in tg_pairs]
+            train_op = optimizer.apply_gradients(tg_clipped)
 
-            train_op = adam.minimize(loss)
+            for pair in tg_pairs:
+                tf.summary.histogram(pair[0].name, pair[1])
+
+            tf.summary.scalar('0_total_loss', loss)
+            tf.summary.scalar('1_mse_loss', mse_loss)
+            tf.summary.scalar('2_l2_prior', prior_l2)
+            tf.summary.scalar('3_tv_prior', prior_tv)
+
+            train_summary_op = tf.summary.merge_all()
+            summary_writer = tf.summary.FileWriter(params['log_path'] + '/summaries')
 
             sess.run(tf.global_variables_initializer())
 
             start_time = time.time()
             for count in range(params['num_iterations']):
-                batch_loss, _, rec_mat = sess.run([loss, train_op, reconstruction])
+                if (count + 1) % params['lr_lower_freq'] == 0:
+                    params['learning_rate'] = params['learning_rate'] / 10.0
+                    print('lowering learning rate to {0}'.format(params['learning_rate']))
+
+                batch_loss, _, rec_mat, summary_string = sess.run([loss, train_op, reconstruction, train_summary_op],
+                                                                  feed_dict={lr_pl: params['learning_rate']})
+
+                if (count + 1) % params['summary_freq'] == 0:
+                    summary_writer.add_summary(summary_string, count)
 
                 if (count + 1) % params['print_freq'] == 0:
                     print(('Iteration: {0:6d} Training Error:   {1:9.2f} ' +
@@ -75,7 +118,11 @@ def invert_layer(params):
                     plot_mat = np.zeros(shape=(224, 2 * 224, 3))
 
                     plot_mat[:, :224, :] = img_mat / 255.0
-                    plot_mat[:, 224:, :] = np.minimum(np.maximum(rec_mat / 255.0, 0.0), 1.0)
+
+                    # rec_mat = np.minimum(np.maximum(rec_mat * params['sigma'] / 255.0, 0.0), 1.0)
+                    rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat)) # seems M&V just rescale
+                    plot_mat[:, 224:, :] = rec_mat
+
                     fig = plt.figure(frameon=False)
                     fig.set_size_inches(2, 1)
                     ax = plt.Axes(fig, [0., 0., 1., 1.])

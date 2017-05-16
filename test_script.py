@@ -74,7 +74,7 @@ spec10 = dict(inv_model_type='deconv_conv',
 
 params = dict(classifier='vgg16',
               inv_model_specs=[spec1, spec2, spec3, spec4, spec5, spec6, spec7, spec8, spec9, spec10],
-              log_path='./logs/net_inversion/vgg16/l1-10_10dc/run2/',
+              log_path='./logs/net_inversion/vgg16/l1-10_10dc/run4/',
               load_path='')
 params.update(default_params())
 # print(params)
@@ -82,4 +82,4 @@ ni = NetInversion(params)
 ni.visualize()
 
 ni = NetInversion(selected_images(params))
-ni.visualize(file_name='selected_diff')
+ni.visualize(ckpt_num=1000)

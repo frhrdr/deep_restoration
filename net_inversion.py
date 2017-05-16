@@ -216,7 +216,8 @@ class NetInversion:
                 rec_mat = sess.run(reconstruction, feed_dict={inv_input: inv_input_mat})
                 return rec_mat
 
-    def visualize(self, num_images=7, rec_type='bgr_normed', file_name='img_vs_rec', ckpt_num=3000, add_diffs=True):
+    def visualize(self, num_images=7, rec_type='bgr_normed', file_name='img_vs_rec', ckpt_num=1000, add_diffs=True):
+        print(ckpt_num)
         actual_batch_size = self.params['batch_size']
         assert num_images <= actual_batch_size
         self.params['batch_size'] = num_images
@@ -230,6 +231,7 @@ class NetInversion:
                 self.load_classifier(img_pl)
                 self.build_model()
                 saver = tf.train.Saver()
+                print(ckpt_num)
                 saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
                 feed_dict = {img_pl: next(batch_gen)}
                 rec_tensor_name = 'module_' + str(len(self.params['inv_model_specs'])) + '/reconstruction:0'
