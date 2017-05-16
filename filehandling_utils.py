@@ -179,5 +179,3 @@ def transform_all():
         for c in range(1, 5):
             mat_to_image('./logs/mahendran_vedaldi/alexnet/l{0}/rec_{1}.npy'.format(l, c))
 
-
-transform_all()
