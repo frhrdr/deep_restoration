@@ -10,8 +10,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3_3/relu:0',
-              classifier='vgg16',
+PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',
+              classifier='alexnet',
               alpha_l2=6, beta_tv=2,
               lambda_l2=2.16e+8, lambda_tv=5e+1,
               sigma=2.7098e+4,
