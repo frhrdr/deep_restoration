@@ -178,7 +178,27 @@ def mat_to_image(mat_file):
 
 def transform_all():
     # for l in range(1, 22):
-    l = 21
+    l = 17
     for c in range(1, 3):
         mat_to_image('./logs/mahendran_vedaldi/vgg16/l{0}/rec_{1}000.npy'.format(l, c))
 
+
+def concat_mv_images(num=21):
+    model = 'vgg16'
+    w = 7
+    h = 3
+    img_mat = np.zeros(shape=(h * 224, w * 224, 4))
+    for idx in range(num):
+        img = skimage.io.imread('./logs/mahendran_vedaldi/' + model + '/l{0}/rec_2000.png'.format(idx + 1))
+        img_mat[224 * (idx // w):224 * (idx // w + 1),
+                224 * (idx % w): 224 * (idx % w + 1), :] = img[:, 224:, :]
+    path = './logs/mahendran_vedaldi/' + model + '/mh_' + model + '_overview2.png'
+    img_mat /= 255.0
+    fig = plt.figure(frameon=False)
+    fig.set_size_inches(w, h)
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+    ax.imshow(img_mat, aspect='auto')
+    plt.savefig(path, format='png', dpi=224)
+    plt.close()

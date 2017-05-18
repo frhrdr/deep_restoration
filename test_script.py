@@ -1,8 +1,6 @@
 # from net_inversion import NetInversion
 # from parameter_utils import default_params, selected_images
-from filehandling_utils import transform_all
 
-transform_all()
 # spec1 = dict(inv_model_type='deconv_conv',
 #              op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1], op1_pad='SAME',
 #              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1], op2_pad='SAME',

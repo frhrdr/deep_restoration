@@ -40,7 +40,7 @@ class NetInversion:
             self.params['inv_model_specs'] = [self.params['inv_model_specs']]
 
         loss = 0.0
-
+        loss_dict = dict()
         for idx, spec in enumerate(self.params['inv_model_specs']):
             inv_input = graph.get_tensor_by_name(spec['inv_input_name'])
             inv_target = graph.get_tensor_by_name(spec['inv_target_name'])
@@ -58,7 +58,9 @@ class NetInversion:
                 reconstruction = tf.identity(reconstruction, name=spec['rec_name'])
 
                 if spec['add_loss']:
-                    loss += tf.losses.mean_squared_error(inv_target, reconstruction)
+                    module_loss = tf.losses.mean_squared_error(inv_target, reconstruction)
+                    loss += module_loss
+                    loss_dict[idx] = module_loss
 
         assert not isinstance(loss, float), 'No loss specified'
         if self.params['optimizer'].lower() == 'adam':
@@ -67,10 +69,12 @@ class NetInversion:
         else:
             raise NotImplementedError
 
-        return loss, train_op
+        return loss, train_op, loss_dict
 
-    def build_logging(self, loss):
-        tf.summary.scalar('mse_loss', loss)
+    def build_logging(self, loss, loss_dict):
+        tf.summary.scalar('total_loss', loss)
+        for idx in loss_dict:
+            tf.summary.scalar('module_{0}_loss'.format(idx), loss_dict[idx])
         train_summary_op = tf.summary.merge_all()
         summary_writer = tf.summary.FileWriter(self.params['log_path'] + '/summaries')
         saver = tf.train.Saver()
@@ -132,8 +136,8 @@ class NetInversion:
                                                                  self.img_hw, self.img_channels])
 
                 self.load_classifier(img_pl)
-                loss, train_op = self.build_model()
-                train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
+                loss, train_op, loss_dict = self.build_model()
+                train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss, loss_dict)
 
                 if self.params['load_path']:
                     global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
