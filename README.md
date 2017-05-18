@@ -1,9 +1,10 @@
 # deep_restoration - MSc AI Thesis
 
 ### Next Steps:
-- add split loss option per module
+- enable loading option for optimizer parameters
 - find a way for loading dosovitskiy's caffe model into tensorflow or extract weights somehow
 - conitue training of later vgg layers to actual convergence
+- add split loss option per module (done)
 - work through and reimplement mahendran & vedaldi's paper (done)
 - test M&V model on vgg and reproduce alexnet resutlts (done)
 - adapt code to allow stacking models (done - for now)

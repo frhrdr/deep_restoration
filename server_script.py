@@ -74,11 +74,10 @@ spec10 = dict(inv_model_type='deconv_conv',
 
 params = dict(classifier='vgg16',
               inv_model_specs=[spec1, spec2, spec3, spec4, spec5, spec6, spec7, spec8, spec9, spec10],
-              log_path='./logs/net_inversion/vgg16/l1-10_10dc/run5/',
+              log_path='./logs/net_inversion/vgg16/l1-10_10dc/run6/',
               load_path='./logs/net_inversion/vgg16/l1-10_10dc/run4/ckpt-1000')
 params.update(default_params())
-params['learning_rate'] = 3.0e-4
-
+params['learning_rate'] = 3.0e-5
 print(params)
 ni = NetInversion(params)
 ni.train()

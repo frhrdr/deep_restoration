@@ -142,8 +142,12 @@ class NetInversion:
                 if self.params['load_path']:
                     global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
                     train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-                    init_vars = [v for v in global_vars if v not in train_vars]
-                    sess.run(tf.variables_initializer(init_vars))
+                    opt_vars = [v for v in global_vars if v not in train_vars]
+
+                    if self.params['load_opt_vars']:
+                        tf.train.Saver(var_list=opt_vars).restore(sess, self.params['load_path'])
+                    else:
+                        sess.run(tf.variables_initializer(opt_vars))
 
                     if 'layer_inversion' in self.params['load_path']:  # try for backwards compatibility
                         load_vars = dict()

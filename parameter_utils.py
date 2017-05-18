@@ -37,7 +37,7 @@ def default_params():
                 validation_images_file='validate_2k_images.txt',
                 print_freq=100, log_freq=1000, test_freq=100, test_set_size=200,
                 summary_freq=20,
-                channel_losses=False)
+                channel_losses=False, load_opt_vars=True)
 
 
 def selected_images(params):
