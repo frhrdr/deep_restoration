@@ -1,5 +1,6 @@
-# from net_inversion import NetInversion
-# from parameter_utils import default_params, selected_images
+from net_inversion import NetInversion
+from parameter_utils import default_params
+
 
 # spec1 = dict(inv_model_type='deconv_conv',
 #              op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1], op1_pad='SAME',
@@ -73,12 +74,11 @@
 #
 # params = dict(classifier='vgg16',
 #               inv_model_specs=[spec1, spec2, spec3, spec4, spec5, spec6, spec7, spec8, spec9, spec10],
-#               log_path='./logs/net_inversion/vgg16/l1-10_10dc/run4/',
+#               log_path='./logs/net_inversion/vgg16/l1-10_10dc/run6/',
 #               load_path='')
 # params.update(default_params())
-# # print(params)
+# params['learning_rate'] = 3.0e-5
+# print(params)
 # ni = NetInversion(params)
 # ni.visualize()
 #
-# ni = NetInversion(selected_images(params))
-# ni.visualize(ckpt_num=1000)

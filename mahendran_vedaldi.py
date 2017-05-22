@@ -88,7 +88,7 @@ def invert_layer(params):
             tg_clipped = [(tf.clip_by_value(k[0], -params['grad_clip'], params['grad_clip']), k[1])
                           for k in tg_pairs]
             train_op = optimizer.apply_gradients(tg_clipped)
-
+            train_op = optimizer.minimize(loss)
             for pair in tg_pairs:
                 tf.summary.histogram(pair[0].name, pair[1])
 
