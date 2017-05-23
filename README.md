@@ -2,6 +2,7 @@
 
 ### Next Steps:
 - implement mv2016 upgrades: jitter and improved alpha prior. test results
+- redo alexnet conv1/relu result
 - consider net_inversion rework which allows for trained priors and pre-image inputs.
 - find a way for loading dosovitskiy's caffe model into tensorflow or extract weights somehow (lower priority)
 - enable loading option for optimizer parameters (done)
