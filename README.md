@@ -27,3 +27,10 @@
 - mv2: reading questions - how is jitter padded, what to do about the hard constraint gradientwise, is the optimizer just adagrad or something special
 
 ### Run Schedule
+
+mv2 - find publication
+
+research error measures:cosine sim,  psnr, structural similarity index
+research priors: sparse coding, DAE, RIM?, MRF, VAE?
+implement deconvs as upsampling-conv operations
+

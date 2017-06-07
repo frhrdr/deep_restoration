@@ -1,7 +1,26 @@
-from net_inversion import NetInversion
-from parameter_utils import default_params
+from mahendran_vedaldi_2016 import invert_layer
 
+params = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',
+              classifier='alexnet',
+              img_HW=224,
+              jitter_T=0,
+              mse_C=300.0,
+              alpha_sr=6, beta_tv=2,
+              range_B=80,
+              range_V=80/6.5,
+              learning_rate=0.1,
+              num_iterations=10000,
+              print_freq=100, log_freq=2000, summary_freq=10, lr_lower_freq=10000,
+              grad_clip=100.0,
+              log_path='./logs/mahendran_vedaldi/2016/',
+              save_as_mat=False)
 
+invert_layer(params)
+
+# from net_inversion import NetInversion
+# from parameter_utils import default_params
+#
+#
 # spec1 = dict(inv_model_type='deconv_conv',
 #              op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1], op1_pad='SAME',
 #              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1], op2_pad='SAME',
