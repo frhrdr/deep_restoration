@@ -4,7 +4,7 @@ from tf_alexnet import alexnet
 import filehandling_utils
 from parameter_utils import check_params
 from filehandling_utils import save_dict
-from inv_modules import InversionModule
+from inv_modules import TrainedModule
 from loss_modules import LossModule, LearnedPriorLoss
 import os
 import time
@@ -40,12 +40,13 @@ class NetInversion:
             self.params['inv_modules'] = [self.params['inv_modules']]
 
         for idx, inv_mod in enumerate(self.params['inv_modules']):
-            assert isinstance(inv_mod, InversionModule)
+            assert isinstance(inv_mod, TrainedModule)
             inv_mod.build(scope_suffix=str(idx))
         loss = 0
         for loss_mod in self.params['loss_modules']:
             assert isinstance(loss_mod, LossModule)
             loss_mod.build()
+            loss += loss_mod.get_loss()
 
         if self.params['optimizer'].lower() == 'adam':
             adam = tf.train.AdamOptimizer(learning_rate=self.params['learning_rate'])
@@ -122,6 +123,14 @@ class NetInversion:
                 self.load_classifier(img_pl)
                 loss, train_op = self.build_model()
                 train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
+
+                for inv_mod in self.params['inv_modules']:
+                    if isinstance(inv_mod, LearnedPriorLoss) and inv_mod.trainable is False:
+                        inv_mod.load_weights(sess)
+
+                for loss_mod in self.params['loss_modules']:
+                    if isinstance(loss_mod, LearnedPriorLoss) and loss_mod.trainable is False:
+                        loss_mod.load_weights(sess)
 
                 if self.params['load_path']:
                     global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)

@@ -2,13 +2,29 @@ import tensorflow as tf
 import os
 
 
-class LossModule:
+class Module:
 
-    def __init__(self, tensor_names, weighting):
-        self.tensor_names = tensor_names
+    def __init__(self, in_tensor_names):
+        self.in_tensor_names = in_tensor_names
+        self.name = self.__class__.__name__
+
+    def build(self):
+        raise NotImplementedError
+
+    def get_in_tensors(self):
+        g = tf.get_default_graph()
+        if isinstance(self.in_tensor_names, tuple):
+            return [g.get_tensor_by_name(n) for n in self.in_tensor_names]
+        else:
+            return g.get_tensor_by_name(self.in_tensor_names)
+
+
+class LossModule(Module):
+
+    def __init__(self, in_tensor_names, weighting):
+        super().__init__(in_tensor_names)
         self.weighting = weighting
         self.loss = None
-        self.name = self.__class__.__name__
 
     def build(self):
         self.loss = 0
@@ -24,10 +40,10 @@ class LossModule:
 
     def get_tensors(self):
         g = tf.get_default_graph()
-        if isinstance(self.tensor_names, tuple):
-            return [g.get_tensor_by_name(n) for n in self.tensor_names]
+        if isinstance(self.in_tensor_names, tuple):
+            return [g.get_tensor_by_name(n) for n in self.in_tensor_names]
         else:
-            return g.get_tensor_by_name(self.tensor_names)
+            return g.get_tensor_by_name(self.in_tensor_names)
 
     def scalar_summary(self, weighted=True):
         tf.summary.scalar(self.name, self.get_loss(weighted))

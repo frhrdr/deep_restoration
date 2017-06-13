@@ -30,7 +30,26 @@
 
 mv2 - find publication
 
-research error measures:cosine sim,  psnr, structural similarity index
-research priors: sparse coding, DAE, RIM?, MRF, VAE?
+research error measures:
+cosine sim
+psnr: comes down to log(MSE), no?
+structural similarity index: relative measure - consistency between two patches
+                             how relative windows are supposed to be chosen is unclear
+                             combines luminance contrast and structure
+                             perception focused - probably irrelevant for feature maps
+
+research priors:
+sparse coding: welling? olhausen-field?
+DAE: as in yosinsky?
+MRF:
+RIM?:
+VAE?: as in dos-brox?
+CRF: 
 implement deconvs as upsampling-conv operations
 
+#### ICA - based on infomax:
+last formula    before ln introduce theta_i, also add prior over all theta_i so they are small and positive
+
+- learn dist over thetas and W
+
+- while optimizing x, dismiss ln W term and theta prior (no x)
