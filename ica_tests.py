@@ -1,9 +1,13 @@
 import tensorflow as tf
 import numpy as np
 import filehandling_utils
+from skimage.color import rgb2gray
+import matplotlib
+matplotlib.use('tkagg', force=True)
+import matplotlib.pyplot as plt
 
 def cosh(x):
-    return 0.5 * tf.exp(x) + 0.5 * tf.exp(-x)
+    return 0.5 * tf.exp(x, name='exp_x') + 0.5 * tf.exp(-x, name='exp_negx')
 
 
 def func_G(s):
@@ -19,6 +23,7 @@ def func_g(s):
 def func_g_prime(s):
     a = np.pi * s / (3 ** 0.5)
     b = 3 * 3**0.5 * (cosh(a) + 1)
+    b = tf.identity(b, name='g_prime_b')
     return - np.pi**2 / b
 
 
@@ -46,13 +51,27 @@ def loss_J_tilde(x_mat, w_mat, alpha):
     return term_1 + term_2
 
 
+def old_loss_J_tilde(x_mat, w_mat):
+    const_T = x_mat.get_shape()[0].value
+    xw_mat = tf.matmul(x_mat, w_mat, name='xw_mat')
+    g_mat = func_g(xw_mat)
+    gp_mat = func_g_prime(xw_mat)
+    gp_vec = tf.reduce_sum(gp_mat, axis=0, name='gp_vec') / const_T
+    gg_mat = tf.matmul(g_mat, g_mat, transpose_a=True) / const_T
+    ww_mat = tf.matmul(w_mat, w_mat, transpose_a=True)
+    w_norm = tf.diag_part(ww_mat, name='w_norm')
+    term_1 = tf.reduce_sum(w_norm * gp_vec, name='t1')
+    term_2 = 0.5 * tf.reduce_sum(ww_mat * gg_mat, name='t2')
+    return term_1 + term_2
+
+
 def neg_log_p(x_mat, w_mat):
     return - tf.reduce_sum(func_G(x_mat @ w_mat), axis=1)
 
-
 ### TRAIN UTILS ###
 
-def get_batch_gen(batch_size, patch_size=(8,8)):
+
+def get_batch_gen(batch_size, patch_size=(8, 8)):
     img_hw = 224
     max_h = img_hw - patch_size[0]
     max_w = img_hw - patch_size[1]
@@ -77,49 +96,86 @@ def get_batch_gen(batch_size, patch_size=(8,8)):
         images = []
         for img_path in batch_paths:
             image = filehandling_utils.load_image(img_path, resize=False)
+            image = rgb2gray(image)
+            image /= np.max(image)
+            image -= np.mean(image)
             images.append(image)
         mat = np.stack(images, axis=0)
 
         h = np.random.randint(0, max_h)
         w = np.random.randint(0, max_w)
-        yield mat[:, h:h + patch_size[0], w:w + patch_size[1], :]
+        # yield mat[:, h:h + patch_size[0], w:w + patch_size[1], :]
+        yield mat[:, h:h + patch_size[0], w:w + patch_size[1]]
 
 
 def train_test():
-    ph = 5
-    pw = 5
-    n_comps = 100
-    m_feats = ph * pw * 3
-    batch_size = 100
-    num_iterations = 100
-    lr = 0.000001
+    ph = 8
+    pw = 8
+    m_feats = ph * pw
+    n_comps = m_feats
+    # assert m_feats <= n_comps
+    batch_size = 5000
+    num_iterations = 10000
+    lr = 1.0e-4
+    grad_clip = 10.0
+
     bgen = get_batch_gen(batch_size, patch_size=(ph, pw))
     with tf.Graph().as_default() as graph:
 
-        img_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, ph, pw, 3])
+        img_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, ph, pw])
         w_mat = tf.get_variable(shape=[m_feats, n_comps], dtype=tf.float32, name='W',
                                 initializer=tf.random_normal_initializer())
-        alpha = tf.get_variable(shape=[n_comps, 1], dtype=tf.float32, name='alpha',
-                                initializer=tf.constant_initializer(value=1.5))
+        # alpha = tf.get_variable(shape=[n_comps, 1], dtype=tf.float32, name='alpha',
+        #                         initializer=tf.constant_initializer(value=1.5))
 
         x_mat = tf.reshape(img_pl, [batch_size, m_feats], name='X')
-        loss = loss_J_tilde(x_mat=x_mat, w_mat=w_mat, alpha=alpha)
+        loss = old_loss_J_tilde(x_mat=x_mat, w_mat=w_mat)
 
         clip_op = tf.assign(w_mat, w_mat / tf.norm(w_mat))
 
-        opt = tf.train.AdamOptimizer(learning_rate=lr)
-        opt_op = opt.minimize(loss)
+        opt = tf.train.GradientDescentOptimizer(learning_rate=lr)
+        tvars = tf.trainable_variables()
+        grads = tf.gradients(loss, tvars)
+        tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
+        # tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
+        #               for k in tg_pairs]
+        # opt_op = opt.apply_gradients(tg_clipped)
+        opt_op = opt.apply_gradients(tg_pairs)
+        # opt_op = opt.minimize(loss)
+        # loss = tf.Print(loss, tf.gradients(loss, w_mat)) nan
+        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('t1:0'), w_mat), message='t1:') nan
+        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('t2:0'), w_mat), message='t2:') is fine
+        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('w_norm:0'), w_mat), message='w_norm:') is fine
+        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('gp_vec:0'), w_mat), message='gp_vec:')
+        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('exp_negx:0'), w_mat), message='exp_negx:')
+        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('exp_x:0'), w_mat), message='exp_x:')
+        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('xw_mat:0'), w_mat), message='xw_mat:')
 
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
 
+            patches = next(bgen)
+            patches = patches.astype(float)
+            # patches /= 255.0
+            # patches -= np.mean(patches)
+            # sess.run(clip_op)
             for idx in range(num_iterations):
-                patches = next(bgen)
+                term1 = graph.get_tensor_by_name('w_norm:0')
+                term2 = graph.get_tensor_by_name('gp_vec:0')
+                batch_loss, t1, t2, _ = sess.run(fetches=[loss, term1, term2, opt_op], feed_dict={img_pl: patches})
 
-                batch_loss, _ = sess.run(fetches=[loss, opt_op], feed_dict={img_pl: patches})
-
-                if idx % 1 == 0:
+                if idx % 100 == 0:
                     print(batch_loss)
+
+            w_res = sess.run(w_mat)
+            p1 = patches[0, :, :]
+            plt.figure()
+            plt.imshow(p1, cmap='gray')
+            for idx in range(4):
+                plt.figure()
+                f1 = np.reshape(w_res[:, idx], [ph, pw])
+                plt.imshow(f1, cmap='gray')
+            plt.show()
 
 train_test()
 
