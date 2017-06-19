@@ -2,9 +2,12 @@ import tensorflow as tf
 import numpy as np
 import filehandling_utils
 from skimage.color import rgb2gray
+from sklearn.decomposition import PCA, FastICA
+from sklearn.datasets import fetch_olivetti_faces
 import matplotlib
 matplotlib.use('tkagg', force=True)
 import matplotlib.pyplot as plt
+
 
 def cosh(x):
     return 0.5 * tf.exp(x, name='exp_x') + 0.5 * tf.exp(-x, name='exp_negx')
@@ -17,7 +20,7 @@ def func_G(s):
 
 def func_g(s):
     a = np.pi * s / (2 * 3**0.5)
-    return - np.pi / 3 * tf.tanh(a)
+    return - np.pi * tf.tanh(a) / 3**0.5
 
 
 def func_g_prime(s):
@@ -39,19 +42,20 @@ def func_partial_phi_i():
 def loss_J_tilde(x_mat, w_mat, alpha):
     const_T = x_mat.get_shape()[0].value
     xw_mat = tf.matmul(x_mat, w_mat)
-    g_mat = func_g(xw_mat)
-    gp_mat = func_g_prime(xw_mat)
+    g_mat = -tf.tanh(xw_mat)
+    gp_mat = -4.0 / tf.square(tf.exp(xw_mat) + tf.exp(-xw_mat))  # d/dx tanh(x) = 4 / (exp(x) + exp(-x))^2
     gp_vec = tf.reduce_sum(gp_mat, axis=0) / const_T
     gg_mat = tf.matmul(g_mat, g_mat, transpose_a=True) / const_T
     aa_mat = tf.matmul(alpha, alpha, transpose_b=True)
     ww_mat = tf.matmul(w_mat, w_mat, transpose_a=True)
+    w_norm = tf.diag_part(ww_mat, name='w_norm')
 
-    term_1 = tf.reduce_sum(alpha * gp_vec)
-    term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat)
+    term_1 = tf.reduce_sum(alpha * w_norm * gp_vec, name='t1')
+    term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
     return term_1 + term_2
 
 
-def old_loss_J_tilde(x_mat, w_mat):
+def old_loss_J_tilde(x_mat, w_mat, alpha=None):
     const_T = x_mat.get_shape()[0].value
     xw_mat = tf.matmul(x_mat, w_mat, name='xw_mat')
     g_mat = func_g(xw_mat)
@@ -70,112 +74,209 @@ def neg_log_p(x_mat, w_mat):
 
 ### TRAIN UTILS ###
 
+def plot_img_mats(mat):
+    """ plot l*m*n mats as l m by n gray-scale images """
+    n = mat.shape[0]
+    cols = int(np.ceil(np.sqrt(n)))
+    rows = int(np.ceil(n // cols))
+    mat = np.maximum(mat, 0.0)
+    mat = np.minimum(mat, 1.0)
+    plt.style.use('grayscale')
+    fig, ax_list = plt.subplots(ncols=cols, nrows=rows)
+    ax_list = ax_list.flatten()
 
-def get_batch_gen(batch_size, patch_size=(8, 8)):
+    for idx, ax in enumerate(ax_list):
+        if idx >= n:
+            ax.axis('off')
+        else:
+            ax.imshow(mat[idx, :, :], interpolation='none')
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
+    plt.show()
+
+
+def pca_whiten(data):
+    n_samples, n_features = data.shape
+    data = data.T
+    data -= data.mean(axis=-1)[:, np.newaxis]
+    u, d, _ = np.linalg.svd(data, full_matrices=False)
+    K = (u / d).T[:n_features]
+    data = np.dot(K, data)
+    data *= np.sqrt(n_samples)
+    return data.T, K
+
+
+def zca_whiten(data):
+    cov = np.dot(data.T, data) / (data.shape[0] - 1)
+    U, S, _ = np.linalg.svd(cov)
+    s = np.sqrt(S.clip(1.e-6))
+    s_inv = np.diag(1. / s)
+    s = np.diag(s)
+    whiten = np.dot(np.dot(U, s_inv), U.T)
+    dewhiten = np.dot(np.dot(U, s), U.T)
+    data = np.dot(data, whiten.T)
+    return data, dewhiten
+
+
+def get_patches(num=1000, ph=8, pw=8, color=False):
     img_hw = 224
-    max_h = img_hw - patch_size[0]
-    max_w = img_hw - patch_size[1]
+    max_h = img_hw - ph
+    max_w = img_hw - pw
     data_path = './data/imagenet2012-validationset/'
     img_file = 'train_48k_images.txt'
-    begin = 0
 
     with open(data_path + img_file) as f:
         image_files = [k.rstrip() for k in f.readlines()]
 
-    while True:
+    image_paths = [data_path + 'images_resized/' +
+                   k[:-len('JPEG')] + 'bmp' for k in image_files[:num]]
+    images = []
 
-        end = begin + batch_size
-        if end < len(image_files):
-            batch_files = image_files[begin:end]
-        else:
-            end = end - len(image_files)
-            batch_files = image_files[begin:] + image_files[:end]
-        begin = end
-        batch_paths = [data_path + 'images_resized/' +
-                       k[:-len('JPEG')] + 'bmp' for k in batch_files]
-        images = []
-        for img_path in batch_paths:
-            image = filehandling_utils.load_image(img_path, resize=False)
-            image = rgb2gray(image)
-            image /= np.max(image)
-            image -= np.mean(image)
-            images.append(image)
-        mat = np.stack(images, axis=0)
-
+    for img_path in image_paths:
         h = np.random.randint(0, max_h)
         w = np.random.randint(0, max_w)
-        # yield mat[:, h:h + patch_size[0], w:w + patch_size[1], :]
-        yield mat[:, h:h + patch_size[0], w:w + patch_size[1]]
+        image = filehandling_utils.load_image(img_path, resize=False)
+        image = image.astype(float)
+        if not color:
+            image = rgb2gray(image[h:h + ph, w:w + pw, :])
+        image = image.flatten()
+        image /= 255.0
+        images.append(image)
+    print(image.max())
+    print(image.min())
+    mat = np.stack(images, axis=0)
+    mat_centered = mat - mat.mean(axis=0)
+    mat_centered = mat_centered - mat_centered.mean(axis=1).reshape(num, -1)
+    return mat_centered
+
+
+def get_faces():
+    faces = fetch_olivetti_faces(shuffle=True).data
+    n_samples, n_features = faces.shape
+    faces_centered = faces - faces.mean(axis=0)
+    faces_centered -= faces_centered.mean(axis=1).reshape(n_samples, -1)
+    return faces_centered
 
 
 def train_test():
     ph = 8
     pw = 8
-    m_feats = ph * pw
-    n_comps = m_feats
-    # assert m_feats <= n_comps
-    batch_size = 5000
-    num_iterations = 10000
-    lr = 1.0e-4
-    grad_clip = 10.0
+    n_features = 64  # ph * pw
+    n_components = 256  # n_features
+    n_samples = 5000
+    num_iterations = 50000
+    lr = 3.0e-7
+    lr_lower_points = [(0, 1.0e-5), (10000, 3.0e-6), (20000, 1.0e-6), (30000, 1.0e-6), (40000, 3.0e-7)]
+    grad_clip = 100.0
+    n_vis = 100
+    sgd_based = True
 
-    bgen = get_batch_gen(batch_size, patch_size=(ph, pw))
+    data = get_patches(n_samples, ph, pw)
+    data, whitening_mat = pca_whiten(data)
+
     with tf.Graph().as_default() as graph:
 
-        img_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, ph, pw])
-        w_mat = tf.get_variable(shape=[m_feats, n_comps], dtype=tf.float32, name='W',
+        x_pl = tf.placeholder(dtype=tf.float32, shape=[n_samples, n_features], name='x_pl')
+        w_mat = tf.get_variable(shape=[n_features, n_components], dtype=tf.float32, name='w_mat',
+                                initializer=tf.random_normal_initializer(stddev=0.001))
+        alpha = tf.get_variable(shape=[n_components, 1], dtype=tf.float32, name='alpha',
                                 initializer=tf.random_normal_initializer())
-        # alpha = tf.get_variable(shape=[n_comps, 1], dtype=tf.float32, name='alpha',
-        #                         initializer=tf.constant_initializer(value=1.5))
+        lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
 
-        x_mat = tf.reshape(img_pl, [batch_size, m_feats], name='X')
-        loss = old_loss_J_tilde(x_mat=x_mat, w_mat=w_mat)
+        loss = loss_J_tilde(x_mat=x_pl, w_mat=w_mat, alpha=alpha)
+        clip_op = tf.assign(w_mat, w_mat / tf.norm(w_mat, ord=2, axis=0))
 
-        clip_op = tf.assign(w_mat, w_mat / tf.norm(w_mat))
-
-        opt = tf.train.GradientDescentOptimizer(learning_rate=lr)
-        tvars = tf.trainable_variables()
-        grads = tf.gradients(loss, tvars)
-        tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
-        # tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
-        #               for k in tg_pairs]
-        # opt_op = opt.apply_gradients(tg_clipped)
-        opt_op = opt.apply_gradients(tg_pairs)
-        # opt_op = opt.minimize(loss)
-        # loss = tf.Print(loss, tf.gradients(loss, w_mat)) nan
-        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('t1:0'), w_mat), message='t1:') nan
-        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('t2:0'), w_mat), message='t2:') is fine
-        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('w_norm:0'), w_mat), message='w_norm:') is fine
-        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('gp_vec:0'), w_mat), message='gp_vec:')
-        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('exp_negx:0'), w_mat), message='exp_negx:')
-        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('exp_x:0'), w_mat), message='exp_x:')
-        # loss = tf.Print(loss, tf.gradients(graph.get_tensor_by_name('xw_mat:0'), w_mat), message='xw_mat:')
+        if sgd_based:
+            opt = tf.train.MomentumOptimizer(learning_rate=lr_pl, momentum=0.9)
+            # opt = tf.train.AdamOptimizer(learning_rate=lr_pl)  # , epsilon=0.001)
+            tvars = tf.trainable_variables()
+            grads = tf.gradients(loss, tvars)
+            tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
+            tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
+                          for k in tg_pairs]
+            opt_op = opt.apply_gradients(tg_clipped)
+            opt_op = opt.apply_gradients(tg_pairs)
+        else:
+            # norm_constraints = tf.split(tf.norm(w_mat, ord=2, axis=0) - 1., num_or_size_splits=n_components)
+            train_step = tf.contrib.opt.ScipyOptimizerInterface(loss, method='L-BFGS-B',
+                                                                options={'maxiter': num_iterations}
+                                                                # , equalities=norm_constraints,
+                                                                # inequalities=[tf.constant(1, dtype=tf.float32, shape=[1])]
+                                                                )
 
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
+            sess.run(clip_op)
+            if not sgd_based:
+                num_iterations = 1
 
-            patches = next(bgen)
-            patches = patches.astype(float)
-            # patches /= 255.0
-            # patches -= np.mean(patches)
-            # sess.run(clip_op)
             for idx in range(num_iterations):
-                term1 = graph.get_tensor_by_name('w_norm:0')
-                term2 = graph.get_tensor_by_name('gp_vec:0')
-                batch_loss, t1, t2, _ = sess.run(fetches=[loss, term1, term2, opt_op], feed_dict={img_pl: patches})
+                if lr_lower_points and lr_lower_points[0][0] == idx:
+                    lr = lr_lower_points[0][1]
+                    print('new learning rate: ', lr)
+                    lr_lower_points = lr_lower_points[1:]
+
+                if sgd_based:
+                    batch_loss, _ = sess.run(fetches=[loss, opt_op], feed_dict={x_pl: data, lr_pl: lr})
+                    sess.run(clip_op)
+
+                else:
+                    batch_loss = sess.run(fetches=[loss], feed_dict={x_pl: data})
+                    train_step.minimize(sess, feed_dict={x_pl: data})
 
                 if idx % 100 == 0:
                     print(batch_loss)
 
-            w_res = sess.run(w_mat)
-            p1 = patches[0, :, :]
-            plt.figure()
-            plt.imshow(p1, cmap='gray')
-            for idx in range(4):
-                plt.figure()
-                f1 = np.reshape(w_res[:, idx], [ph, pw])
-                plt.imshow(f1, cmap='gray')
-            plt.show()
+                if idx % 1000 == 0:
+                    term1 = graph.get_tensor_by_name('t1:0')
+                    term2 = graph.get_tensor_by_name('t2:0')
+                    w_res, alp, t1, t2 = sess.run([w_mat, alpha, term1, term2], feed_dict={x_pl: data})
+                    print('it: ', idx, ' / ', num_iterations)
+                    print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
+                    print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
+                    print('term1: ', t1, ' term2: ', t2)
+
+            comps = w_res.T
+            print(comps.shape)
+            comps -= np.min(comps)
+            comps /= np.max(comps)
+            co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
+            plot_img_mats(co)
+
+            comps = np.dot(w_res.T, whitening_mat)
+            # comps = w_res.T
+            print(comps.shape)
+            comps -= np.min(comps)
+            comps /= np.max(comps)
+            co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
+            plot_img_mats(co)
+
+
+def fast_ica_comp():
+    ph = 8
+    pw = 8
+    n_features = 64
+    n_samples = 5000
+
+    data = get_patches(n_samples, ph, pw, color=False)
+
+    data, whitening_mat = pca_whiten(data)
+    ica = FastICA(whiten=False, max_iter=1000)
+    ica.fit(data)
+    comps = ica.components_
+    comps = np.dot(comps, whitening_mat)
+    comps -= np.min(comps)
+    comps /= np.max(comps)
+    plot_img_mats(np.reshape(comps, [-1, ph, pw]))
+
+    ica2 = FastICA(whiten=True, n_components=n_features, max_iter=1000)
+    ica2.fit(get_patches(n_samples, ph, pw))
+    comps = ica2.components_
+    comps -= np.min(comps)
+    comps /= np.max(comps)
+    plot_img_mats(np.reshape(comps, [-1, ph, pw]))
 
 train_test()
+# fast_ica_comp()
+
 
