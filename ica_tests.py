@@ -4,6 +4,7 @@ import filehandling_utils
 from skimage.color import rgb2gray
 from sklearn.decomposition import PCA, FastICA
 from sklearn.datasets import fetch_olivetti_faces
+import os
 import matplotlib
 matplotlib.use('tkagg', force=True)
 import matplotlib.pyplot as plt
@@ -122,16 +123,21 @@ def pca_whiten_as_pca(data):
     return u, rerotate
 
 
-def zca_whiten(data):
-    cov = np.dot(data.T, data) / (data.shape[0] - 1)
+def zca_whiten_mats(cov):
     U, S, _ = np.linalg.svd(cov)
     s = np.sqrt(S.clip(1.e-6))
     s_inv = np.diag(1. / s)
     s = np.diag(s)
     whiten = np.dot(np.dot(U, s_inv), U.T)
-    dewhiten = np.dot(np.dot(U, s), U.T)
+    un_whiten = np.dot(np.dot(U, s), U.T)
+    return whiten, un_whiten
+
+
+def zca_whiten(data):
+    cov = np.dot(data.T, data) / (data.shape[0] - 1)
+    whiten, unwhiten = zca_whiten_mats(cov)
     data = np.dot(data, whiten.T)
-    return data, dewhiten
+    return data, unwhiten
 
 
 def get_patches(num=1000, ph=8, pw=8, color=False):
@@ -168,6 +174,45 @@ def get_patches(num=1000, ph=8, pw=8, color=False):
     return mat_centered
 
 
+def patch_batch_gen(batch_size, data_dir='./data/patches_gray/8by8/', zca_whiten=True):
+    data_set_size = len([name for name in os.listdir('./data/patches_gray/8by8/')])
+
+    if zca_whiten:
+        cov_acc = 0
+        for idx in range(data_set_size):
+            image = filehandling_utils.load_image(data_dir + 'patch_{}.bmp'.format(idx), resize=False).flatten()
+            cov_acc = cov_acc + np.outer(image, image)
+
+            if idx % (data_set_size / 10) == 0:
+                print('cov progress: ', idx, ' / ', data_set_size)
+
+        cov_acc = cov_acc.astype(np.float32) / (data_set_size - 1)
+        whiten, un_whiten = zca_whiten_mats(cov_acc)
+        yield whiten, un_whiten
+
+    idx = 0
+    while True:
+        images = []
+        for jdx in range(batch_size):
+
+            image = filehandling_utils.load_image(data_dir + 'patch_{}.bmp'.format(idx), resize=False)
+            image = image.flatten()
+            images.append(image)
+            if idx == data_set_size:
+                idx = 0
+            else:
+                idx += 1
+
+        mat = np.stack(images, axis=0).astype(np.float32)
+        mat /= 255.0  # map to range [0,1]
+        mat -= mat.mean(axis=1).reshape(batch_size, -1)  # subtract image mean
+
+        if zca_whiten:
+            mat = np.dot(mat, whiten.T)
+
+        yield mat
+
+
 def get_faces():
     faces = fetch_olivetti_faces(shuffle=True).data
     n_samples, n_features = faces.shape
@@ -179,15 +224,15 @@ def get_faces():
 def train_test():
     ph = 8
     pw = 8
-    color = True
+    color = False
     n_features = ph * pw
     if color:
         n_features *= 3
     n_components = 128
-    n_samples = 1000
+    n_samples = 5000
     num_iterations = 50000
     lr = 3.0e-7
-    lr_lower_points = [(0, 1.0e-5), (40000, 3.0e-6), (50000, 1.0e-6), (60000, 1.0e-6), (70000, 3.0e-7)]
+    lr_lower_points = [(0, 1.0e-4), (20000, 3.0e-5), (40000, 1.0e-6), (60000, 1.0e-6), (70000, 3.0e-7)]
     grad_clip = 100.0
     n_vis = 100
     sgd_based = True
@@ -298,6 +343,6 @@ def fast_ica_comp():
     plot_img_mats(np.reshape(comps, [-1, ph, pw, 3]), color=True)
 
 # train_test()
-fast_ica_comp()
+# fast_ica_comp()
 
 
