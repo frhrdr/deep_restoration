@@ -74,14 +74,15 @@ def neg_log_p(x_mat, w_mat):
 
 ### TRAIN UTILS ###
 
-def plot_img_mats(mat):
+def plot_img_mats(mat, color=False):
     """ plot l*m*n mats as l m by n gray-scale images """
     n = mat.shape[0]
     cols = int(np.ceil(np.sqrt(n)))
     rows = int(np.ceil(n // cols))
     mat = np.maximum(mat, 0.0)
     mat = np.minimum(mat, 1.0)
-    plt.style.use('grayscale')
+    if not color:
+        plt.style.use('grayscale')
     fig, ax_list = plt.subplots(ncols=cols, nrows=rows)
     ax_list = ax_list.flatten()
 
@@ -89,13 +90,16 @@ def plot_img_mats(mat):
         if idx >= n:
             ax.axis('off')
         else:
-            ax.imshow(mat[idx, :, :], interpolation='none')
+            if color:
+                ax.imshow(mat[idx, :, :, :], interpolation='none')
+            else:
+                ax.imshow(mat[idx, :, :], interpolation='none')
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
     plt.show()
 
 
-def pca_whiten(data):
+def pca_whiten_as_ica(data):
     n_samples, n_features = data.shape
     data = data.T
     data -= data.mean(axis=-1)[:, np.newaxis]
@@ -104,6 +108,18 @@ def pca_whiten(data):
     data = np.dot(K, data)
     data *= np.sqrt(n_samples)
     return data.T, K
+
+
+def pca_whiten_as_pca(data):
+    n_samples, n_features = data.shape
+    u, s, v = np.linalg.svd(data, full_matrices=False)
+    max_abs_cols = np.argmax(np.abs(u), axis=0)
+    signs = np.sign(u[max_abs_cols, range(u.shape[1])])
+    u *= signs
+    u *= np.sqrt(n_samples)
+    v *= signs[:, np.newaxis]
+    rerotate = v / s[:, np.newaxis] * np.sqrt(n_samples)
+    return u, rerotate
 
 
 def zca_whiten(data):
@@ -137,16 +153,18 @@ def get_patches(num=1000, ph=8, pw=8, color=False):
         w = np.random.randint(0, max_w)
         image = filehandling_utils.load_image(img_path, resize=False)
         image = image.astype(float)
+        image = image[h:h + ph, w:w + pw, :]
         if not color:
-            image = rgb2gray(image[h:h + ph, w:w + pw, :])
+            image = rgb2gray(image)
         image = image.flatten()
-        image /= 255.0
         images.append(image)
-    print(image.max())
-    print(image.min())
     mat = np.stack(images, axis=0)
-    mat_centered = mat - mat.mean(axis=0)
-    mat_centered = mat_centered - mat_centered.mean(axis=1).reshape(num, -1)
+    mat /= 255.0  # map to range [0,1]
+    mat_centered = mat - mat.mean(axis=1).reshape(num, -1)  # subtract image mean
+    # don't subtract channel mean (stationarity should take care of this)
+    # mat_centered = mat_centered - mat_centered.mean(axis=0)
+    # print(mat_centered.mean(axis=0))
+    # print(mat_centered.mean(axis=1))
     return mat_centered
 
 
@@ -161,18 +179,23 @@ def get_faces():
 def train_test():
     ph = 8
     pw = 8
-    n_features = 64  # ph * pw
-    n_components = 256  # n_features
-    n_samples = 5000
+    color = True
+    n_features = ph * pw
+    if color:
+        n_features *= 3
+    n_components = 128
+    n_samples = 1000
     num_iterations = 50000
     lr = 3.0e-7
-    lr_lower_points = [(0, 1.0e-5), (10000, 3.0e-6), (20000, 1.0e-6), (30000, 1.0e-6), (40000, 3.0e-7)]
+    lr_lower_points = [(0, 1.0e-5), (40000, 3.0e-6), (50000, 1.0e-6), (60000, 1.0e-6), (70000, 3.0e-7)]
     grad_clip = 100.0
     n_vis = 100
     sgd_based = True
 
-    data = get_patches(n_samples, ph, pw)
-    data, whitening_mat = pca_whiten(data)
+    data = get_patches(n_samples, ph, pw, color=color)
+    data, rerotate = pca_whiten_as_ica(data)
+    # pca = PCA(n_components=n_features, whiten=True)
+    # data = pca.fit_transform(data)
 
     with tf.Graph().as_default() as graph:
 
@@ -236,47 +259,45 @@ def train_test():
                     print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
                     print('term1: ', t1, ' term2: ', t2)
 
-            comps = w_res.T
+            w_res, alp = sess.run([w_mat, alpha])
+            comps = np.dot(w_res.T, rerotate)
             print(comps.shape)
             comps -= np.min(comps)
             comps /= np.max(comps)
-            co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
-            plot_img_mats(co)
-
-            comps = np.dot(w_res.T, whitening_mat)
-            # comps = w_res.T
-            print(comps.shape)
-            comps -= np.min(comps)
-            comps /= np.max(comps)
-            co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
-            plot_img_mats(co)
+            if color:
+                co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
+            else:
+                co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
+            plot_img_mats(co, color=color)
 
 
 def fast_ica_comp():
     ph = 8
     pw = 8
     n_features = 64
-    n_samples = 5000
+    n_samples = 48000
 
-    data = get_patches(n_samples, ph, pw, color=False)
+    # data = get_patches(n_samples, ph, pw, color=True)
+    # data, rerotate = pca_whiten_as_pca(data)
+    # ica = FastICA(whiten=False, max_iter=1000)
+    # ica.fit(data)
+    # comps = ica.components_
+    # comps = np.dot(comps, rerotate)
+    # comps -= np.min(comps)
+    # comps /= np.max(comps)
+    # plot_img_mats(np.reshape(comps, [-1, ph, pw, 3]))
 
-    data, whitening_mat = pca_whiten(data)
-    ica = FastICA(whiten=False, max_iter=1000)
-    ica.fit(data)
-    comps = ica.components_
-    comps = np.dot(comps, whitening_mat)
-    comps -= np.min(comps)
-    comps /= np.max(comps)
-    plot_img_mats(np.reshape(comps, [-1, ph, pw]))
-
+    data = get_patches(n_samples, ph, pw, color=True)
+    print(data.shape)
     ica2 = FastICA(whiten=True, n_components=n_features, max_iter=1000)
-    ica2.fit(get_patches(n_samples, ph, pw))
+    ica2.fit(data)
     comps = ica2.components_
     comps -= np.min(comps)
     comps /= np.max(comps)
-    plot_img_mats(np.reshape(comps, [-1, ph, pw]))
+    print(comps.shape)
+    plot_img_mats(np.reshape(comps, [-1, ph, pw, 3]), color=True)
 
-train_test()
-# fast_ica_comp()
+# train_test()
+fast_ica_comp()
 
 
