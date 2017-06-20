@@ -123,6 +123,22 @@ def pca_whiten_as_pca(data):
     return u, rerotate
 
 
+def pca_whiten_mats(cov):
+    e_vals, e_vecs = np.linalg.eigh(cov)
+    print(e_vals)
+    sqrt_vals = np.sqrt(np.maximum(e_vals, 0))
+    whiten = np.diag(1 / sqrt_vals) @ e_vecs.T
+    un_whiten = e_vecs @ np.diag(sqrt_vals)
+    return whiten, un_whiten
+
+
+def pca_whiten(data):
+    cov = np.dot(data.T, data) / (data.shape[0] - 1)
+    whiten, unwhiten = pca_whiten_mats(cov)
+    data = np.dot(data, whiten.T)
+    return data, unwhiten
+
+
 def zca_whiten_mats(cov):
     U, S, _ = np.linalg.svd(cov)
     s = np.sqrt(S.clip(1.e-6))
@@ -131,6 +147,7 @@ def zca_whiten_mats(cov):
     whiten = np.dot(np.dot(U, s_inv), U.T)
     un_whiten = np.dot(np.dot(U, s), U.T)
     return whiten, un_whiten
+
 
 
 def zca_whiten(data):
@@ -187,7 +204,7 @@ def patch_batch_gen(batch_size, data_dir='./data/patches_gray/8by8/', zca_whiten
                 print('cov progress: ', idx, ' / ', data_set_size)
 
         cov_acc = cov_acc.astype(np.float32) / (data_set_size - 1)
-        whiten, un_whiten = zca_whiten_mats(cov_acc)
+        whiten, un_whiten = pca_whiten_mats(cov_acc)
         yield whiten, un_whiten
 
     idx = 0
@@ -228,17 +245,17 @@ def train_test():
     n_features = ph * pw
     if color:
         n_features *= 3
-    n_components = 128
+    n_components = 64
     n_samples = 5000
     num_iterations = 50000
-    lr = 3.0e-7
-    lr_lower_points = [(0, 1.0e-4), (20000, 3.0e-5), (40000, 1.0e-6), (60000, 1.0e-6), (70000, 3.0e-7)]
+    lr = 3.0e-6
+    lr_lower_points = [(0, 1.0e-3), (2000, 1.0e-4), (5000, 3.0e-5), (15000, 1.0e-5)]
     grad_clip = 100.0
     n_vis = 100
     sgd_based = True
 
     data = get_patches(n_samples, ph, pw, color=color)
-    data, rerotate = pca_whiten_as_ica(data)
+    data, rerotate = zca_whiten(data)
     # pca = PCA(n_components=n_features, whiten=True)
     # data = pca.fit_transform(data)
 
@@ -263,7 +280,7 @@ def train_test():
             tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
                           for k in tg_pairs]
             opt_op = opt.apply_gradients(tg_clipped)
-            opt_op = opt.apply_gradients(tg_pairs)
+            # opt_op = opt.apply_gradients(tg_pairs)
         else:
             # norm_constraints = tf.split(tf.norm(w_mat, ord=2, axis=0) - 1., num_or_size_splits=n_components)
             train_step = tf.contrib.opt.ScipyOptimizerInterface(loss, method='L-BFGS-B',
@@ -315,34 +332,37 @@ def train_test():
                 co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
             plot_img_mats(co, color=color)
 
+            comps = w_res.T
+            print(comps.shape)
+            comps -= np.min(comps)
+            comps /= np.max(comps)
+            if color:
+                co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
+            else:
+                co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
+            plot_img_mats(co, color=color)
+
 
 def fast_ica_comp():
     ph = 8
     pw = 8
-    n_features = 64
-    n_samples = 48000
+    n_samples = 5000
+    color = False
+    data = get_patches(n_samples, ph, pw, color=color)
+    data, rerotate = pca_whiten(data)
+    ica = FastICA(whiten=False, max_iter=1000)
+    ica.fit(data)
+    comps = ica.components_
+    comps = np.dot(comps, rerotate)
+    comps -= np.min(comps)
+    comps /= np.max(comps)
+    plot_img_mats(np.reshape(comps, [-1, ph, pw]), color=color)
 
-    # data = get_patches(n_samples, ph, pw, color=True)
-    # data, rerotate = pca_whiten_as_pca(data)
-    # ica = FastICA(whiten=False, max_iter=1000)
-    # ica.fit(data)
-    # comps = ica.components_
-    # comps = np.dot(comps, rerotate)
-    # comps -= np.min(comps)
-    # comps /= np.max(comps)
-    # plot_img_mats(np.reshape(comps, [-1, ph, pw, 3]))
-
-    data = get_patches(n_samples, ph, pw, color=True)
-    print(data.shape)
-    ica2 = FastICA(whiten=True, n_components=n_features, max_iter=1000)
-    ica2.fit(data)
-    comps = ica2.components_
+    comps = ica.components_
     comps -= np.min(comps)
     comps /= np.max(comps)
     print(comps.shape)
-    plot_img_mats(np.reshape(comps, [-1, ph, pw, 3]), color=True)
+    plot_img_mats(np.reshape(comps, [-1, ph, pw]), color=color)
 
 # train_test()
-# fast_ica_comp()
-
-
+fast_ica_comp()
