@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import filehandling_utils
+import time
 from skimage.color import rgb2gray
 from sklearn.decomposition import PCA, FastICA
 from sklearn.datasets import fetch_olivetti_faces
@@ -75,6 +76,7 @@ def neg_log_p(x_mat, w_mat):
 
 ### TRAIN UTILS ###
 
+
 def plot_img_mats(mat, color=False):
     """ plot l*m*n mats as l m by n gray-scale images """
     n = mat.shape[0]
@@ -124,12 +126,20 @@ def pca_whiten_as_pca(data):
 
 
 def pca_whiten_mats(cov):
-    e_vals, e_vecs = np.linalg.eigh(cov)
-    print(e_vals)
+    e_vals, e_vecs = np.linalg.eigh(cov)  # seems like vals are sorted ascending, relying on that for now
+    # print(e_vals)
+    # e_vals += 0.000001
+    # x, y = zip(sorted(zip(e_vals, range(e_vals.shape[0]))))
+    # print(x)
+    # print(y)
+    e_vals = e_vals[1:]
+    e_vecs = e_vecs[:, 1:]
     sqrt_vals = np.sqrt(np.maximum(e_vals, 0))
     whiten = np.diag(1 / sqrt_vals) @ e_vecs.T
     un_whiten = e_vecs @ np.diag(sqrt_vals)
-    return whiten, un_whiten
+    print(whiten.shape)
+    print(un_whiten.shape)
+    return whiten, un_whiten.T
 
 
 def pca_whiten(data):
@@ -147,7 +157,6 @@ def zca_whiten_mats(cov):
     whiten = np.dot(np.dot(U, s_inv), U.T)
     un_whiten = np.dot(np.dot(U, s), U.T)
     return whiten, un_whiten
-
 
 
 def zca_whiten(data):
@@ -191,43 +200,123 @@ def get_patches(num=1000, ph=8, pw=8, color=False):
     return mat_centered
 
 
-def patch_batch_gen(batch_size, data_dir='./data/patches_gray/8by8/', zca_whiten=True):
-    data_set_size = len([name for name in os.listdir('./data/patches_gray/8by8/')])
+def make_data_mat_from_patches(data_dir='./data/patches_gray/8by8/', whiten_mode='pca'):
+    data_set_size = len([name for name in os.listdir(data_dir) if name.startswith('patch')])
+    mm = np.memmap(data_dir + '/data_mat_' + whiten_mode + '.npy', dtype=np.float32, mode='w+',
+                   shape=(data_set_size, 63))
+    if whiten_mode == 'pca' or whiten_mode == 'zca':
+        cov_acc = np.load(data_dir + '/cov.npy')
 
-    if zca_whiten:
-        cov_acc = 0
-        for idx in range(data_set_size):
-            image = filehandling_utils.load_image(data_dir + 'patch_{}.bmp'.format(idx), resize=False).flatten()
-            cov_acc = cov_acc + np.outer(image, image)
+        if whiten_mode == 'pca':
+            whiten, un_whiten = pca_whiten_mats(cov_acc)
+        else:
+            whiten, un_whiten = zca_whiten_mats(cov_acc)
 
-            if idx % (data_set_size / 10) == 0:
-                print('cov progress: ', idx, ' / ', data_set_size)
+    for idx in range(data_set_size):
 
-        cov_acc = cov_acc.astype(np.float32) / (data_set_size - 1)
-        whiten, un_whiten = pca_whiten_mats(cov_acc)
-        yield whiten, un_whiten
+        image = filehandling_utils.load_image(data_dir + 'patch_{}.bmp'.format(idx), resize=False)
+        image = image.flatten().astype(np.float32)
+        image /= 255.0
+        image -= image.mean()
+        image = whiten @ image
+        mm[idx, :] = image
 
+
+def make_data_mats(num_patches, ph=8, pw=8, color=False, save_dir='./data/patches_gray/new8by8/', whiten_mode='pca'):
+    img_hw = 224
+    max_h = img_hw - ph
+    max_w = img_hw - pw
+    data_path = './data/imagenet2012-validationset/'
+    img_file = 'train_48k_images.txt'
+    n_features = ph * pw
+    if color:
+        n_features *= 3
+    raw_mat = np.memmap(save_dir + 'data_mat_raw.npy', dtype=np.float32, mode='w+',
+                        shape=(num_patches, n_features))
+
+    with open(data_path + img_file) as f:
+        image_files = [k.rstrip() for k in f.readlines()]
+
+    image_paths = [data_path + 'images_resized/' +
+                   k[:-len('JPEG')] + 'bmp' for k in image_files]
+
+    cov_acc = 0
+    for idx in range(num_patches):
+        img_path = image_paths[idx % len(image_paths)]
+        h = np.random.randint(0, max_h)
+        w = np.random.randint(0, max_w)
+        image = filehandling_utils.load_image(img_path, resize=False)
+        image = image[h:h + ph, w:w + pw, :]
+        if not color:
+            image = rgb2gray(image)
+        image = image.flatten().astype(np.float32)
+        image /= 255.0  # map to range [0,1]
+        image -= image.mean()  # subtract image mean
+
+        raw_mat[idx, :] = image
+        cov_acc = cov_acc + np.outer(image, image)
+
+    cov = cov_acc / (num_patches - 1)
+    np.save(save_dir + 'cov.npy', cov)
+
+    raw_mat.flush()
+    del raw_mat
+
+    print('raw mat and cov done')
+
+    raw_mat = np.memmap(save_dir + '/data_mat_raw.npy', dtype=np.float32, mode='r',
+                        shape=(num_patches, n_features))
+
+    if whiten_mode == 'pca':
+        whiten, un_whiten = pca_whiten_mats(cov)
+    elif whiten_mode == 'zca':
+        whiten, un_whiten = zca_whiten_mats(cov)
+    else:
+        raise NotImplementedError
+
+    np.save(save_dir + 'whiten_' + whiten_mode + '.npy', whiten)
+    np.save(save_dir + 'unwhiten_' + whiten_mode + '.npy', un_whiten)
+
+    data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_whitened.npy', dtype=np.float32, mode='w+',
+                         shape=(num_patches, whiten.shape[0]))
+
+    for idx in range(num_patches):
+        image = raw_mat[idx, :]
+        image = whiten @ image
+        data_mat[idx, :] = image
+
+
+def make_cov_acc(data_dir='./data/patches_gray/8by8/'):
+    data_set_size = len([name for name in os.listdir(data_dir) if name.startswith('patch')])
+    cov_acc = 0
+    for idx in range(data_set_size):
+        image = filehandling_utils.load_image(data_dir + 'patch_{}.bmp'.format(idx), resize=False).flatten()
+        image = image.astype(np.float32) / 255.0
+        image -= image.mean()
+        cov_acc = cov_acc + np.outer(image, image)
+
+        if idx % (data_set_size / 10) == 0:
+            print('cov progress: ', idx, ' / ', data_set_size)
+
+    cov_acc = cov_acc.astype(np.float32) / (data_set_size - 1)
+    np.save(data_dir + '/cov.npy', cov_acc)
+
+
+def patch_batch_gen(batch_size, data_dir='./data/patches_gray/new8by8/', whiten_mode='pca', data_shape=(100000, 63)):
+    data_mat = np.memmap(data_dir + 'data_mat_' + whiten_mode + '_whitened.npy', dtype=np.float32, mode='r',
+                         shape=data_shape)
+    n_samples, n_features = data_shape
     idx = 0
     while True:
-        images = []
-        for jdx in range(batch_size):
-
-            image = filehandling_utils.load_image(data_dir + 'patch_{}.bmp'.format(idx), resize=False)
-            image = image.flatten()
-            images.append(image)
-            if idx == data_set_size:
-                idx = 0
-            else:
-                idx += 1
-
-        mat = np.stack(images, axis=0).astype(np.float32)
-        mat /= 255.0  # map to range [0,1]
-        mat -= mat.mean(axis=1).reshape(batch_size, -1)  # subtract image mean
-
-        if zca_whiten:
-            mat = np.dot(mat, whiten.T)
-
-        yield mat
+        if idx + batch_size < n_samples:
+            batch = data_mat[idx:(idx+batch_size), :]
+            idx += batch_size
+        else:
+            last_bit = data_mat[idx:, :]
+            idx = (idx + batch_size) % n_samples
+            first_bit = data_mat[:idx, :]
+            batch = np.concatenate((last_bit, first_bit), axis=0)
+        yield batch
 
 
 def get_faces():
@@ -241,74 +330,64 @@ def get_faces():
 def train_test():
     ph = 8
     pw = 8
-    color = False
+    color = True
     n_features = ph * pw
     if color:
         n_features *= 3
-    n_components = 64
-    n_samples = 5000
-    num_iterations = 50000
+    n_features -= 1
+    n_components = 512
+    batch_size = 1000
+    num_iterations = 20000
     lr = 3.0e-6
-    lr_lower_points = [(0, 1.0e-3), (2000, 1.0e-4), (5000, 3.0e-5), (15000, 1.0e-5)]
+    lr_lower_points = [(0, 1.0e-3), (2000, 1.0e-4), (4000, 3.0e-5), (10000, 1.0e-5)]
     grad_clip = 100.0
-    n_vis = 100
-    sgd_based = True
+    n_vis = 144
+    whiten_mode = 'pca'
+    data_dir = './data/patches_color/8by8/'
 
-    data = get_patches(n_samples, ph, pw, color=color)
-    data, rerotate = zca_whiten(data)
-    # pca = PCA(n_components=n_features, whiten=True)
-    # data = pca.fit_transform(data)
+    data_gen = patch_batch_gen(1000, whiten_mode=whiten_mode, data_dir=data_dir, data_shape=(100000, n_features))
+    un_whiten_mat = np.load(data_dir + 'unwhiten_pca.npy')
 
     with tf.Graph().as_default() as graph:
 
-        x_pl = tf.placeholder(dtype=tf.float32, shape=[n_samples, n_features], name='x_pl')
+        x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, n_features], name='x_pl')
+        lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
+
         w_mat = tf.get_variable(shape=[n_features, n_components], dtype=tf.float32, name='w_mat',
                                 initializer=tf.random_normal_initializer(stddev=0.001))
         alpha = tf.get_variable(shape=[n_components, 1], dtype=tf.float32, name='alpha',
                                 initializer=tf.random_normal_initializer())
-        lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
 
         loss = loss_J_tilde(x_mat=x_pl, w_mat=w_mat, alpha=alpha)
         clip_op = tf.assign(w_mat, w_mat / tf.norm(w_mat, ord=2, axis=0))
 
-        if sgd_based:
-            opt = tf.train.MomentumOptimizer(learning_rate=lr_pl, momentum=0.9)
-            # opt = tf.train.AdamOptimizer(learning_rate=lr_pl)  # , epsilon=0.001)
-            tvars = tf.trainable_variables()
-            grads = tf.gradients(loss, tvars)
-            tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
-            tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
-                          for k in tg_pairs]
-            opt_op = opt.apply_gradients(tg_clipped)
-            # opt_op = opt.apply_gradients(tg_pairs)
-        else:
-            # norm_constraints = tf.split(tf.norm(w_mat, ord=2, axis=0) - 1., num_or_size_splits=n_components)
-            train_step = tf.contrib.opt.ScipyOptimizerInterface(loss, method='L-BFGS-B',
-                                                                options={'maxiter': num_iterations}
-                                                                # , equalities=norm_constraints,
-                                                                # inequalities=[tf.constant(1, dtype=tf.float32, shape=[1])]
-                                                                )
+        opt = tf.train.MomentumOptimizer(learning_rate=lr_pl, momentum=0.9)
+        # opt = tf.train.AdamOptimizer(learning_rate=lr_pl)  # , epsilon=0.001)
+        tvars = tf.trainable_variables()
+        grads = tf.gradients(loss, tvars)
+        tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
+        tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
+                      for k in tg_pairs]
+        opt_op = opt.apply_gradients(tg_clipped)
+        # opt_op = opt.apply_gradients(tg_pairs)
 
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             sess.run(clip_op)
-            if not sgd_based:
-                num_iterations = 1
 
+            start_time = time.time()
+            train_time = 0
             for idx in range(num_iterations):
+                data = next(data_gen)
+
                 if lr_lower_points and lr_lower_points[0][0] == idx:
                     lr = lr_lower_points[0][1]
                     print('new learning rate: ', lr)
                     lr_lower_points = lr_lower_points[1:]
-
-                if sgd_based:
-                    batch_loss, _ = sess.run(fetches=[loss, opt_op], feed_dict={x_pl: data, lr_pl: lr})
-                    sess.run(clip_op)
-
-                else:
-                    batch_loss = sess.run(fetches=[loss], feed_dict={x_pl: data})
-                    train_step.minimize(sess, feed_dict={x_pl: data})
-
+                batch_start = time.time()
+                batch_loss, _ = sess.run(fetches=[loss, opt_op], feed_dict={x_pl: data, lr_pl: lr})
+                sess.run(clip_op)
+                train_time += time.time() - batch_start
                 if idx % 100 == 0:
                     print(batch_loss)
 
@@ -321,8 +400,10 @@ def train_test():
                     print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
                     print('term1: ', t1, ' term2: ', t2)
 
+                    train_ratio = 100.0 * train_time / (time.time() - start_time)
+                    print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
             w_res, alp = sess.run([w_mat, alpha])
-            comps = np.dot(w_res.T, rerotate)
+            comps = np.dot(w_res.T, un_whiten_mat)
             print(comps.shape)
             comps -= np.min(comps)
             comps /= np.max(comps)
@@ -332,15 +413,15 @@ def train_test():
                 co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
             plot_img_mats(co, color=color)
 
-            comps = w_res.T
-            print(comps.shape)
-            comps -= np.min(comps)
-            comps /= np.max(comps)
-            if color:
-                co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
-            else:
-                co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
-            plot_img_mats(co, color=color)
+            # comps = w_res.T
+            # print(comps.shape)
+            # comps -= np.min(comps)
+            # comps /= np.max(comps)
+            # if color:
+            #     co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
+            # else:
+            #     co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
+            # plot_img_mats(co, color=color)
 
 
 def fast_ica_comp():
@@ -348,21 +429,22 @@ def fast_ica_comp():
     pw = 8
     n_samples = 5000
     color = False
-    data = get_patches(n_samples, ph, pw, color=color)
-    data, rerotate = pca_whiten(data)
+    # data = get_patches(n_samples, ph, pw, color=color)
+    # data, rerotate = pca_whiten(data)
+    data_gen = patch_batch_gen(n_samples)
+    whiten, un_whiten = next(data_gen)
+    data = next(data_gen)
     ica = FastICA(whiten=False, max_iter=1000)
     ica.fit(data)
     comps = ica.components_
-    comps = np.dot(comps, rerotate)
+    comps = np.dot(comps, un_whiten)
     comps -= np.min(comps)
     comps /= np.max(comps)
     plot_img_mats(np.reshape(comps, [-1, ph, pw]), color=color)
 
-    comps = ica.components_
-    comps -= np.min(comps)
-    comps /= np.max(comps)
-    print(comps.shape)
-    plot_img_mats(np.reshape(comps, [-1, ph, pw]), color=color)
+    # comps = ica.components_
+    # comps -= np.min(comps)
+    # comps /= np.max(comps)
+    # print(comps.shape)
+    # plot_img_mats(np.reshape(comps, [-1, ph, pw]), color=color)
 
-# train_test()
-fast_ica_comp()

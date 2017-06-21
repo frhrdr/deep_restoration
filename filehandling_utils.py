@@ -100,10 +100,12 @@ def get_img_files_complement(file_a='images.txt', file_b='validate_2k_images.txt
         f.writelines([k + '\n' for k in comp])
 
 
-# taken from https://github.com/machrisaa/tensorflow-vgg/utils.py
-# returns image of shape [res[0], res[1], 3]
-# [height, width, depth]
 def load_image(path, res=(224, 224), resize=True):
+    """
+    taken from https://github.com/machrisaa/tensorflow-vgg/utils.py
+    returns image of shape [res[0], res[1], 3]
+    [height, width, depth]
+    """
     img = skimage.io.imread(path)
     if resize:
         # noinspection PyUnresolvedReferences
@@ -205,13 +207,15 @@ def concat_mv_images(num=21):
     plt.close()
 
 
-def make_patches_data(num_patches, ph=8, pw=8, color=False, save_dir='./data/patches_gray/8by8/'):
+def make_patches_data(num_patches, ph=8, pw=8, color=False, save_dir='./data/patches_color/8by8/', whiten_mode='pca'):
     img_hw = 224
     max_h = img_hw - ph
     max_w = img_hw - pw
     data_path = './data/imagenet2012-validationset/'
     img_file = 'train_48k_images.txt'
 
+    mm = np.memmap(save_dir + '/data_mat_' + whiten_mode + '.npy', dtype=np.float32, mode='w+',
+                   shape=(data_set_size, 63))
     with open(data_path + img_file) as f:
         image_files = [k.rstrip() for k in f.readlines()]
 
@@ -234,3 +238,4 @@ def make_patches_data(num_patches, ph=8, pw=8, color=False, save_dir='./data/pat
         # image -= image.mean()  # subtract image mean
         target_file = save_dir + 'patch_' + str(idx) + '.bmp'
         skimage.io.imsave(target_file, image)
+
