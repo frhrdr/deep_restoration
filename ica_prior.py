@@ -33,7 +33,7 @@ class ICAPrior(LearnedPriorLoss):
             x_pad = ((dims[1] - 1) // 2, int(np.ceil((dims[1] - 1) / 2)))
             y_pad = ((dims[2] - 1) // 2, int(np.ceil((dims[2] - 1) / 2)))
             conv_input = tf.pad(tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
-            flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 2, 2, 1], padding='VALID')
+            flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 8, 8, 1], padding='VALID')
             scaled_patches = flat_patches * self.input_scaling
             centered_patches = flat_patches - tf.stack([tf.reduce_mean(scaled_patches, axis=3)] * filter_mat.shape[3],
                                                        axis=3)

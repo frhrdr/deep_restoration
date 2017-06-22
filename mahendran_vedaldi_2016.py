@@ -94,7 +94,7 @@ def invert_layer(params):
                                         weighting=1 / (params['img_HW'] ** 2 * params['range_V'] ** params['beta_tv']))
 
             ica_prior = ICAPrior(tensor_names='reconstruction/read:0',
-                                 weighting=100.0, name='ICAPrior',
+                                 weighting=10.0, name='ICAPrior',
                                  load_path='./logs/priors/ica_prior/8by8_512_color/ckpt',
                                  trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
 
@@ -103,13 +103,6 @@ def invert_layer(params):
             for mod in loss_mods:
                 mod.build()
                 loss += mod.get_loss()
-
-            print(ica_prior.get_loss())
-            ica_grads = tf.gradients(ica_prior.get_loss(), ica_prior.get_tensors())
-            print(ica_prior.get_tensors())
-            print(reconstruction)
-            print(tf.gradients(ica_prior.get_loss(), reconstruction))
-            print(ica_grads)
 
             lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
             # optimizer = tf.train.AdamOptimizer(lr_pl)
