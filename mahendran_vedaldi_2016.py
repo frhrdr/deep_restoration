@@ -9,7 +9,7 @@ from filehandling_utils import save_dict
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from loss_modules import SoftRangeLoss, TotalVariationLoss, NormedMSELoss
+from loss_modules import SoftRangeLoss, TotalVariationLoss, NormedMSELoss, LearnedPriorLoss
 from ica_prior import ICAPrior
 
 PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',
@@ -26,26 +26,6 @@ PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', laye
               grad_clip=100.0,
               log_path='./logs/mahendran_vedaldi/2016/',
               save_as_mat=False)
-
-
-# def soft_range_prior(tensor, alpha):
-#     tmp = tf.reduce_sum(tensor ** 2, axis=[3]) ** (alpha/2)
-#     return tf.reduce_sum(tmp)
-#
-#
-# def total_variation_prior(tensor, beta):
-#     h0 = tf.slice(tensor, [0, 0, 0, 0], [-1, tensor.get_shape()[1].value - 1, -1, -1])
-#     h1 = tf.slice(tensor, [0, 1, 0, 0], [-1, -1, -1, -1])
-#
-#     v0 = tf.slice(tensor, [0, 0, 0, 0], [-1, -1, tensor.get_shape()[1].value - 1, -1])
-#     v1 = tf.slice(tensor, [0, 0, 1, 0], [-1, -1, -1, -1])
-#
-#     h_diff = h0 - h1
-#     v_diff = v0 - v1
-#
-#     d_sum = tf.pad(h_diff * h_diff, [[0, 0], [0, 1], [0, 0], [0, 0]]) + \
-#             tf.pad(v_diff * v_diff, [[0, 0], [0, 0], [0, 1], [0, 0]])
-#     return tf.reduce_sum(d_sum ** (beta/2))
 
 
 def invert_layer(params):
@@ -94,8 +74,8 @@ def invert_layer(params):
                                         weighting=1 / (params['img_HW'] ** 2 * params['range_V'] ** params['beta_tv']))
 
             ica_prior = ICAPrior(tensor_names='reconstruction/read:0',
-                                 weighting=10.0, name='ICAPrior',
-                                 load_path='./logs/priors/ica_prior/8by8_512_color/ckpt',
+                                 weighting=0.0005, name='ICAPrior',
+                                 load_path='./logs/priors/ica_prior/8by8_512_color/ckpt-5000',
                                  trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
 
             loss_mods = [mse_mod, ica_prior]  # [mse_mod, sr_mod, tv_mod]
@@ -124,9 +104,12 @@ def invert_layer(params):
                 mod.scalar_summary()
 
             train_summary_op = tf.summary.merge_all()
-            summary_writer = tf.summary.FileWriter(params['log_path'] + '/summaries')
+            summary_writer = tf.summary.FileWriter(params['log_path'] + '/summaries', graph=graph)
 
-            sess.run(tf.global_variables_initializer())
+            sess.run(tf.variables_initializer(tf.global_variables()))
+            for mod in loss_mods:
+                if isinstance(mod, LearnedPriorLoss):
+                    mod.load_weights(sess)
 
             start_time = time.time()
             for count in range(params['num_iterations']):
@@ -139,6 +122,7 @@ def invert_layer(params):
                 feed = {lr_pl: params['learning_rate'], jitter_x_pl: jitter[0], jitter_y_pl: jitter[1]}
 
                 batch_loss, _, summary_string = sess.run([loss, train_op, train_summary_op], feed_dict=feed)
+                # sess.run(check, feed_dict=feed)
                 # sess.run(clip_op)
                 rec_mat = sess.run(reconstruction)
                 if (count + 1) % params['summary_freq'] == 0:
@@ -147,6 +131,10 @@ def invert_layer(params):
                 if (count + 1) % params['print_freq'] == 0:
                     print(('Iteration: {0:6d} Training Error:   {1:9.2f} ' +
                            'Time: {2:5.1f} min').format(count + 1, batch_loss, (time.time() - start_time) / 60))
+                    # a = sess.run(graph.get_tensor_by_name('ICAPrior/ica_a:0'))
+                    # print(a)
+                    # w = sess.run(graph.get_tensor_by_name('ICAPrior/ica_w:0'))
+                    # print(w)
 
                 if (count + 1) % params['log_freq'] == 0:
                     plot_mat = np.zeros(shape=(params['img_HW'], 2 * params['img_HW'], 3))

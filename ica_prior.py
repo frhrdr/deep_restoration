@@ -24,7 +24,7 @@ class ICAPrior(LearnedPriorLoss):
         return f
 
     def build(self):
-        with tf.name_scope(self.name):
+        with tf.variable_scope(self.name):
             tensor = self.get_tensors()
             dims = [s.value for s in tensor.get_shape()]
             assert len(dims) == 4
@@ -33,7 +33,7 @@ class ICAPrior(LearnedPriorLoss):
             x_pad = ((dims[1] - 1) // 2, int(np.ceil((dims[1] - 1) / 2)))
             y_pad = ((dims[2] - 1) // 2, int(np.ceil((dims[2] - 1) / 2)))
             conv_input = tf.pad(tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
-            flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 8, 8, 1], padding='VALID')
+            flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 4, 4, 1], padding='VALID')
             scaled_patches = flat_patches * self.input_scaling
             centered_patches = flat_patches - tf.stack([tf.reduce_mean(scaled_patches, axis=3)] * filter_mat.shape[3],
                                                        axis=3)
@@ -45,15 +45,16 @@ class ICAPrior(LearnedPriorLoss):
                                                dtype=tf.float32, trainable=self.trainable)
 
             centered_patches = tf.reshape(centered_patches, shape=[-1, n_features_raw])
-            whitened_patches = tf.matmul(centered_patches, whitening_tensor, transpose_b=True)
 
-            ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable)
-            ica_w = tf.get_variable('ica_w', shape=[n_features_white, self.n_components], trainable=self.trainable)
+            ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable, dtype=tf.float32)
+            ica_w = tf.get_variable('ica_w', shape=[n_features_white, self.n_components],
+                                    trainable=self.trainable, dtype=tf.float32)
             ica_a_squeezed = tf.squeeze(ica_a)
-            xw = tf.matmul(whitened_patches, ica_w)
+
+            whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
+            xw = tf.matmul(centered_patches, whitened_mixing)
             neg_g_wx = tf.log(0.5 * (tf.exp(-xw) + tf.exp(xw))) * ica_a_squeezed
             neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
-
             naive_mean = tf.reduce_mean(neg_log_p_patches, name='loss')
             self.loss = naive_mean
 

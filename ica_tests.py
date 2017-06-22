@@ -349,79 +349,81 @@ def train_test():
     unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
     whiten_mat = np.load(data_dir + 'whiten_' + whiten_mode + '.npy').astype(np.float32)
     with tf.Graph().as_default() as graph:
+        with tf.variable_scope('ICAPrior'):
+            # add whitening mats to the save-files for later retrieval
+            tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
+            tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
 
-        # add whitening mats to the save-files for later retrieval
-        tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
-        tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
+            x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, n_features], name='x_pl')
+            lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
 
-        x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, n_features], name='x_pl')
-        lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
+            w_mat = tf.get_variable(shape=[n_features, n_components], dtype=tf.float32, name='ica_w',
+                                    initializer=tf.random_normal_initializer(stddev=0.001))
+            alpha = tf.get_variable(shape=[n_components, 1], dtype=tf.float32, name='ica_a',
+                                    initializer=tf.random_normal_initializer())
 
-        w_mat = tf.get_variable(shape=[n_features, n_components], dtype=tf.float32, name='ica_w',
-                                initializer=tf.random_normal_initializer(stddev=0.001))
-        alpha = tf.get_variable(shape=[n_components, 1], dtype=tf.float32, name='ica_a',
-                                initializer=tf.random_normal_initializer())
+            loss = loss_J_tilde(x_mat=x_pl, w_mat=w_mat, alpha=alpha)
+            clip_op = tf.assign(w_mat, w_mat / tf.norm(w_mat, ord=2, axis=0))
 
-        loss = loss_J_tilde(x_mat=x_pl, w_mat=w_mat, alpha=alpha)
-        clip_op = tf.assign(w_mat, w_mat / tf.norm(w_mat, ord=2, axis=0))
+            opt = tf.train.MomentumOptimizer(learning_rate=lr_pl, momentum=0.9)
+            # opt = tf.train.AdamOptimizer(learning_rate=lr_pl)  # , epsilon=0.001)
+            tvars = tf.trainable_variables()
+            grads = tf.gradients(loss, tvars)
+            tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
+            tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
+                          for k in tg_pairs]
+            opt_op = opt.apply_gradients(tg_clipped)
+            # opt_op = opt.apply_gradients(tg_pairs)
 
-        opt = tf.train.MomentumOptimizer(learning_rate=lr_pl, momentum=0.9)
-        # opt = tf.train.AdamOptimizer(learning_rate=lr_pl)  # , epsilon=0.001)
-        tvars = tf.trainable_variables()
-        grads = tf.gradients(loss, tvars)
-        tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
-        tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
-                      for k in tg_pairs]
-        opt_op = opt.apply_gradients(tg_clipped)
-        # opt_op = opt.apply_gradients(tg_pairs)
+            saver = tf.train.Saver()
 
-        saver = tf.train.Saver()
+            with tf.Session() as sess:
 
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
-            sess.run(clip_op)
-
-            start_time = time.time()
-            train_time = 0
-            for idx in range(num_iterations):
-                data = next(data_gen)
-
-                if lr_lower_points and lr_lower_points[0][0] == idx:
-                    lr = lr_lower_points[0][1]
-                    print('new learning rate: ', lr)
-                    lr_lower_points = lr_lower_points[1:]
-                batch_start = time.time()
-                batch_loss, _ = sess.run(fetches=[loss, opt_op], feed_dict={x_pl: data, lr_pl: lr})
+                sess.run(tf.global_variables_initializer())
                 sess.run(clip_op)
-                train_time += time.time() - batch_start
-                if idx % 100 == 0:
-                    print(batch_loss)
 
-                if idx % 1000 == 0:
-                    term1 = graph.get_tensor_by_name('t1:0')
-                    term2 = graph.get_tensor_by_name('t2:0')
-                    w_res, alp, t1, t2 = sess.run([w_mat, alpha, term1, term2], feed_dict={x_pl: data})
-                    print('it: ', idx, ' / ', num_iterations)
-                    print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
-                    print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
-                    print('term1: ', t1, ' term2: ', t2)
+                start_time = time.time()
+                train_time = 0
+                for idx in range(num_iterations):
+                    data = next(data_gen)
 
-                    train_ratio = 100.0 * train_time / (time.time() - start_time)
-                    print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
+                    if lr_lower_points and lr_lower_points[0][0] == idx:
+                        lr = lr_lower_points[0][1]
+                        print('new learning rate: ', lr)
+                        lr_lower_points = lr_lower_points[1:]
+                    batch_start = time.time()
+                    batch_loss, _ = sess.run(fetches=[loss, opt_op], feed_dict={x_pl: data, lr_pl: lr})
+                    sess.run(clip_op)
+                    train_time += time.time() - batch_start
+                    if idx % 100 == 0:
+                        print(batch_loss)
 
-            checkpoint_file = os.path.join(log_path, 'ckpt')
-            saver.save(sess, checkpoint_file, write_meta_graph=False)
+                    if idx % 1000 == 0:
+                        term1 = graph.get_tensor_by_name('ICAPrior/t1:0')
+                        term2 = graph.get_tensor_by_name('ICAPrior/t2:0')
+                        w_res, alp, t1, t2 = sess.run([w_mat, alpha, term1, term2], feed_dict={x_pl: data})
+                        print('it: ', idx, ' / ', num_iterations)
+                        print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
+                        print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
+                        print('term1: ', t1, ' term2: ', t2)
 
-            w_res, alp = sess.run([w_mat, alpha])
-            comps = np.dot(w_res.T, unwhiten_mat)
-            print(comps.shape)
-            comps -= np.min(comps)
-            comps /= np.max(comps)
-            if color:
-                co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
-            else:
-                co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
-            plot_img_mats(co, color=color)
+                        train_ratio = 100.0 * train_time / (time.time() - start_time)
+                        print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
+
+                checkpoint_file = os.path.join(log_path, 'ckpt')
+                saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=num_iterations)
+
+                w_res, alp = sess.run([w_mat, alpha])
+                print(alp)
+                comps = np.dot(w_res.T, unwhiten_mat)
+                print(comps.shape)
+                comps -= np.min(comps)
+                comps /= np.max(comps)
+                if color:
+                    co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
+                else:
+                    co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
+                plot_img_mats(co, color=color)
 
 
 def fast_ica_comp():
