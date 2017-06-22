@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from loss_modules import SoftRangeLoss, TotalVariationLoss, NormedMSELoss
+from ica_prior import ICAPrior
 
 PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',
               classifier='alexnet',
@@ -27,24 +28,24 @@ PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', laye
               save_as_mat=False)
 
 
-def soft_range_prior(tensor, alpha):
-    tmp = tf.reduce_sum(tensor ** 2, axis=[3]) ** (alpha/2)
-    return tf.reduce_sum(tmp)
-
-
-def total_variation_prior(tensor, beta):
-    h0 = tf.slice(tensor, [0, 0, 0, 0], [-1, tensor.get_shape()[1].value - 1, -1, -1])
-    h1 = tf.slice(tensor, [0, 1, 0, 0], [-1, -1, -1, -1])
-
-    v0 = tf.slice(tensor, [0, 0, 0, 0], [-1, -1, tensor.get_shape()[1].value - 1, -1])
-    v1 = tf.slice(tensor, [0, 0, 1, 0], [-1, -1, -1, -1])
-
-    h_diff = h0 - h1
-    v_diff = v0 - v1
-
-    d_sum = tf.pad(h_diff * h_diff, [[0, 0], [0, 1], [0, 0], [0, 0]]) + \
-            tf.pad(v_diff * v_diff, [[0, 0], [0, 0], [0, 1], [0, 0]])
-    return tf.reduce_sum(d_sum ** (beta/2))
+# def soft_range_prior(tensor, alpha):
+#     tmp = tf.reduce_sum(tensor ** 2, axis=[3]) ** (alpha/2)
+#     return tf.reduce_sum(tmp)
+#
+#
+# def total_variation_prior(tensor, beta):
+#     h0 = tf.slice(tensor, [0, 0, 0, 0], [-1, tensor.get_shape()[1].value - 1, -1, -1])
+#     h1 = tf.slice(tensor, [0, 1, 0, 0], [-1, -1, -1, -1])
+#
+#     v0 = tf.slice(tensor, [0, 0, 0, 0], [-1, -1, tensor.get_shape()[1].value - 1, -1])
+#     v1 = tf.slice(tensor, [0, 0, 1, 0], [-1, -1, -1, -1])
+#
+#     h_diff = h0 - h1
+#     v_diff = v0 - v1
+#
+#     d_sum = tf.pad(h_diff * h_diff, [[0, 0], [0, 1], [0, 0], [0, 0]]) + \
+#             tf.pad(v_diff * v_diff, [[0, 0], [0, 0], [0, 1], [0, 0]])
+#     return tf.reduce_sum(d_sum ** (beta/2))
 
 
 def invert_layer(params):
@@ -91,11 +92,24 @@ def invert_layer(params):
                                    weighting=1 / (params['img_HW'] ** 2 * params['range_B'] ** params['alpha_sr']))
             tv_mod = TotalVariationLoss(reconstruction.name, params['beta_tv'],
                                         weighting=1 / (params['img_HW'] ** 2 * params['range_V'] ** params['beta_tv']))
-            loss_mods = [mse_mod, sr_mod, tv_mod]
+
+            ica_prior = ICAPrior(tensor_names='reconstruction/read:0',
+                                 weighting=100.0, name='ICAPrior',
+                                 load_path='./logs/priors/ica_prior/8by8_512_color/ckpt',
+                                 trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
+
+            loss_mods = [mse_mod, ica_prior]  # [mse_mod, sr_mod, tv_mod]
             loss = 0
             for mod in loss_mods:
                 mod.build()
                 loss += mod.get_loss()
+
+            print(ica_prior.get_loss())
+            ica_grads = tf.gradients(ica_prior.get_loss(), ica_prior.get_tensors())
+            print(ica_prior.get_tensors())
+            print(reconstruction)
+            print(tf.gradients(ica_prior.get_loss(), reconstruction))
+            print(ica_grads)
 
             lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
             # optimizer = tf.train.AdamOptimizer(lr_pl)
@@ -113,9 +127,6 @@ def invert_layer(params):
                 tf.summary.histogram(pair[0].name, pair[1])
 
             tf.summary.scalar('0_total_loss', loss)
-            # tf.summary.scalar('1_mse_loss', mse_loss)
-            # tf.summary.scalar('2_l2_prior', prior_sr)
-            # tf.summary.scalar('3_tv_prior', prior_tv)
             for mod in loss_mods:
                 mod.scalar_summary()
 
@@ -135,7 +146,7 @@ def invert_layer(params):
                 feed = {lr_pl: params['learning_rate'], jitter_x_pl: jitter[0], jitter_y_pl: jitter[1]}
 
                 batch_loss, _, summary_string = sess.run([loss, train_op, train_summary_op], feed_dict=feed)
-                rec_mat = sess.run(clip_op)
+                # sess.run(clip_op)
                 rec_mat = sess.run(reconstruction)
                 if (count + 1) % params['summary_freq'] == 0:
                     summary_writer.add_summary(summary_string, count)

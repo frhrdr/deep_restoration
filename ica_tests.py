@@ -344,18 +344,22 @@ def train_test():
     n_vis = 144
     whiten_mode = 'pca'
     data_dir = './data/patches_color/8by8/'
-
+    log_path = './logs/priors/ica_prior/8by8_512_color/'
     data_gen = patch_batch_gen(1000, whiten_mode=whiten_mode, data_dir=data_dir, data_shape=(100000, n_features))
-    un_whiten_mat = np.load(data_dir + 'unwhiten_pca.npy')
-
+    unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
+    whiten_mat = np.load(data_dir + 'whiten_' + whiten_mode + '.npy').astype(np.float32)
     with tf.Graph().as_default() as graph:
+
+        # add whitening mats to the save-files for later retrieval
+        tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
+        tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
 
         x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, n_features], name='x_pl')
         lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
 
-        w_mat = tf.get_variable(shape=[n_features, n_components], dtype=tf.float32, name='w_mat',
+        w_mat = tf.get_variable(shape=[n_features, n_components], dtype=tf.float32, name='ica_w',
                                 initializer=tf.random_normal_initializer(stddev=0.001))
-        alpha = tf.get_variable(shape=[n_components, 1], dtype=tf.float32, name='alpha',
+        alpha = tf.get_variable(shape=[n_components, 1], dtype=tf.float32, name='ica_a',
                                 initializer=tf.random_normal_initializer())
 
         loss = loss_J_tilde(x_mat=x_pl, w_mat=w_mat, alpha=alpha)
@@ -370,6 +374,8 @@ def train_test():
                       for k in tg_pairs]
         opt_op = opt.apply_gradients(tg_clipped)
         # opt_op = opt.apply_gradients(tg_pairs)
+
+        saver = tf.train.Saver()
 
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
@@ -402,8 +408,12 @@ def train_test():
 
                     train_ratio = 100.0 * train_time / (time.time() - start_time)
                     print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
+
+            checkpoint_file = os.path.join(log_path, 'ckpt')
+            saver.save(sess, checkpoint_file, write_meta_graph=False)
+
             w_res, alp = sess.run([w_mat, alpha])
-            comps = np.dot(w_res.T, un_whiten_mat)
+            comps = np.dot(w_res.T, unwhiten_mat)
             print(comps.shape)
             comps -= np.min(comps)
             comps /= np.max(comps)
@@ -412,16 +422,6 @@ def train_test():
             else:
                 co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
             plot_img_mats(co, color=color)
-
-            # comps = w_res.T
-            # print(comps.shape)
-            # comps -= np.min(comps)
-            # comps /= np.max(comps)
-            # if color:
-            #     co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
-            # else:
-            #     co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
-            # plot_img_mats(co, color=color)
 
 
 def fast_ica_comp():
