@@ -1,0 +1,216 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{placeins}
+
+\title{MSc. Thesis - Deep Restoration\\Progress Updates}
+\date{\today}
+\author{Frederik Harder}
+\begin{document}
+
+\maketitle
+
+\section{June 15.}
+
+\subsection{Completed}
+\begin{enumerate}
+    \item enable loading option for optimizer parameters (done)
+    \item  add split loss option per module (done)
+    \item  work through and re-implement mahendran \& vedaldi's paper (done)
+    \item  test M\&V model on vgg and reproduce alexnet results (done)
+    \item  adapt code to allow stacking models (done - for now)
+    \item  pretty up plotting functions (done - for now)
+    \item  continue training of later vgg layers to actual convergence (done - for now)
+    \item  consider adding parts of curet texture data set to selected images (decided not to - for now)
+    \item implement deconvs as upsampling-conv operations
+    \item implement score matching ICA and overcomplete ICA models from Hyvärinen
+    \item adapt code to allow arbitrary losses and priors
+\end{enumerate}
+
+\subsection{Results}
+\FloatBarrier
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{diary_figures/mh_alexnet_overview2.png}
+    \caption{Mahendran \& Vedaldi: alexnet reconstructions}
+    \label{fig:mh_alex}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{diary_figures/mh_vgg16_overview2.png}
+    \caption{Mahendran \& Vedaldi: vgg16 reconstructions}
+    \label{fig:mh_vgg}
+\end{figure}
+\FloatBarrier
+\subsection{Next Steps}
+\begin{enumerate}
+    \item Some Deconv-Conv models need redoing (with upsample-conv-conv)
+    \item MV-2016 code is not producing good results yet
+    \item get Hyvärinen ICA to work
+    \item expand into field of experts
+    \item repeat MV work with ICA priors
+    \item explore sampling options
+    \item write-up in paper form
+\end{enumerate}
+
+
+\section{May 10.}
+
+\subsection{Completed}
+\begin{itemize}
+    \item change architecture: each module specifies in and out tensor (optionally either from last module or classifier) and whether reconstruction becomes part of the loss. enables flexible training of multiple modules at once
+    \item  create reconstructions for deeper vgg layers and alexnet
+    \item enable loading weights to continue training from previous sessions
+    \item create resized dataset for runtime speedups
+\end{itemize}
+
+\subsection{Results}
+Three things:
+\begin{enumerate}
+    \item Reconstructions in Vgg from the first pooling layer suggest that 3 stacked modules which are individually trained on each operation (conv1\_1-conv1\_2-pool1) yield better results than the same model trained end-to-end.
+    \item Reconstruction quality decays gradually, as expected, when starting at deeper layers in vgg.
+    \item In alexnet, the Local Response Normalization layer rapidly decreases reconstruction quality. A lot of information is lost in this step, explaining the results obtained by Dosovitskiy and Brox.
+    \item A single initial test (more to come) indicates that multiple modules can be trained together, taking other reconstructions as input and optimizing the sum of the individual losses.
+\end{enumerate}
+
+\FloatBarrier
+
+\begin{figure}
+    \centering
+    \includegraphics{diary_figures/alexnet_l12.png}
+    \caption{AlexNet: pool1 to input. two modules trained simultaneously}
+    \label{fig:may10_a_l12}
+\end{figure}
+
+
+\begin{figure}
+    \centering
+    \includegraphics{diary_figures/alexnet_l12_stacked.png}
+    \caption{AlexNet: pool1 to input. two modules stacked}
+    \label{fig:may10_a_l12s}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics{diary_figures/vgg_l123_end2end.png}
+    \caption{Vgg16: pool1 to input. 3 modules trained end to end}
+    \label{fig:may10_v_l123e2e}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics{diary_figures/vgg_l123_stacked.png}
+    \caption{Vgg16: pool1 to input. 3 modules trained separately and stacked}
+    \label{fig:may10_v_l123s}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics{diary_figures/vgg_pool2.png}
+    \caption{Vgg16: pool2 to input: 6 modules stacked}
+    \label{fig:may10_v_pool2}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics{diary_figures/vgg_pool3.png}
+    \caption{Vgg16: pool3 to input: 10 modules stacked}
+    \label{fig:may10_v_pool3}
+\end{figure}
+
+\FloatBarrier
+
+\subsection{Next Steps}
+\begin{itemize}
+    \item add option for loss logging per module
+    \item continue training of later vgg layers to full convergence
+    \item build caffe and load dosovitskiy's model weights. rebuild model in tensorflow.
+    \item add curet texture database to selected images
+    \item re-implement mahendran \& vedaldi
+    \item build sparse coding modules
+    \item plan out remainder of the project and register the thesis
+\end{itemize}
+
+
+
+\section{May 3.}
+
+\subsection{Completed}
+\begin{itemize}
+    \item step to later layers, for simplicity with vgg first.
+\item  adapt code to allow stacking models (somewhat hacked together, needs rework later)
+\item evaluate which model (cd, dc, dd) works best on alexnet and vgg
+\item reproduce cd runs on alexnet 
+\item vary learning rate 
+\item redo vgg experiments with BGR mean order
+\item test artificial data with uniform areas to test vggnet
+\item track source of black spots, try renormalizing again
+\item rework run logging, so used parameters can be read off
+\item unify vvg and alexnet layer inversion classes
+\item track validation set loss
+\item find good way to log loss per channel
+\item pretty up plotting functions (should be sufficient for now)
+\end{itemize}
+
+\subsection{Results}
+
+This week has yielded two major findings:
+\begin{enumerate}
+    \item the first three layers of Vgg16 (two convolutions and one pooling layer) can be inverted with decent results using three stacked convolution-deconvolution models trained individually.
+    \item both deconvolution-convolution and double deconvolution model (where the first operation has stride) yield fewer artifacts when inverting the first alexnet layer (conv+relu)
+\end{enumerate}
+
+Also, the grey spots and color inaccuracies found in last weeks results were apparently owed to the model's slow learning of color biases and disappear entirely, when the normalized BGR image is used as a target.
+
+The figures below show reconstructions of the first 3 stacked Vgg16 layers and of the first Alexnet layer using the three different models. Because differences between image and reconstruction can be quite small, two difference measures have been added. the first is a color/channel accurate measure, showing the difference between image and reconstruction, renormalized to the interval [0,1]. So if, for example, the reconstructed image has less blue in it, the measure will be blue. Areas without error (or equal errors across channels) are grey. The second difference measure is the renormalized absolute difference, which highlights areas with errors more clearly. Areas without error are black. Given renormalization,  pixel intensity only informs about relative error within the image, not absolute error compared to other images. Without normalization, the errors were hardly visible. The figures are ordered left to right as: image, reconstruction, color measure, absolute measure.
+
+\begin{figure}
+    \centering
+    \includegraphics{diary_figures/stacked_inversion.png}
+    \caption{reconstruction from pool1 layer by 3 stacked conv-deconv models. Left to right: Image, reconstruction, color accurate error, relative intensity accurate error}
+    \label{fig:stacked_inv1}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics{diary_figures/stacked_selected.png}
+    \caption{more reconstructions from pool1 layer by 3 stacked conv-deconv models}
+    \label{fig:stacked_inv2}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics{diary_figures/img_vs_rec_alexnet_cd.png}
+    \caption{reconstructions of the first alexnet layer using Conv-Deconv model}
+    \label{fig:alex_cd}
+\end{figure}
+
+
+\begin{figure}
+    \centering
+    \includegraphics{diary_figures/img_vs_rec_alexnet_dc.png}
+    \caption{reconstructions of the first alexnet layer using Deconv-Conv model}
+    \label{fig:alex_dc}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics{diary_figures/img_vs_rec_alexnet_dd.png}
+    \caption{reconstructions of the first alexnet layer using Deconv-Deconv model}
+    \label{fig:alex_dd}
+\end{figure}
+
+\FloatBarrier
+\subsection{Next Steps}
+\begin{itemize}
+    \item invert pool1 with a deconv conv model, which deals better with strides
+    \item train and stack 3 layer inversions, compare to same model trained in one go.
+    \item find second source on image net means
+    \item increase number of stacked layers and extend results to alexnet
+    \item work out details of ICA based model
+    \item specify roadmap for remaining thesis and officially register the project
+\end{itemize}
+
+\end{document}

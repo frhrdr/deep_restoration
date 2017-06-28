@@ -1,0 +1,175 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+
+\usepackage{tikz}
+\usetikzlibrary{bayesnet}
+
+\title{Thesis Project Timeline}
+\author{Frederik Harder}
+\date{June 2017}
+
+\begin{document}
+	
+\maketitle
+
+\section*{May}
+
+\subsection*{4}
+
+\begin{itemize}
+	\item set up framework for testing vgg16 and alexnet
+	\item prepare layer by layer inversion approach
+\end{itemize}
+
+\subsection*{11}
+
+\begin{itemize}
+	\item  create reconstructions for vgg and alexnet
+	\item enable enable synchronous training of modules
+\end{itemize}
+
+\subsection*{18}
+
+\begin{itemize}
+	\item  adapt code to allow stacking modules
+	\item train deep module stacks
+\end{itemize}
+
+\subsection*{25}
+
+\begin{itemize}
+	\item  work through and re-implement mahendran \& vedaldi 2015
+	\item  test M\&V model on vgg and reproduce alexnet results
+\end{itemize}
+
+\section*{June}
+
+\subsection*{1}
+
+\begin{itemize}
+	\item  work through and re-implement mahendran \& vedaldi 2016
+	\item adapt framework to allow arbitrary losses and priors
+\end{itemize}
+
+\subsection*{8}
+
+\begin{itemize}
+	\item Research Sparse Coding and overcomplete ICA
+\end{itemize}
+
+\subsection*{15}
+
+\begin{itemize}
+	\item implement score matching ICA and overcomplete ICA models from Hyvärinen
+\end{itemize}
+
+
+
+\subsection*{22}
+	
+\begin{itemize}
+	\item set up preprocessing for image (and feature map) patches
+	\item train overcomplete ICA image prior 
+\end{itemize}
+	
+	
+\subsection*{29}
+
+\begin{itemize}
+	\item test ICA prior with mahendran \& vedaldi
+	\item specify and approve second part of project schedule
+\end{itemize}
+
+\section*{July}
+
+\subsection*{6}
+
+\begin{itemize}
+	\item (travelling 1.7. - 9.7.)
+	\item Writing: draft related works section
+	\item Writing: draft methods section
+	\item document results from network inversion and mahendran \& vedaldi reproduction
+\end{itemize}
+
+\subsection*{13}
+
+\begin{itemize}
+	\item train ICA feature map priors
+	\item set up field of experts image prior
+	\item evaluate ICA results
+\end{itemize}
+
+\subsection*{20}
+
+\begin{itemize}
+	\item train field of experts based image and feature map priors
+	\item set up and train DAE based image and feature map priors
+\end{itemize}
+
+\subsection*{27}
+
+\begin{itemize}
+	\item evaluate initial results of all approaches
+	\item selected components visualization with priors
+	\item empty noise image with priors
+\end{itemize}
+
+\section*{August}
+
+\subsection*{3}
+
+\begin{itemize}
+	\item activation maximization results with priors
+	\item caricaturization results with priors
+\end{itemize}
+
+
+\subsection*{10}
+
+\begin{itemize}
+	\item Writing: update methods, update results
+	\item Consider further optimization, potentially set up parameter exploration scheme
+	\item Refine results
+\end{itemize}
+
+\subsection*{17}
+
+\begin{itemize}
+	\item Writing: Complete Methods
+	\item Refine results
+\end{itemize}
+
+\subsection*{24}
+
+\begin{itemize}
+	\item Writing: Complete Results
+	\item Run final results
+\end{itemize}
+
+\subsection*{31}
+
+\begin{itemize}
+	\item Writing: introduction, conclusion, formatting
+	\item Hand in to reviewers
+\end{itemize}
+
+
+\section*{September}
+
+\subsection*{7}
+
+\begin{itemize}
+	\item Final edit
+	\item Clean up code
+	\item Hand in to examiners
+\end{itemize}
+	
+\subsection*{21-28}
+
+\begin{itemize}
+	\item Defense
+\end{itemize}
+	
+	
+\end{document}

@@ -74,7 +74,7 @@ def invert_layer(params):
                                         weighting=1 / (params['img_HW'] ** 2 * params['range_V'] ** params['beta_tv']))
 
             ica_prior = ICAPrior(tensor_names='reconstruction/read:0',
-                                 weighting=0.0005, name='ICAPrior',
+                                 weighting=0.00001, name='ICAPrior',
                                  load_path='./logs/priors/ica_prior/8by8_512_color/ckpt-5000',
                                  trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
 
