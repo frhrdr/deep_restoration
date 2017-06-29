@@ -74,6 +74,7 @@ There was a thought here. Any hints?
 \end{itemize}
 
 
+
 \section{Results (and methods... distinction later)}
 
 \subsection{Feature map statistics}
@@ -135,8 +136,18 @@ Because differences between image and reconstruction can be quite small, two dif
 
 \subsection{Optimization based reconstruction}
 
+The central approach to network visualization is based on work by Mahendran \& Vedaldi 2015/16. Their method optimizes a 'pre-image' variable to match one of its feature map representations with that of an image, while constraining the 'pre-image' additionally by a hand-crafted natural image prior. These results have been reproduced, with the goal of improving upon them by using learned priors instead of handcrafted ones. In addition to a natural image prior, priors trained on the feature maps will be used to constrain the problem further and hopefully lead to better reconstructions as a result. A very initial result using a prior based on over-complete ICA is displayed in figure \ref{fig:first_ica}, but should not be representative of the potential of this model.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.6\textwidth]{"temp/very_first_prior"}
+	\caption{Comparison of reconstrutions from the first layer of VGG16.
+		top left: original image, top right: ICA image prior + MSE optimization, bottom left: pure MSE optimization, bottom right: M\&V handcrafted prior + MSE}
+	\label{fig:first_ica}
+\end{figure}
 
 
+\FloatBarrier
 \section{Next steps and research goals}
 
 \subsection{Immediate next steps:}
@@ -146,7 +157,7 @@ The training of image and feature map priors based on over-complete ICA is set u
 Given the priors, a first concern will be the adequate relative weighting in optimization based reconstruction, as each one of them represents an un-normalized negative log probability and as a result can vary greatly in scale. If a principled approach is not found, parameter exploration schemes will have to be designed.
 
 Experiments will then investigate the quality of reconstructions following Mahendran \& Vedaldi 2016 with learned priors either augmenting or replacing the handcrafted ones.
-If these efforts prove fruitful, related applications like activation maximization and caricaturization Mahendran \& Vedaldi 201 can be explored in a quick follow-up. If, instead, the results point to limitations of the prior model, alternative models will need to be explored immediately. Here I propose two options: The field of experts model is related to the model using ICA based filters, but uses Student-t experts instead of a logistically distributed components (category mismatch, work out details) and is well established as a model. The second option comes from Nguyen et al. 2016, which uses denoising auto-encoders to approximate the gradient of natural image priors. This should also work on feature maps and is distinct, in that it is not a patch-based approach. On the other hand, training times may become more of a concern in that case.
+If these efforts prove fruitful, related applications like activation maximization and caricaturization Mahendran \& Vedaldi 2016 can be explored in a quick follow-up. If, instead, the results point to limitations of the prior model, alternative models will need to be explored immediately. Here I propose two options: The field of experts model is related to the model using ICA based filters, but uses Student-t experts instead of a logistically distributed components (category mismatch, work out details) and is well established as a model. The second option comes from Nguyen et al. 2016, which uses denoising auto-encoders to approximate the gradient of natural image priors. This should also work on feature maps and is distinct, in that it is not explicitly a patch-based approach. On the other hand, training times may become more of a concern in that case.
 
 \subsection{Goals:}
 
