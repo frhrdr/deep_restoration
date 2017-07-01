@@ -1,4 +1,5 @@
 import tensorflow as tf
+# longer term -> use inv_modules
 
 
 def conv_deconv_model(in_tensor, specs, out_shape):

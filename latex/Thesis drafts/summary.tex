@@ -4,6 +4,7 @@
 \usepackage{subcaption}
 \usepackage{placeins}
 \usepackage{bm}
+\usepackage{amsmath}
 
 \graphicspath{{/home/frederik/PycharmProjects/deep_restoration/plots/}}
 
@@ -46,7 +47,7 @@ which resolves to
 
 It can be shown, that $\big( \frac{1}{\lambda}  \bm{\Sigma_{f_j}^{-1}} + \bm{W_j^T} \bm{W_j}\big)^{-1} \bm{W_j^T}$ is not toeplitz (under what conditions?, why?), and therefore the optimal inverse operation is not a convolution.
 
-Assuming no prior and going for the maximum likelihood estimate instead yields $\hat{f}_j = \bm{W_j^{-1}} f_{j+1}$ and $\bm{W_j^{-1}}$ is also not toeplitz (under what conditions?). Therefore using Convolutions to approximate $\bm{W_j^{-1}}$ limits reconstruction performance by construction.
+Assuming no prior and going for the maximum likelihood estimate instead yields $\hat{f}_j = \bm{W_j^{-1}} f_{j+1}$ and $\bm{W_j^{-1}}$ is also not toeplitz (under what conditions?). Therefore using Convolutions to approximate $\bm{W_j^{-1}}$ limits reconstruction performance by design.
 
 
 \subsubsection{Limitations of optimization based approaches}
@@ -72,6 +73,43 @@ There was a thought here. Any hints?
 	\item Optimization + Natural Image priors
 	\item Sparse coding priors
 \end{itemize}
+
+\subsection{Priors}
+
+\subsubsection{ICA Sparse coding priors}
+
+
+\subsubsection{field of experts priors}
+
+Given equation (1) in Roth and Black 2005, changing notation of $\mathbf{J}$ to $\mathbf{w}$, we get the following prior for patches $\mathbf{x}$
+
+\begin{equation}
+\begin{aligned}
+	p(\mathbf{x}) =& \frac{1}{Z(\bm{\Theta})} \prod_{i=1}^{N} \phi_i (\mathbf{w}_i^T \mathbf{x} ; \alpha_i) \\
+	=& \frac{1}{Z(\bm{\Theta})} \prod_{i=1}^{N} \bigg( 1 + \frac{1}{2}(\mathbf{w}_i^T \mathbf{x})^2 \bigg)^{-\alpha_i} \\
+	\log p(\mathbf{x}) =& \sum_{i=1}^{N} -\alpha_i \log \bigg( 1 + \frac{1}{2}(\mathbf{w}_i^T \mathbf{x})^2 \bigg)  - \log Z(\bm{\Theta}) \\
+	\propto& \sum_{i=1}^{N} -\alpha_i \log \bigg( 1 + \frac{1}{2}(\mathbf{w}_i^T \mathbf{x})^2 \bigg) \\
+		\propto& \sum_{i=1}^{N} \alpha_i G(\mathbf{w}_i^T \mathbf{x})
+\end{aligned}
+\end{equation}
+
+In order to use score matching, the derivatives of $G$ need to be computed
+
+\begin{equation}
+\begin{aligned}
+	G(s) =& - \log(1 + \frac{1}{2} s^2) \\
+	g(s) =& - \frac{2s}{s^2 + 2} \\
+	g'(s) =& \frac{2(s^2 - 2)}{(s^2 + 2)^2}
+\end{aligned}
+\end{equation}
+
+Directly following Hyvarinen 2003, equations (11) and (12), this results in the sampled loss function $\tilde{J}$:
+
+\begin{equation}
+\begin{aligned}
+\tilde{J} = \sum_{k=1}^{m} \alpha_k \frac{1}{T} \sum_{t=1}^{T} g'(\mathbf{w}_k^T \mathbf{x}(t)) + \frac{1}{2} \sum_{j,k = 1}^{m} \alpha_j \alpha_k \mathbf{w}_j^T \mathbf{w}_k \frac{1}{T} \sum_{t=1}^{T} g(\mathbf{w}_k^T \mathbf{x}(t)) g(\mathbf{w}_j^T \mathbf{x}(t))
+\end{aligned}
+\end{equation}
 
 
 
@@ -141,10 +179,11 @@ The central approach to network visualization is based on work by Mahendran \& V
 \begin{figure}
 	\centering
 	\includegraphics[width=0.6\textwidth]{"temp/very_first_prior"}
-	\caption{Comparison of reconstrutions from the first layer of VGG16.
+	\caption{Comparison of reconstructions from the first layer of VGG16.
 		top left: original image, top right: ICA image prior + MSE optimization, bottom left: pure MSE optimization, bottom right: M\&V handcrafted prior + MSE}
 	\label{fig:first_ica}
 \end{figure}
+
 
 
 \FloatBarrier
