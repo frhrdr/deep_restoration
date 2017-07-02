@@ -58,10 +58,11 @@ There was a thought here. Any hints?
 
 \begin{itemize}
 	\item in detail:
-		\subitem Dosovitskiy \& Brox
-		\subitem Mahendran \& Vedaldi
-		\subitem Zeiler \& Fergus ?
-		\subitem Yosinsky et al.
+		\subitem Dosovitskiy \& Brox: Inverting networks
+		\subitem Mahendran \& Vedaldi: 
+		\subitem Yosinsky et al.: using classifiers for generative modelling
+	\item Gatis et al.: Style transfer using different feature map measures
+	\item Zeiler \& Fergus: generally deconvolutional approaches should maybe be mentioned. What to they visualize, what does this approach?
 	\item also others (will make list later)
 \end{itemize}
 
@@ -74,26 +75,48 @@ There was a thought here. Any hints?
 	\item Sparse coding priors
 \end{itemize}
 
+\subsection{Modular inverting networks}
+
+Following the work by Dosovitskiy \& Brox, a first baseline has been set using inverting networks. Here, a modular approach is used, where each module is trained to in invert a small part of the network, i.e. either a convolution operation followed by a nonlinearity, a pooling operation, or, in case of AlexNet, a local response normalization operation. These modules can then be combined and trained synchronously, where each module output computes a reconstruction loss and is fed as input to the next module. Different modules have been tested. A transpose convolution, followed by a ReLU and then a convolution has performed best. Future results will follow Odena, et al. and use upscaling and convolution instead of a regular transpose convolution in order to prevent artifacts. Some preliminary results are shown in \ref{fig:invert_net_progression}.
+
+\subsection{Opdimization based methods}
+
+The central approach to network visualization is based on work by Mahendran \& Vedaldi 2015/16. Their method optimizes a 'pre-image' variable to match one of its feature map representations with that of an image, while constraining the 'pre-image' additionally by a hand-crafted natural image prior. These results have been reproduced, with the goal of improving upon them by using learned priors instead of handcrafted ones. In addition to a natural image prior, priors trained on the feature maps will be used to constrain the problem further and hopefully lead to better reconstructions as a result.
+	
 \subsection{Priors}
+
+
+\subsubsection{Handcrafted natural image priors}
+
 
 \subsubsection{ICA Sparse coding priors}
 
 
+
 \subsubsection{field of experts priors}
 
-Given equation (1) in Roth and Black 2005, changing notation of $\mathbf{J}$ to $\mathbf{w}$, we get the following prior for patches $\mathbf{x}$
+The field of experts prior developed by Roth and Black 2005 is a patch based prior of the form 
+
+\begin{equation}
+	p(\mathbf{x}) = \frac{1}{Z(\bm{\Theta})} \prod_{k}^K \prod_{i=1}^{N} \phi_i (\mathbf{w}_i^T \mathbf{x}_{(k)} ; \alpha_i) \\
+\end{equation}
+
+for a set of $K$ equally sized patches $\mathbf{x}_{(k)}$, where $\phi_i$ are student's t distributions $\phi_i(\mathbf{w}_i^T \mathbf{x}_{(k)} ; \alpha_i) = (1 + \frac{1}{2}(\mathbf{w}_i^T \mathbf{x}_{(k)})^2 )^{-\alpha_i}$, parameterized by $\mathbf{w}$\footnote{In Roth and Black 2005, $\mathbf{J}$ is used in place of $\mathbf{w}$, but the notation is changed here, to match Hyvärinen 2003} and $\mathbf{\alpha}$ and $Z(\bm{\Theta})$ is a normalizing factor. 
+
+Looking at the pior for an individual patch $\mathbf{x}_{(k)}$, the log likelihood can be derived up to an additive constant. This allows makes it possible to define the prior identically to the over-complete independent component analysis found in Hyvärinen 2003, excepting the different definition for function $G$. 
 
 \begin{equation}
 \begin{aligned}
-	p(\mathbf{x}) =& \frac{1}{Z(\bm{\Theta})} \prod_{i=1}^{N} \phi_i (\mathbf{w}_i^T \mathbf{x} ; \alpha_i) \\
-	=& \frac{1}{Z(\bm{\Theta})} \prod_{i=1}^{N} \bigg( 1 + \frac{1}{2}(\mathbf{w}_i^T \mathbf{x})^2 \bigg)^{-\alpha_i} \\
-	\log p(\mathbf{x}) =& \sum_{i=1}^{N} -\alpha_i \log \bigg( 1 + \frac{1}{2}(\mathbf{w}_i^T \mathbf{x})^2 \bigg)  - \log Z(\bm{\Theta}) \\
-	\propto& \sum_{i=1}^{N} -\alpha_i \log \bigg( 1 + \frac{1}{2}(\mathbf{w}_i^T \mathbf{x})^2 \bigg) \\
-		\propto& \sum_{i=1}^{N} \alpha_i G(\mathbf{w}_i^T \mathbf{x})
+	p(\mathbf{x}_{(k)}) =& \frac{1}{Z(\bm{\Theta})} \prod_{i=1}^{N} \phi_i (\mathbf{w}_i^T \mathbf{x}_{(k)} ; \alpha_i) \\
+	=& \frac{1}{Z(\bm{\Theta})} \prod_{i=1}^{N} \bigg( 1 + \frac{1}{2}(\mathbf{w}_i^T \mathbf{x}_{(k)})^2 \bigg)^{-\alpha_i} \\
+	\log p(\mathbf{x}_{(k)}) =& \sum_{i=1}^{N} -\alpha_i \log \bigg( 1 + \frac{1}{2}(\mathbf{w}_i^T \mathbf{x}_{(k)})^2 \bigg)  - \log Z(\bm{\Theta}) \\
+	\propto& \sum_{i=1}^{N} -\alpha_i \log \bigg( 1 + \frac{1}{2}(\mathbf{w}_i^T \mathbf{x}_{(k)})^2 \bigg) \\
+		\propto& \sum_{i=1}^{N} \alpha_i G(\mathbf{w}_i^T \mathbf{x}_{(k)})
 \end{aligned}
 \end{equation}
 
-In order to use score matching, the derivatives of $G$ need to be computed
+Computing the derivatives of $G$ then allows for the training of parameters $\mathbf{w}$ and $\alpha$ via score matching.
+
 
 \begin{equation}
 \begin{aligned}
@@ -103,17 +126,17 @@ In order to use score matching, the derivatives of $G$ need to be computed
 \end{aligned}
 \end{equation}
 
-Directly following Hyvarinen 2003, equations (11) and (12), this results in the sampled loss function $\tilde{J}$:
+Directly following Hyvarinen 2003, equations (11) and (12), this results in the sampled loss function $\tilde{J}$, which finds the optimal $\mathbf{w}$ and $\alpha$ for a set of natural image patches, when minimized.
 
 \begin{equation}
 \begin{aligned}
-\tilde{J} = \sum_{k=1}^{m} \alpha_k \frac{1}{T} \sum_{t=1}^{T} g'(\mathbf{w}_k^T \mathbf{x}(t)) + \frac{1}{2} \sum_{j,k = 1}^{m} \alpha_j \alpha_k \mathbf{w}_j^T \mathbf{w}_k \frac{1}{T} \sum_{t=1}^{T} g(\mathbf{w}_k^T \mathbf{x}(t)) g(\mathbf{w}_j^T \mathbf{x}(t))
+\tilde{J} = \sum_{k=1}^{m} \alpha_k \frac{1}{T} \sum_{t=1}^{T} g'(\mathbf{w}_k^T \mathbf{x}_{(t)}) + \frac{1}{2} \sum_{j,k = 1}^{m} \alpha_j \alpha_k \mathbf{w}_j^T \mathbf{w}_k \frac{1}{T} \sum_{t=1}^{T} g(\mathbf{w}_k^T \mathbf{x}_{(t)}) g(\mathbf{w}_j^T \mathbf{x}_{(t)})
 \end{aligned}
 \end{equation}
 
 
 
-\section{Results (and methods... distinction later)}
+\section{Results (clear split from methods \& discussion in progress)}
 
 \subsection{Feature map statistics}
 
@@ -138,10 +161,6 @@ Directly following Hyvarinen 2003, equations (11) and (12), this results in the 
 In an initial investigation, three feature map characteristics were looked at. The average covariance and its inverse, shown in figure \ref{fig:cov_plots}, substantiate an assumption of spatial stationarity (ground in math) in the feature map activation. Border effects are visible, especially in the inverse matrix, but leaving these aside, the inverse is close to toeplitz, which is expected to become more accurate for larger sets of images. (and this matters because math). This finding serves to motivate convolutional and patch-based priors. Gram matrices and sparsity statistics of the feature maps were also evaluated, and may be used at a later stage in evaluating the trained feature map priors.
 
 \subsection{modular inverting networks}
-
-Following the work by Dosovitskiy \& Brox, a first baseline has been set using inverting networks. Here, a modular approach is used, where each module is trained to in invert a small part of the network, i.e. either a convolution operation followed by a nonlinearity, a pooling operation, or, in case of AlexNet, a local response normalization operation. These modules can then be combined and trained synchronously, where each module output computes a reconstruction loss and is fed as input to the next module. Different modules have been tested. A transpose convolution, followed by a ReLU and then a convolution has performed best. Future results will follow Odena, et al. and use upscaling and convolution instead of a regular transpose convolution in order to prevent artifacts. Some preliminary results are shown in \ref{fig:invert_net_progression}.
-
-
 
 \begin{figure}
 	\centering
@@ -174,7 +193,7 @@ Because differences between image and reconstruction can be quite small, two dif
 
 \subsection{Optimization based reconstruction}
 
-The central approach to network visualization is based on work by Mahendran \& Vedaldi 2015/16. Their method optimizes a 'pre-image' variable to match one of its feature map representations with that of an image, while constraining the 'pre-image' additionally by a hand-crafted natural image prior. These results have been reproduced, with the goal of improving upon them by using learned priors instead of handcrafted ones. In addition to a natural image prior, priors trained on the feature maps will be used to constrain the problem further and hopefully lead to better reconstructions as a result. A very initial result using a prior based on over-complete ICA is displayed in figure \ref{fig:first_ica}, but should not be representative of the potential of this model.
+A very initial result using a prior based on over-complete ICA is displayed in figure \ref{fig:first_ica}. It is quite blurry and many of the visualized filters shown in figure \ref{fig:first_ica_filters} seem to be of lower frequency than those displayed in the FoE paper for example. This should not be an inherent problem of the priors though and can hopefully be fixed with a higher over-completeness ratio, by increasing number of filters, or decreasing patch size (as each prior needs to model less of the overall image). 
 
 \begin{figure}
 	\centering
@@ -185,18 +204,24 @@ The central approach to network visualization is based on work by Mahendran \& V
 \end{figure}
 
 
+\begin{figure}
+	\centering
+	\includegraphics[width=0.9\textwidth]{"temp/overcomplete_ica_filters"}
+	\caption{Subset of the 512 filters from an overcomplete ICA prior}
+	\label{fig:first_ica_filters}
+\end{figure}
 
 \FloatBarrier
 \section{Next steps and research goals}
 
 \subsection{Immediate next steps:}
 
-The training of image and feature map priors based on over-complete ICA is set up and will be completed shortly. There is one potential open question with regards to the patch sizes on feature maps. Given that the number of channels grows quickly, the patches should be chosen as small as possible. The size of the receptive field in the previous layer seems like a good first guess. Should the number of patch features grow too large regardless, separate priors for subsets of channels may have to be considered. This, however, would make independence assumptions that are almost certainly wrong and can hopefully be avoided. 
+The training of image and feature map priors based on over-complete ICA is set up and will be completed shortly. There is one potentially unresolved problem with regards to the patch sizes on feature maps. Given that the number of channels grows quickly, the patches should be chosen as small as possible. The receptive field size in the previous layer seems like a good first guess. Should the number of patch features grow too large regardless, separate priors for subsets of channels may have to be considered. This, however, would make independence assumptions that are almost certainly wrong and can hopefully be avoided. 
 
-Given the priors, a first concern will be the adequate relative weighting in optimization based reconstruction, as each one of them represents an un-normalized negative log probability and as a result can vary greatly in scale. If a principled approach is not found, parameter exploration schemes will have to be designed.
+When the priors are trained, a prime concern will be the adequate relative weighting in optimization based reconstruction, as each one of them represents an un-normalized negative log probability and as a result can vary greatly in scale. If a principled approach is not found, parameter exploration schemes will have to be designed.
 
 Experiments will then investigate the quality of reconstructions following Mahendran \& Vedaldi 2016 with learned priors either augmenting or replacing the handcrafted ones.
-If these efforts prove fruitful, related applications like activation maximization and caricaturization Mahendran \& Vedaldi 2016 can be explored in a quick follow-up. If, instead, the results point to limitations of the prior model, alternative models will need to be explored immediately. Here I propose two options: The field of experts model is related to the model using ICA based filters, but uses Student-t experts instead of a logistically distributed components (category mismatch, work out details) and is well established as a model. The second option comes from Nguyen et al. 2016, which uses denoising auto-encoders to approximate the gradient of natural image priors. This should also work on feature maps and is distinct, in that it is not explicitly a patch-based approach. On the other hand, training times may become more of a concern in that case.
+If these efforts prove fruitful, related applications like activation maximization and caricaturization Mahendran \& Vedaldi 2016 can be explored in a quick follow-up. If, instead, the results point to limitations of the prior model, alternative models will need to be explored immediately. Here I propose two options: The field of experts model is related to the model using ICA based filters, but uses Student-t experts instead of a logistically distributed components (category mismatch?, work out details) and is well established as a model. The second option comes from Nguyen et al. 2016, which uses denoising auto-encoders to approximate the gradient of natural image priors. This should also work on feature maps and is distinct, in that it is not explicitly a patch-based approach. On the other hand, training times may become more of a concern in that case.
 
 \subsection{Goals:}
 
@@ -206,6 +231,30 @@ A variety of new experiments could be enabled with a good sampling technique. As
 Generative models, for instance Variational Auto-Encoders, can be trained on individual feature maps and serve as targets for optimization based approaches or as inputs to inverting networks. This could show, how the distribution of feature map activations corresponds to natural images.
 
 A wider review of related work may also provide some additional setups that can be improved with priors. (A day or two of reading may be necessary though)
+
+\subsection{Some thoughts on evaluating priors}
+
+\begin{itemize}
+	\item measures:
+	\subitem reconstruction MSE in image space compared with M\&V is a bit of a cheap shot, because that's not really something they set out to improve (they do report something which they call reconstruction error, but which, from the numbers and everything has to be the representation MSE). also, these scores will be abysmal regarding deeper layers, no matter which approach is taken.
+	\subitem for dosovitskiy, MSE is fair game, but might be harder, because the explicitly optimize for it. So qualitatively nicer reconstructions might still lose that contest.
+	\subitem Structural similarity index might be an option, because it's at least translation invariant (right?). It is also perception focused, which might not be all bad, but is not necessarily all that interesting. As it is an accumulated measure, maybe some of its components are useful. (details follow)
+	\item expectations:
+	\subitem the results by M\&V on lower layer reconstructions look really good. not sure if learned priors can actually beat that. maybe in conjunction with some of the M\&V parts.
+	\subitem on lower layers, feature map priors could become increasingly important and these should likely show the first improvements
+	\item very rough test setups:
+	\subitem test each prior on natural image feature maps to get an idea of the spread of values
+	\subitem all priors can be tested individually, e.g. with the M\&V image priors in place. maybe some layers have more of an impact than others? (deep vs. shallow)
+	\subitem To get to the point where all priors are used in the model, maybe it's a good idea to add them iteratively. The question then is, do you start deep or shallow? maybe just start with whatever worked best previously. 
+\end{itemize}
+
+
+
+
+
+
+
+
 
 
 \end{document}

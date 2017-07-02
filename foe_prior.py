@@ -70,7 +70,8 @@ class FoEPrior(LearnedPriorLoss):
         return term_1 + term_2
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
-                    whiten_mode='pca', data_dir='./data/patches_color/8by8/', num_data_samples=100000):
+                    whiten_mode='pca', data_dir='./data/patches_color/8by8/', num_data_samples=100000,
+                    plot_filters=False):
         log_path = self.load_path
         ph, pw = self.filter_dims
         n_features = ph * pw * 3 - 1  # mean substraction removes one degree of freedom
@@ -143,11 +144,12 @@ class FoEPrior(LearnedPriorLoss):
                     checkpoint_file = os.path.join(log_path, 'ckpt')
                     saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=num_iterations)
 
-                    w_res, alp = sess.run([w_mat, alpha])
-                    print(alp)
-                    comps = np.dot(w_res.T, unwhiten_mat)
-                    print(comps.shape)
-                    comps -= np.min(comps)
-                    comps /= np.max(comps)
-                    co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
-                    plot_img_mats(co, color=True)
+                    if plot_filters:
+                        w_res, alp = sess.run([w_mat, alpha])
+                        print(alp)
+                        comps = np.dot(w_res.T, unwhiten_mat)
+                        print(comps.shape)
+                        comps -= np.min(comps)
+                        comps /= np.max(comps)
+                        co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
+                        plot_img_mats(co, color=True)
