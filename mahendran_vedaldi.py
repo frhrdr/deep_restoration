@@ -9,6 +9,8 @@ from filehandling_utils import save_dict
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from ica_prior import ICAPrior
+from loss_modules import NormedMSELoss
 
 PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',
               classifier='alexnet',
@@ -73,11 +75,20 @@ def invert_layer(params):
 
             img_rep = tf.slice(representation, [0, 0, 0, 0], [1, -1, -1, -1])
             rec_rep = tf.slice(representation, [1, 0, 0, 0], [1, -1, -1, -1])
-
-            mse_loss = tf.reduce_sum((img_rep - rec_rep) ** 2) / tf.reduce_sum(img_rep * img_rep)
+            mse_loss = NormedMSELoss(img_rep.name, rec_rep.name, weighting=1.0)
+            # mse_loss = tf.reduce_sum((img_rep - rec_rep) ** 2) / tf.reduce_sum(img_rep * img_rep)
             prior_l2 = params['lambda_l2'] * alpha_norm_prior(reconstruction, params['alpha_l2'])
             prior_tv = params['lambda_tv'] * total_variation_prior(reconstruction, params['beta_tv'])
-            loss = mse_loss + prior_l2 + prior_tv
+            # loss = mse_loss + prior_l2 + prior_tv
+
+            ica_prior = ICAPrior(tensor_names='reconstruction/read:0',
+                                 weighting=5.0e-6, name='ICAPrior',
+                                 load_path='./logs/priors/ica_prior/8by8_512_color/ckpt-10000',
+                                 trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
+
+            ica_prior.build()
+            mse_loss.build()
+            loss = mse_loss.get_loss() + ica_prior.get_loss()
 
             lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
             # optimizer = tf.train.AdamOptimizer(lr_pl)
@@ -93,7 +104,7 @@ def invert_layer(params):
                 tf.summary.histogram(pair[0].name, pair[1])
 
             tf.summary.scalar('0_total_loss', loss)
-            tf.summary.scalar('1_mse_loss', mse_loss)
+            # tf.summary.scalar('1_mse_loss', mse_loss)
             tf.summary.scalar('2_l2_prior', prior_l2)
             tf.summary.scalar('3_tv_prior', prior_tv)
 

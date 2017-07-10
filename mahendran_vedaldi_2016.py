@@ -15,7 +15,7 @@ from ica_prior import ICAPrior
 PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',
               classifier='alexnet',
               img_HW=224,
-              jitter_T=8,
+              jitter_T=2,
               mse_C=1.0,
               alpha_sr=6, beta_tv=2,
               range_B=80,
@@ -48,7 +48,9 @@ def invert_layer(params):
             rec_part = tf.slice(reconstruction, [0, jitter_x_pl, jitter_y_pl, 0], [-1, -1, -1, -1])
             rec_padded = tf.pad(rec_part, paddings=[[0, 0], [jitter_x_pl, 0], [jitter_y_pl, 0], [0, 0]])
 
-            net_input = tf.concat([image, rec_padded], axis=0)
+            use_jitter = tf.placeholder(dtype=tf.bool, shape=[], name='use_jitter')
+            rec_input = tf.cond(use_jitter, lambda: rec_padded, lambda: reconstruction, name='jitter_cond')
+            net_input = tf.concat([image, rec_input * 2.7098e+4], axis=0)
 
             if params['classifier'].lower() == 'vgg16':
                 classifier = Vgg16()
@@ -74,8 +76,8 @@ def invert_layer(params):
                                         weighting=1 / (params['img_HW'] ** 2 * params['range_V'] ** params['beta_tv']))
 
             ica_prior = ICAPrior(tensor_names='reconstruction/read:0',
-                                 weighting=0.00001, name='ICAPrior',
-                                 load_path='./logs/priors/ica_prior/8by8_512_color/ckpt-5000',
+                                 weighting=1.0e-4, name='ICAPrior',
+                                 load_path='./logs/priors/ica_prior/8by8_512_color/ckpt-10000',
                                  trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
 
             loss_mods = [mse_mod, ica_prior]  # [mse_mod, sr_mod, tv_mod]
@@ -119,7 +121,10 @@ def invert_layer(params):
                     params['learning_rate'] = params['learning_rate'] / 10.0
                     print('lowering learning rate to {0}'.format(params['learning_rate']))
 
-                feed = {lr_pl: params['learning_rate'], jitter_x_pl: jitter[0], jitter_y_pl: jitter[1]}
+                feed = {lr_pl: params['learning_rate'],
+                        jitter_x_pl: jitter[0],
+                        jitter_y_pl: jitter[1],
+                        use_jitter: True}
 
                 batch_loss, _, summary_string = sess.run([loss, train_op, train_summary_op], feed_dict=feed)
                 # sess.run(check, feed_dict=feed)

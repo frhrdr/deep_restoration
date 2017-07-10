@@ -108,7 +108,123 @@ class NetInversion:
                 mat = np.stack(images, axis=0)
             yield mat
 
-    def train(self):
+    def train_pre_image(self, image_path, grad_clip=100.0, lr_lower_points=()):
+        """
+        like mahendran & vedaldi, optimizes pre-image based on a single other image
+        """
+
+        if not os.path.exists(self.params['log_path']):
+            os.makedirs(self.params['log_path'])
+
+        save_dict(self.params, self.params['log_path'] + 'params.txt')
+
+        with tf.Graph().as_default() as graph:
+            with tf.Session() as sess:
+                img_mat = filehandling_utils.load_image(image_path, resize=False)
+                image = tf.constant(img_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])
+                rec_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.0001))
+                reconstruction = tf.get_variable('reconstruction', dtype=tf.float32,
+                                                 initializer=rec_init)
+
+                jitter_x_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_x_pl')
+                jitter_y_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_y_pl')
+
+                rec_part = tf.slice(reconstruction, [0, jitter_x_pl, jitter_y_pl, 0], [-1, -1, -1, -1])
+                rec_padded = tf.pad(rec_part, paddings=[[0, 0], [jitter_x_pl, 0], [jitter_y_pl, 0], [0, 0]])
+
+                net_input = tf.concat([image, rec_padded], axis=0)
+
+                self.load_classifier(net_input)
+
+                # representation = graph.get_tensor_by_name(params['layer_name'])
+
+                # if len(representation.get_shape()) == 2:
+                #     representation = tf.reshape(representation, shape=[2, -1, 1, 1])
+
+                # img_rep = tf.slice(representation, [0, 0, 0, 0], [1, -1, -1, -1])
+                # rec_rep = tf.slice(representation, [1, 0, 0, 0], [1, -1, -1, -1])
+
+                # mse_mod = NormedMSELoss(target=img_rep.name, reconstruction=rec_rep.name, weighting=params['mse_C'])
+                # sr_mod = SoftRangeLoss(reconstruction.name, params['alpha_sr'],
+                #                        weighting=1 / (params['img_HW'] ** 2 * params['range_B'] ** params['alpha_sr']))
+                # tv_mod = TotalVariationLoss(reconstruction.name, params['beta_tv'],
+                #                             weighting=1 / (
+                #                             params['img_HW'] ** 2 * params['range_V'] ** params['beta_tv']))
+                #
+                # ica_prior = ICAPrior(tensor_names='reconstruction/read:0',
+                #                      weighting=1.0e-5, name='ICAPrior',
+                #                      load_path='./logs/priors/ica_prior/8by8_512_color/ckpt-10000',
+                #                      trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
+
+                loss, train_op = self.build_model()
+                lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
+                # optimizer = tf.train.AdamOptimizer(lr_pl)
+                optimizer = tf.train.MomentumOptimizer(lr_pl, momentum=0.9)
+                tvars = tf.trainable_variables()
+                grads = tf.gradients(loss, tvars)
+                tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
+                tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
+                              for k in tg_pairs]
+                train_op = optimizer.apply_gradients(tg_clipped)
+
+                clip_op = tf.assign(reconstruction, tf.clip_by_value(reconstruction, 0.0, 2.0 * params['range_B']))
+
+                train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
+
+                sess.run(tf.global_variables_initializer())
+
+                for mod in self.params['loss_modules']:
+                    if isinstance(mod, LearnedPriorLoss):
+                        mod.load_weights(sess)
+
+                start_time = time.time()
+                for count in range(self.params['num_iterations']):
+                    jitter = np.random.randint(low=0, high=params['jitter_T'] + 1, dtype=int, size=(2,))
+
+                    if (count + 1) % params['lr_lower_freq'] == 0:
+                        self.params['learning_rate'] = self.params['learning_rate'] / 10.0
+                        print('lowering learning rate to {0}'.format(self.params['learning_rate']))
+
+                    feed = {lr_pl: self.params['learning_rate'], jitter_x_pl: jitter[0], jitter_y_pl: jitter[1]}
+
+                    batch_loss, _, summary_string = sess.run([loss, train_op, train_summary_op], feed_dict=feed)
+                    # sess.run(check, feed_dict=feed)
+                    # sess.run(clip_op)
+                    rec_mat = sess.run(reconstruction)
+                    if (count + 1) % params['summary_freq'] == 0:
+                        summary_writer.add_summary(summary_string, count)
+
+                    if (count + 1) % params['print_freq'] == 0:
+                        print(('Iteration: {0:6d} Training Error:   {1:9.2f} ' +
+                               'Time: {2:5.1f} min').format(count + 1, batch_loss, (time.time() - start_time) / 60))
+                        # a = sess.run(graph.get_tensor_by_name('ICAPrior/ica_a:0'))
+                        # print(a)
+                        # w = sess.run(graph.get_tensor_by_name('ICAPrior/ica_w:0'))
+                        # print(w)
+
+                    if (count + 1) % params['log_freq'] == 0:
+                        plot_mat = np.zeros(shape=(self.img_hw, 2 * self.img_hw, 3))
+
+                        plot_mat[:, :self.img_hw, :] = img_mat / 255.0
+                        rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))  # M&V just rescale
+                        plot_mat[:, self.img_hw:, :] = rec_mat
+                        if params['save_as_mat']:
+                            np.save(self.params['log_path'] + 'rec_' + str(count + 1) + '.npy', plot_mat)
+                        else:
+                            fig = plt.figure(frameon=False)
+                            fig.set_size_inches(2, 1)
+                            ax = plt.Axes(fig, [0., 0., 1., 1.])
+                            ax.set_axis_off()
+                            fig.add_axes(ax)
+                            ax.imshow(plot_mat, aspect='auto')
+                            plt.savefig(self.params['log_path'] + 'rec_' + str(count + 1) + '.png',
+                                        format='png', dpi=self.img_hw)
+
+    def train_on_dataset(self):
+        """
+        trains all trainable variables with respect to the registered losses on the imagenet validation set
+        """
+
         if not os.path.exists(self.params['log_path']):
             os.makedirs(self.params['log_path'])
 
@@ -190,6 +306,12 @@ class NetInversion:
                 print('Session finished. {0:2.1f}% of the time spent in run calls'.format(train_ratio))
 
     def run_inverse_model(self, inv_input_mat, ckpt_num=3000):
+        """
+        runs the model on a specified input. used for stacking models
+        :param inv_input_mat: numpy array serving as input
+        :param ckpt_num: checkpoint number to be loaded
+        :return: numpy array produced by the model
+        """
         with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
                 img_pl = tf.placeholder(dtype=tf.float32,
@@ -212,7 +334,16 @@ class NetInversion:
                 return rec_mat
 
     def visualize(self, num_images=7, rec_type='bgr_normed', file_name='img_vs_rec', ckpt_num=1000, add_diffs=True):
-        print(ckpt_num)
+        """
+        makes image file showing reconstrutions from a trained model
+        :param num_images: first n images from the data set are visualized
+        :param rec_type: details, which parts of network preprocessing need to be inverted
+        :param file_name: name of output file
+        :param ckpt_num: checkpoint to be loaded
+        :param add_diffs: if true, 2 extra visualizations are added
+        :return: None
+        """
+
         actual_batch_size = self.params['batch_size']
         assert num_images <= actual_batch_size
         self.params['batch_size'] = num_images
@@ -226,7 +357,7 @@ class NetInversion:
                 self.load_classifier(img_pl)
                 self.build_model()
                 saver = tf.train.Saver()
-                print(ckpt_num)
+
                 saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
                 feed_dict = {img_pl: next(batch_gen)}
                 rec_tensor_name = 'module_' + str(len(self.params['inv_modules'])) + '/reconstruction:0'

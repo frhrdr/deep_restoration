@@ -33,7 +33,7 @@
 
 Claim: Convolutions are not sufficient for inverting convolutions.
 
-Argument sketch: Given a feature map as $f_{j+1}$, where $\bm{W_j}$ is toeplitz and $f_j$ is a variable with log prior given as $\frac{1}{2} f_j^T \bm{\Sigma_{f_j}^{-1}}f_j + const$, the optimization over $f_j$ is as follows:
+Argument sketch: Given a feature map as $f_{j+1}$, where $\bm{W_j}$ is toeplitz and $f_j$ is a variable with gaussian log prior given as $\frac{1}{2} f_j^T \bm{\Sigma_{f_j}^{-1}}f_j + const$, the optimization over $f_j$ is as follows:
 
 \begin{equation}
 	\min_{f_j} \frac{1}{2} \lambda || f_{j+1} - \bm{W_j} f_j ||^2 + \frac{1}{2} f_j^T \bm{\Sigma_{f_j}^{-1}} f_j + const
@@ -246,6 +246,7 @@ A wider review of related work may also provide some additional setups that can 
 	\subitem test each prior on natural image feature maps to get an idea of the spread of values
 	\subitem all priors can be tested individually, e.g. with the M\&V image priors in place. maybe some layers have more of an impact than others? (deep vs. shallow)
 	\subitem To get to the point where all priors are used in the model, maybe it's a good idea to add them iteratively. The question then is, do you start deep or shallow? maybe just start with whatever worked best previously. 
+	\subitem 
 \end{itemize}
 
 

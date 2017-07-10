@@ -40,7 +40,7 @@ def train_test():
     n_vis = 144
     whiten_mode = 'pca'
     data_dir = './data/patches_color/8by8/'
-    log_path = './logs/priors/ica_prior/8by8_512_color/'
+    log_path = './logs/priors/ica_prior/8by8_1024_color/'
     data_gen = patch_batch_gen(1000, whiten_mode=whiten_mode, data_dir=data_dir, data_shape=(100000, n_features))
     unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
     whiten_mat = np.load(data_dir + 'whiten_' + whiten_mode + '.npy').astype(np.float32)
