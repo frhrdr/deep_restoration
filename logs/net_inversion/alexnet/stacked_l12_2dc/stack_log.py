@@ -1,6 +1,5 @@
-from net_inversion import NetInversion, run_stacked_models
 from parameter_utils import default_params, selected_images
-
+from deep_restoration.net_inversion import run_stacked_models
 
 spec1 = dict(inv_model_type='deconv_conv',
              op1_height=3, op1_width=3, op1_strides=[1, 2, 2, 1], op1_pad='VALID',

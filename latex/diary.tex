@@ -12,11 +12,10 @@
 
 \maketitle
 
-\section{July 10.}
+\section*{July 11.}
 
 \begin{enumerate}
 	\item Week goal 1: send out summary + timeline out to potential examiners before friday.
-	\item Week goal 2: find out, why first ICA prior results are so bad.
 	\item skim simonyan papers, find the relevant ones
 	\item read papers from jörn about quality metrics
 	\item rework summary:
@@ -24,45 +23,49 @@
 	\subitem give more details on result setups
 	\subitem draft related works (so the big names are connected)
 	\item do search on samplings from FoE models
+\end{enumerate}
+
+\section*{July 10.}
+
+\begin{enumerate}
+	\item found out, why first ICA prior results are so bad. (sigma missing)
 	\item trained first batch of foe priors (looking very similar to ica priors.)
-	\item train ica prior with more (and fewer?) components
-	\item train ica prior reconstruction with different weightings
-	\item train ica prior reconstruction with l-bfgs
-	\item test ica prior on vgg16 in addition to alexnet
+	\item trained ica prior with more (1024) components: filters look similar. laptop gpu out of memory when computing ICA prior (but only after about 100 steps. what's going on there?)
+	\item trained ica prior reconstruction with different weightings. lower weights are slower to converge, but result in crisper images.
 \end{enumerate}
 
 
-\section{July 2.}
+\section*{July 2.}
 
 \begin{enumerate}
 	\item drafted some thoughts on sampling
 	\item think about weighting maybe normalize priors for same average score on natural images?
 \end{enumerate}
 
-\section{July 1.}
+\section*{July 1.}
 
 \begin{enumerate}
 	\item set up FoE prior
 \end{enumerate}
 
 
-\section{June 30.}
+\section*{June 30.}
 
 \begin{enumerate}
 	\item worked out score matching for field of experts 
 	\item read patternnet paper	
 \end{enumerate}
 
-\section{June 29.}
+\section*{June 29.}
 
 \begin{enumerate}
 	\item drafted timeline
 	\item drafted summary + goals from now on
 \end{enumerate}
 
-\section{June 15.}
+\section*{June 15.}
 
-\subsection{Completed}
+\subsection*{Completed}
 
 \begin{enumerate}
     \item enable loading option for optimizer parameters (done)
@@ -78,7 +81,7 @@
     \item adapt code to allow arbitrary losses and priors
 \end{enumerate}
 
-\subsection{Results}
+\subsection*{Results}
 \FloatBarrier
 \begin{figure}
     \centering
@@ -94,7 +97,7 @@
     \label{fig:mh_vgg}
 \end{figure}
 \FloatBarrier
-\subsection{Next Steps}
+\subsection*{Next Steps}
 \begin{enumerate}
     \item Some Deconv-Conv models need redoing (with upsample-conv-conv)
     \item MV-2016 code is not producing good results yet
@@ -106,9 +109,9 @@
 \end{enumerate}
 
 
-\section{May 10.}
+\section*{May 10.}
 
-\subsection{Completed}
+\subsection*{Completed}
 \begin{itemize}
     \item change architecture: each module specifies in and out tensor (optionally either from last module or classifier) and whether reconstruction becomes part of the loss. enables flexible training of multiple modules at once
     \item  create reconstructions for deeper vgg layers and alexnet
@@ -116,7 +119,7 @@
     \item create resized dataset for runtime speedups
 \end{itemize}
 
-\subsection{Results}
+\subsection*{Results}
 Three things:
 \begin{enumerate}
     \item Reconstructions in Vgg from the first pooling layer suggest that 3 stacked modules which are individually trained on each operation (conv1\_1-conv1\_2-pool1) yield better results than the same model trained end-to-end.
@@ -172,7 +175,7 @@ Three things:
 
 \FloatBarrier
 
-\subsection{Next Steps}
+\subsection*{Next Steps}
 \begin{itemize}
     \item add option for loss logging per module
     \item continue training of later vgg layers to full convergence
@@ -185,9 +188,9 @@ Three things:
 
 
 
-\section{May 3.}
+\section*{May 3.}
 
-\subsection{Completed}
+\subsection*{Completed}
 \begin{itemize}
     \item step to later layers, for simplicity with vgg first.
 	\item  adapt code to allow stacking models (somewhat hacked together, needs rework later)
@@ -204,7 +207,7 @@ Three things:
 	\item pretty up plotting functions (should be sufficient for now)
 \end{itemize}
 
-\subsection{Results}
+\subsection*{Results}
 
 This week has yielded two major findings:
 \begin{enumerate}
@@ -253,7 +256,7 @@ The figures below show reconstructions of the first 3 stacked Vgg16 layers and o
 \end{figure}
 
 \FloatBarrier
-\subsection{Next Steps}
+\subsection*{Next Steps}
 \begin{itemize}
     \item invert pool1 with a deconv conv model, which deals better with strides
     \item train and stack 3 layer inversions, compare to same model trained in one go.

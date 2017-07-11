@@ -1,5 +1,5 @@
-from layer_inversion import Parameters, LayerInversion, run_stacked_models
 from filehandling_utils import selected_imgs
+from deep_restoration.old.layer_inversion import Parameters, run_stacked_models
 
 params0 = Parameters(classifier='vgg16', inv_input_name='pool1:0', inv_target_name='conv1_2/relu:0',
                     inv_model='conv_deconv',

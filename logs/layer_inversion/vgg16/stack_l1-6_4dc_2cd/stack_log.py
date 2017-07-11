@@ -1,6 +1,5 @@
-from layer_inversion import run_stacked_models
 from parameter_utils import default_params, selected_images
-
+from deep_restoration.old.layer_inversion import run_stacked_models
 
 spec1 = dict(op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1],
              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
