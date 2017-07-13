@@ -3,7 +3,8 @@ from tf_vgg import vgg16
 from tf_alexnet import alexnet
 from utils.parameter_utils import check_params
 from utils.filehandling_utils import save_dict, load_image
-from utils.model_utils import conv_deconv_model, deconv_conv_model, deconv_deconv_model
+from modules.inv_modules import TrainedModule
+from modules.loss_modules import LossModule, LearnedPriorLoss
 import os
 import time
 import numpy as np
@@ -16,11 +17,19 @@ import matplotlib.pyplot as plt
 class NetInversion:
 
     def __init__(self, params):
-        check_params(params)
+        # check_params(params)
         self.params = params
         self.imagenet_mean = np.asarray([123.68, 116.779, 103.939])  # in RGB order
         self.img_hw = 224
         self.img_channels = 3
+
+    def get_optimizer(self, name, lr_pl, momentum=0.9):
+        if name.lower() == 'adam':
+            return tf.train.AdamOptimizer(lr_pl)
+        elif name.lower() == 'momentum':
+            return tf.train.MomentumOptimizer(lr_pl, momentum=momentum)
+        else:
+            raise NotImplementedError
 
     def load_classifier(self, img_pl):
         if self.params['classifier'].lower() == 'vgg16':
@@ -33,47 +42,24 @@ class NetInversion:
         classifier.build(img_pl, rescale=1.0)
 
     def build_model(self):
-        graph = tf.get_default_graph()
 
-        if not isinstance(self.params['inv_model_specs'], list):
-            self.params['inv_model_specs'] = [self.params['inv_model_specs']]
+        if not isinstance(self.params['modules'], list):
+            self.params['modules'] = [self.params['modules']]
 
-        loss = 0.0
-        loss_dict = dict()
-        for idx, spec in enumerate(self.params['inv_model_specs']):
-            inv_input = graph.get_tensor_by_name(spec['inv_input_name'])
-            inv_target = graph.get_tensor_by_name(spec['inv_target_name'])
-            inv_target_shape = [k.value for k in inv_target.get_shape()[1:]]
-            with tf.variable_scope('module_' + str(idx + 1)):
-                if spec['inv_model_type'].lower() == 'conv_deconv':
-                    reconstruction = conv_deconv_model(inv_input, spec, inv_target_shape)
-                elif spec['inv_model_type'].lower() == 'deconv_conv':
-                    reconstruction = deconv_conv_model(inv_input, spec, inv_target_shape)
-                elif spec['inv_model_type'].lower() == 'deconv_deconv':
-                    reconstruction = deconv_deconv_model(inv_input, spec, inv_target_shape)
-                else:
-                    raise NotImplementedError
+        loss = 0
+        for idx, mod in enumerate(self.params['modules']):
+            mod.build(scope_suffix=str(idx))
+            if isinstance(mod, LossModule):
+                loss += mod.get_loss()
 
-                reconstruction = tf.identity(reconstruction, name=spec['rec_name'])
+        return loss
 
-                if spec['add_loss']:
-                    module_loss = tf.losses.mean_squared_error(inv_target, reconstruction)
-                    loss += module_loss
-                    loss_dict[idx] = module_loss
-
-        assert not isinstance(loss, float), 'No loss specified'
-        if self.params['optimizer'].lower() == 'adam':
-            adam = tf.train.AdamOptimizer(learning_rate=self.params['learning_rate'])
-            train_op = adam.minimize(loss)
-        else:
-            raise NotImplementedError
-
-        return loss, train_op, loss_dict
-
-    def build_logging(self, loss, loss_dict):
+    def build_logging(self, loss):
         tf.summary.scalar('total_loss', loss)
-        for idx in loss_dict:
-            tf.summary.scalar('module_{0}_loss'.format(idx), loss_dict[idx])
+        for mod in self.params['modules']:
+            if isinstance(mod, LossModule):
+                mod.scalar_summary()
+
         train_summary_op = tf.summary.merge_all()
         summary_writer = tf.summary.FileWriter(self.params['log_path'] + '/summaries')
         saver = tf.train.Saver()
@@ -122,7 +108,115 @@ class NetInversion:
                 mat = np.stack(images, axis=0)
             yield mat
 
-    def train(self):
+    def train_pre_image(self, image_path, grad_clip=100.0, lr_lower_points=(),
+                        range_b=80, jitter_t=0, optim_name='momentum',
+                        range_clip=False, save_as_mat=False, jitter_stop_point=-1):
+        """
+        like mahendran & vedaldi, optimizes pre-image based on a single other image
+        """
+
+        if not os.path.exists(self.params['log_path']):
+            os.makedirs(self.params['log_path'])
+
+        save_dict(self.params, self.params['log_path'] + 'params.txt')
+
+        with tf.Graph().as_default():
+            with tf.Session() as sess:
+                img_mat = load_image(image_path, resize=False)
+                image = tf.constant(img_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])
+                rec_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.0001))
+                reconstruction = tf.get_variable('reconstruction', dtype=tf.float32,
+                                                 initializer=rec_init)
+
+                jitter_x_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_x_pl')
+                jitter_y_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_y_pl')
+
+                rec_part = tf.slice(reconstruction, [0, jitter_x_pl, jitter_y_pl, 0], [-1, -1, -1, -1])
+                rec_padded = tf.pad(rec_part, paddings=[[0, 0], [jitter_x_pl, 0], [jitter_y_pl, 0], [0, 0]])
+
+                use_jitter_pl = tf.placeholder(dtype=tf.bool, shape=[], name='use_jitter')
+                rec_input = tf.cond(use_jitter_pl, lambda: rec_padded, lambda: reconstruction, name='jitter_cond')
+                net_input = tf.concat([image, rec_input * 2.7098e+4], axis=0)
+
+                self.load_classifier(net_input)
+
+                loss = self.build_model()
+
+                lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
+                optimizer = self.get_optimizer(optim_name, lr_pl)
+
+                tvars = tf.trainable_variables()
+                grads = tf.gradients(loss, tvars)
+                tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
+                tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
+                              for k in tg_pairs]
+                train_op = optimizer.apply_gradients(tg_clipped)
+
+                clip_op = tf.assign(reconstruction, tf.clip_by_value(reconstruction, 0.0, 2.0 * range_b))
+
+                train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
+
+                sess.run(tf.global_variables_initializer())
+
+                for mod in self.params['modules']:
+                    if isinstance(mod, (TrainedModule, LearnedPriorLoss)):
+                        mod.load_weights(sess)
+
+                use_jitter = False if jitter_t == 0 else True
+                lr = self.params['learning_rate']
+                start_time = time.time()
+                for count in range(self.params['num_iterations']):
+                    jitter = np.random.randint(low=0, high=jitter_t + 1, dtype=int, size=(2,))
+
+                    if jitter_stop_point == count:
+                        use_jitter = False
+
+                    if lr_lower_points and lr_lower_points[0][0] == count:
+                        lr = lr_lower_points[0][1]
+                        print('new learning rate: ', lr)
+                        lr_lower_points = lr_lower_points[1:]
+
+                    feed = {lr_pl: lr,
+                            jitter_x_pl: jitter[0],
+                            jitter_y_pl: jitter[1],
+                            use_jitter_pl: use_jitter}
+
+                    batch_loss, _, summary_string = sess.run([loss, train_op, train_summary_op], feed_dict=feed)
+
+                    if range_clip:
+                        sess.run(clip_op)
+
+                    rec_mat = sess.run(reconstruction)
+                    if (count + 1) % self.params['summary_freq'] == 0:
+                        summary_writer.add_summary(summary_string, count)
+
+                    if (count + 1) % self.params['print_freq'] == 0:
+                        print(('Iteration: {0:6d} Training Error:   {1:8.3f} ' +
+                               'Time: {2:5.1f} min').format(count + 1, batch_loss, (time.time() - start_time) / 60))
+
+                    if (count + 1) % self.params['log_freq'] == 0:
+                        plot_mat = np.zeros(shape=(self.img_hw, 2 * self.img_hw, 3))
+
+                        plot_mat[:, :self.img_hw, :] = img_mat / 255.0
+                        rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))  # M&V just rescale
+                        plot_mat[:, self.img_hw:, :] = rec_mat
+                        if save_as_mat:
+                            np.save(self.params['log_path'] + 'rec_' + str(count + 1) + '.npy', plot_mat)
+                        else:
+                            fig = plt.figure(frameon=False)
+                            fig.set_size_inches(2, 1)
+                            ax = plt.Axes(fig, [0., 0., 1., 1.])
+                            ax.set_axis_off()
+                            fig.add_axes(ax)
+                            ax.imshow(plot_mat, aspect='auto')
+                            plt.savefig(self.params['log_path'] + 'rec_' + str(count + 1) + '.png',
+                                        format='png', dpi=self.img_hw)
+
+    def train_on_dataset(self, optim_name='adam'):
+        """
+        trains all trainable variables with respect to the registered losses on the imagenet validation set
+        """
+
         if not os.path.exists(self.params['log_path']):
             os.makedirs(self.params['log_path'])
 
@@ -135,8 +229,21 @@ class NetInversion:
                                                                  self.img_hw, self.img_channels])
 
                 self.load_classifier(img_pl)
-                loss, train_op, loss_dict = self.build_model()
-                train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss, loss_dict)
+                loss = self.build_model()
+
+                lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
+                optimizer = self.get_optimizer(optim_name, lr_pl)
+                train_op = optimizer.minimize(loss)
+
+                train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
+
+                for inv_mod in self.params['modules']:
+                    if isinstance(inv_mod, LearnedPriorLoss) and inv_mod.trainable is False:
+                        inv_mod.load_weights(sess)
+
+                for loss_mod in self.params['loss_modules']:
+                    if isinstance(loss_mod, LearnedPriorLoss) and loss_mod.trainable is False:
+                        loss_mod.load_weights(sess)
 
                 if self.params['load_path']:
                     global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
@@ -148,13 +255,7 @@ class NetInversion:
                     else:
                         sess.run(tf.variables_initializer(opt_vars))
 
-                    if 'layer_inversion' in self.params['load_path']:  # try for backwards compatibility
-                        load_vars = dict()
-                        for var in tf.trainable_variables():
-                            load_vars[var.name[len('module_1/'):-len(':0')]] = var
-                    else:
-                        load_vars = tf.trainable_variables()
-
+                    load_vars = tf.trainable_variables()
                     loader = tf.train.Saver(var_list=load_vars)
                     loader.restore(sess, self.params['load_path'])
 
@@ -202,29 +303,44 @@ class NetInversion:
                 print('Session finished. {0:2.1f}% of the time spent in run calls'.format(train_ratio))
 
     def run_inverse_model(self, inv_input_mat, ckpt_num=3000):
+        """
+        runs the model on a specified input. used for stacking models
+        :param inv_input_mat: numpy array serving as input
+        :param ckpt_num: checkpoint number to be loaded
+        :return: model output as numpy array
+        """
         with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
                 img_pl = tf.placeholder(dtype=tf.float32,
                                         shape=[self.params['batch_size'], self.img_hw, self.img_hw, self.img_channels])
                 self.load_classifier(img_pl)
 
-                if not isinstance(self.params['inv_model_specs'], list):
-                    self.params['inv_model_specs'] = [self.params['inv_model_specs']]
-                input_shape = graph.get_tensor_by_name(self.params['inv_model_specs'][0]['inv_input_name']).get_shape()
+                if not isinstance(self.params['inv_modules'], list):
+                    self.params['inv_modules'] = [self.params['inv_modules']]
+                input_shape = graph.get_tensor_by_name(self.params['inv_modules'][0]['inv_input_name']).get_shape()
                 inv_input = tf.placeholder(dtype=tf.float32, name='new_input', shape=input_shape)
-                self.params['inv_model_specs'][0]['inv_input_name'] = 'new_input:0'
+                self.params['inv_modules'][0]['inv_input_name'] = 'new_input:0'
 
                 self.build_model()
 
                 saver = tf.train.Saver()
                 saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
-                rec_tensor_name = 'module_' + str(len(self.params['inv_model_specs'])) + '/reconstruction:0'
+                rec_tensor_name = 'module_' + str(len(self.params['inv_modules'])) + '/reconstruction:0'
                 reconstruction = graph.get_tensor_by_name(rec_tensor_name)
                 rec_mat = sess.run(reconstruction, feed_dict={inv_input: inv_input_mat})
                 return rec_mat
 
     def visualize(self, num_images=7, rec_type='bgr_normed', file_name='img_vs_rec', ckpt_num=1000, add_diffs=True):
-        print(ckpt_num)
+        """
+        makes image file showing reconstrutions from a trained model
+        :param num_images: first n images from the data set are visualized
+        :param rec_type: details, which parts of network preprocessing need to be inverted
+        :param file_name: name of output file
+        :param ckpt_num: checkpoint to be loaded
+        :param add_diffs: if true, 2 extra visualizations are added
+        :return: None
+        """
+
         actual_batch_size = self.params['batch_size']
         assert num_images <= actual_batch_size
         self.params['batch_size'] = num_images
@@ -238,10 +354,10 @@ class NetInversion:
                 self.load_classifier(img_pl)
                 self.build_model()
                 saver = tf.train.Saver()
-                print(ckpt_num)
+
                 saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
                 feed_dict = {img_pl: next(batch_gen)}
-                rec_tensor_name = 'module_' + str(len(self.params['inv_model_specs'])) + '/reconstruction:0'
+                rec_tensor_name = 'module_' + str(len(self.params['inv_modules'])) + '/reconstruction:0'
                 reconstruction = graph.get_tensor_by_name(rec_tensor_name)
                 rec_mat = sess.run(reconstruction, feed_dict=feed_dict)
 
@@ -293,146 +409,3 @@ class NetInversion:
         fig.add_axes(ax)
         ax.imshow(plot_mat, aspect='auto')
         plt.savefig(self.params['log_path'] + file_name + '.png', format='png', dpi=224)
-
-    def visualize_old(self, img_idx=0, rec_type='rgb_scaled', ckpt_num=3000):
-        actual_batch_size = self.params['batch_size']
-        assert img_idx + 1 <= actual_batch_size
-        self.params['batch_size'] = img_idx + 1
-
-        batch_gen = self.get_batch_generator(mode='validate')
-
-        with tf.Graph().as_default() as graph:
-            with tf.Session() as sess:
-                img_pl = tf.placeholder(dtype=tf.float32,
-                                        shape=[self.params['batch_size'], self.img_hw, self.img_hw, self.img_channels])
-                self.load_classifier(img_pl)
-                self.build_model()
-                saver = tf.train.Saver()
-                saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
-                feed_dict = {img_pl: next(batch_gen)}
-                reconstruction = graph.get_tensor_by_name('reconstruction:0')
-                rec_mat = sess.run(reconstruction, feed_dict=feed_dict)
-
-            self.params['batch_size'] = actual_batch_size
-
-            img_mat = feed_dict[img_pl][img_idx, :, :, :]
-            rec_mat = rec_mat[img_idx, :, :, :]
-            if rec_type == 'rgb_scaled':
-                rec_mat /= 255.0
-            elif rec_type == 'bgr_normed':
-                rec_mat = rec_mat[:, :, ::-1]
-                if self.params['classifier'].lower() == 'vgg16':
-                    rec_mat = rec_mat + self.imagenet_mean
-                elif self.params['classifier'].lower() == 'alexnet':
-                    rec_mat = rec_mat + np.mean(self.imagenet_mean)
-                else:
-                    raise NotImplementedError
-                rec_mat /= 255.0
-            else:
-                raise NotImplementedError
-
-            print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
-            rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
-
-            w = h = 4
-            fig = plt.figure(frameon=False)
-            fig.set_size_inches(w, h)
-            ax = plt.Axes(fig, [0., 0., 1., 1.])
-            ax.set_axis_off()
-            fig.add_axes(ax)
-            ax.imshow(img_mat, aspect='auto')
-            plt.savefig(self.params['log_path'] + 'img' + str(img_idx) + '.png', dpi=224 / 4, format='png')
-            fig = plt.figure(frameon=False)
-            fig.set_size_inches(w, h)
-            ax = plt.Axes(fig, [0., 0., 1., 1.])
-            ax.set_axis_off()
-            fig.add_axes(ax)
-            ax.imshow(rec_mat, aspect='auto')
-            plt.savefig(self.params['log_path'] + 'rec' + str(img_idx) + '.png', dpi=224 / 4, format='png')
-
-
-def run_stacked_models(params_list, num_images=7, file_name='stacked_inversion'):
-    # extract final feature representation
-    for p in params_list:
-        p['batch_size'] = num_images
-
-    li = NetInversion(params_list[0])
-
-    if params_list[0]['classifier'].lower() == 'vgg16':
-        model = vgg16.Vgg16()
-    elif params_list[0]['classifier'].lower() == 'alexnet':
-        model = alexnet.AlexNet()
-    else:
-        raise NotImplementedError
-
-    with tf.Graph().as_default() as graph:
-        with tf.Session() as sess:
-            img_pl = tf.placeholder(dtype=tf.float32,
-                                    shape=[li.params['batch_size'], li.img_hw, li.img_hw, li.img_channels])
-            model.build(img_pl)
-            inv_input_tensor = graph.get_tensor_by_name(params_list[0]['inv_model_specs'][0]['inv_input_name'])
-            inv_target_tensor = graph.get_tensor_by_name(params_list[-1]['inv_model_specs'][-1]['inv_target_name'])
-            batch_gen = li.get_batch_generator(mode='validate')
-            img_target = next(batch_gen)
-            inv_input, inv_target = sess.run([inv_input_tensor, inv_target_tensor], feed_dict={img_pl: img_target})
-
-    # pass through models
-    for params in params_list:
-        if 'ckpt_num' in params:
-            ckpt_num = params['ckpt_num']
-        else:
-            ckpt_num = 3000
-        li = NetInversion(params)
-        inv_input = li.run_inverse_model(inv_input, ckpt_num=ckpt_num)
-        print(inv_input.shape)
-
-    # visualize final reconstruction
-    img_mat = img_target
-    rec_mat = inv_input
-    rec_type = 'bgr_normed'
-    add_diffs = True
-
-    if rec_type == 'rgb_scaled':
-        rec_mat /= 255.0
-    elif rec_type == 'bgr_normed':
-        rec_mat = rec_mat[:, :, :, ::-1]
-        if li.params['classifier'].lower() == 'vgg16':
-            rec_mat = rec_mat + li.imagenet_mean
-        elif li.params['classifier'].lower() == 'alexnet':
-            rec_mat = rec_mat + np.mean(li.imagenet_mean)
-        else:
-            raise NotImplementedError
-        rec_mat /= 255.0
-    else:
-        raise NotImplementedError
-
-    print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
-    rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
-
-    if add_diffs:
-        cols = 4
-    else:
-        cols = 2
-
-    plot_mat = np.zeros(shape=(rec_mat.shape[0] * rec_mat.shape[1], rec_mat.shape[2] * cols, 3))
-    for idx in range(rec_mat.shape[0]):
-        h = rec_mat.shape[1]
-        w = rec_mat.shape[2]
-        plot_mat[idx * h:(idx + 1) * h, :w, :] = img_mat[idx, :, :, :]
-        plot_mat[idx * h:(idx + 1) * h, w:2 * w, :] = rec_mat[idx, :, :, :]
-        if add_diffs:
-            diff = img_mat[idx, :, :, :] - rec_mat[idx, :, :, :]
-            diff -= np.min(diff)
-            diff /= np.max(diff)
-            plot_mat[idx * h:(idx + 1) * h, 2 * w:3 * w, :] = diff
-            abs_diff = np.abs(rec_mat[idx, :, :, :] - img_mat[idx, :, :, :])
-            abs_diff /= np.max(abs_diff)
-            plot_mat[idx * h:(idx + 1) * h, 3 * w:, :] = abs_diff
-
-    fig = plt.figure(frameon=False)
-    fig.set_size_inches(cols, num_images)
-    ax = plt.Axes(fig, [0., 0., 1., 1.])
-    ax.set_axis_off()
-    fig.add_axes(ax)
-    ax.imshow(plot_mat, aspect='auto')
-    plt.savefig(file_name + '.png', format='png', dpi=224)

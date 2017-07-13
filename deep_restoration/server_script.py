@@ -1,5 +1,5 @@
+from old.net_inversion_old import NetInversion
 from utils.parameter_utils import default_params
-from net_inversion import NetInversion
 
 spec1 = dict(inv_model_type='deconv_conv',
              op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1], op1_pad='SAME',

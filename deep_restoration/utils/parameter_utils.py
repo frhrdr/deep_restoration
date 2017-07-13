@@ -40,6 +40,13 @@ def default_params():
                 channel_losses=False, load_opt_vars=True)
 
 
+def mv_default_params():
+    return dict(learning_rate=0.004, num_iterations=5000,
+                optimizer='momentum',
+                print_freq=50, log_freq=500,
+                summary_freq=10)
+
+
 def selected_images(params):
     p = deepcopy(params)
     p['data_path'] = './data/selected/'

@@ -76,7 +76,7 @@ def invert_layer(params):
 
             ica_prior = ICAPrior(tensor_names='reconstruction/read:0',
                                  weighting=1.0e-4, name='ICAPrior',
-                                 load_path='./logs/priors/ica_prior/8by8_512_color/ckpt-10000',
+                                 load_path='../logs/priors/ica_prior/8by8_512_color/ckpt-10000',
                                  trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
 
             loss_mods = [mse_mod, ica_prior]  # [mse_mod, sr_mod, tv_mod]
@@ -88,6 +88,7 @@ def invert_layer(params):
             lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
             # optimizer = tf.train.AdamOptimizer(lr_pl)
             optimizer = tf.train.MomentumOptimizer(lr_pl, momentum=0.9)
+
             tvars = tf.trainable_variables()
             grads = tf.gradients(loss, tvars)
             tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
