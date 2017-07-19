@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tf_vgg import vgg16
 from tf_alexnet import alexnet
-from utils.parameter_utils import check_params
 from utils.filehandling_utils import save_dict, load_image
 from modules.inv_modules import TrainedModule
 from modules.loss_modules import LossModule, LearnedPriorLoss
@@ -28,6 +27,8 @@ class NetInversion:
             return tf.train.AdamOptimizer(lr_pl)
         elif name.lower() == 'momentum':
             return tf.train.MomentumOptimizer(lr_pl, momentum=momentum)
+        elif name.lower() == 'adagrad':
+            return tf.train.AdagradOptimizer(lr_pl)
         else:
             raise NotImplementedError
 
@@ -110,7 +111,7 @@ class NetInversion:
 
     def train_pre_image(self, image_path, grad_clip=100.0, lr_lower_points=(),
                         range_b=80, jitter_t=0, optim_name='momentum',
-                        range_clip=False, save_as_mat=False, jitter_stop_point=-1):
+                        range_clip=False, save_as_mat=False, jitter_stop_point=-1, scale_pre_img=2.7098e+4):
         """
         like mahendran & vedaldi, optimizes pre-image based on a single other image
         """
@@ -125,18 +126,17 @@ class NetInversion:
                 img_mat = load_image(image_path, resize=False)
                 image = tf.constant(img_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])
                 rec_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.0001))
-                reconstruction = tf.get_variable('reconstruction', dtype=tf.float32,
-                                                 initializer=rec_init)
+                pre_img = tf.get_variable('pre_img', dtype=tf.float32, initializer=rec_init)
 
                 jitter_x_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_x_pl')
                 jitter_y_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_y_pl')
 
-                rec_part = tf.slice(reconstruction, [0, jitter_x_pl, jitter_y_pl, 0], [-1, -1, -1, -1])
+                rec_part = tf.slice(pre_img, [0, jitter_x_pl, jitter_y_pl, 0], [-1, -1, -1, -1])
                 rec_padded = tf.pad(rec_part, paddings=[[0, 0], [jitter_x_pl, 0], [jitter_y_pl, 0], [0, 0]])
 
                 use_jitter_pl = tf.placeholder(dtype=tf.bool, shape=[], name='use_jitter')
-                rec_input = tf.cond(use_jitter_pl, lambda: rec_padded, lambda: reconstruction, name='jitter_cond')
-                net_input = tf.concat([image, rec_input * 2.7098e+4], axis=0)
+                rec_input = tf.cond(use_jitter_pl, lambda: rec_padded, lambda: pre_img, name='jitter_cond')
+                net_input = tf.concat([image, rec_input * scale_pre_img], axis=0)
 
                 self.load_classifier(net_input)
 
@@ -152,7 +152,11 @@ class NetInversion:
                               for k in tg_pairs]
                 train_op = optimizer.apply_gradients(tg_clipped)
 
-                clip_op = tf.assign(reconstruction, tf.clip_by_value(reconstruction, 0.0, 2.0 * range_b))
+                # imgnet_mean = (123.68 + 116.779 + 103.939) / 3
+                imgnet_mean = [123.68, 116.779, 103.939]
+                box_rescale = tf.minimum(2 * range_b / tf.sqrt(tf.reduce_sum((pre_img - imgnet_mean) ** 2, axis=3)), 1.)
+                box_rescale = tf.stack([box_rescale] * 3, axis=3)
+                clip_op = tf.assign(pre_img, (pre_img - imgnet_mean) * box_rescale + imgnet_mean)
 
                 train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
 
@@ -169,6 +173,7 @@ class NetInversion:
                     jitter = np.random.randint(low=0, high=jitter_t + 1, dtype=int, size=(2,))
 
                     if jitter_stop_point == count:
+                        print('Jittering stopped at ', count)
                         use_jitter = False
 
                     if lr_lower_points and lr_lower_points[0][0] == count:
@@ -186,12 +191,12 @@ class NetInversion:
                     if range_clip:
                         sess.run(clip_op)
 
-                    rec_mat = sess.run(reconstruction)
+                    rec_mat = sess.run(pre_img)
                     if (count + 1) % self.params['summary_freq'] == 0:
                         summary_writer.add_summary(summary_string, count)
 
                     if (count + 1) % self.params['print_freq'] == 0:
-                        print(('Iteration: {0:6d} Training Error:   {1:8.3f} ' +
+                        print(('Iteration: {0:6d} Training Error:   {1:8.5f} ' +
                                'Time: {2:5.1f} min').format(count + 1, batch_loss, (time.time() - start_time) / 60))
 
                     if (count + 1) % self.params['log_freq'] == 0:
@@ -211,6 +216,7 @@ class NetInversion:
                             ax.imshow(plot_mat, aspect='auto')
                             plt.savefig(self.params['log_path'] + 'rec_' + str(count + 1) + '.png',
                                         format='png', dpi=self.img_hw)
+                            plt.close()
 
     def train_on_dataset(self, optim_name='adam'):
         """

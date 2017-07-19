@@ -215,7 +215,7 @@ def make_patches_data(num_patches, ph=8, pw=8, color=False, save_dir='./data/pat
     img_file = 'train_48k_images.txt'
 
     mm = np.memmap(save_dir + '/data_mat_' + whiten_mode + '.npy', dtype=np.float32, mode='w+',
-                   shape=(data_set_size, 63))
+                   shape=(num_patches, 63))
     with open(data_path + img_file) as f:
         image_files = [k.rstrip() for k in f.readlines()]
 

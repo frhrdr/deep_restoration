@@ -74,7 +74,7 @@ class SoftRangeLoss(LossModule):
 
     def build(self, scope_suffix=''):
         tensor = self.get_tensors()
-        tmp = tf.reduce_sum(tensor ** 2, axis=[3]) ** (self.alpha / 2)
+        tmp = tf.reduce_sum((tensor - tf.reduce_mean(tensor, axis=[0, 1, 2, 3])) ** 2, axis=[3]) ** (self.alpha / 2)
         self.loss = tf.reduce_sum(tmp)
 
 

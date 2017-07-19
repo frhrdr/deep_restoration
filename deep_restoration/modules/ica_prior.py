@@ -8,11 +8,13 @@ import os
 
 class ICAPrior(LearnedPriorLoss):
 
-    def __init__(self, tensor_names, weighting, name, load_path, trainable, filter_dims, input_scaling, n_components):
+    def __init__(self, tensor_names, weighting, name, load_path, trainable,
+                 filter_dims, input_scaling, n_components, n_channels):
         super().__init__(tensor_names, weighting, name, load_path, trainable)
         self.filter_dims = filter_dims  # tuple (height, width)
         self.input_scaling = input_scaling  # most likely 1 or 255
         self.n_components = n_components  # number of components to be produced
+        self.n_channels = n_channels
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
@@ -25,7 +27,7 @@ class ICAPrior(LearnedPriorLoss):
             y_pad = ((self.filter_dims[1] - 1) // 2, int(np.ceil((self.filter_dims[1] - 1) / 2)))
             conv_input = tf.pad(tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
             flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
-            scaled_patches = flat_patches  # * self.input_scaling
+            scaled_patches = flat_patches * self.input_scaling
             centered_patches = flat_patches - tf.stack([tf.reduce_mean(scaled_patches, axis=3)] * filter_mat.shape[3],
                                                        axis=3)
 
@@ -72,8 +74,7 @@ class ICAPrior(LearnedPriorLoss):
                     plot_filters=False):
         log_path = self.load_path
         ph, pw = self.filter_dims
-        n_features = ph * pw * 3 - 1  # mean substraction removes one degree of freedom
-        # lr_lower_points = [(0, 1.0e-3), (2000, 1.0e-4), (4000, 3.0e-5), (10000, 1.0e-5)]
+        n_features = ph * pw * self.n_channels - 1  # mean substraction removes one degree of freedom
 
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
                                    data_shape=(num_data_samples, n_features))
@@ -140,6 +141,10 @@ class ICAPrior(LearnedPriorLoss):
                             print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
 
                     checkpoint_file = os.path.join(log_path, 'ckpt')
+
+                    if not os.path.exists(checkpoint_file):
+                        os.makedirs(checkpoint_file)
+
                     saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=num_iterations)
 
                     if plot_filters:
