@@ -207,6 +207,7 @@ def make_feat_map_mats(num_patches, map_name, classifier='alexnet', ph=8, pw=8,
             feat_map = graph.get_tensor_by_name(map_name)
             map_dims = [d.value for d in feat_map.get_shape()]
             n_features = ph * pw * map_dims[3]
+            print(n_features)
             data_path = '../data/imagenet2012-validationset/'
             img_file = 'train_48k_images.txt'
 
@@ -241,7 +242,7 @@ def make_feat_map_mats(num_patches, map_name, classifier='alexnet', ph=8, pw=8,
                     raw_mat[idx + (count * batch_size), :] = map_patch
                     cov_acc = cov_acc + np.outer(map_patch, map_patch)
 
-                    if idx + (count * batch_size) % (num_patches // 10) == 0:
+                    if idx + (count * batch_size) % (num_patches // 100) == 0:
                         print(100 * (idx + count * batch_size) / num_patches, '% cov accumulation done')
             cov = cov_acc / (num_patches - 1)
             np.save(save_dir + 'cov.npy', cov)
