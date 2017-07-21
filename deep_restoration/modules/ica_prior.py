@@ -71,10 +71,12 @@ class ICAPrior(LearnedPriorLoss):
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
                     whiten_mode='pca', data_dir='./data/patches_color/8by8/', num_data_samples=100000,
-                    plot_filters=False):
+                    n_features=-1, plot_filters=False):
         log_path = self.load_path
         ph, pw = self.filter_dims
-        n_features = ph * pw * self.n_channels - 1  # mean substraction removes one degree of freedom
+
+        if n_features == -1:
+            n_features = ph * pw * self.n_channels - 1  # mean substraction removes one degree of freedom
 
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
                                    data_shape=(num_data_samples, n_features))
