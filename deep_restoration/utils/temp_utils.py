@@ -44,13 +44,18 @@ def pca_whiten_as_pca(data):
     return u, rerotate
 
 
-def pca_whiten_mats(cov):
+def pca_whiten_mats(cov, n_to_drop=1):
     e_vals, e_vecs = np.linalg.eigh(cov)
     assert all(a <= b for a, b in zip(e_vals[:-1], e_vals[1:]))  # make sure vals are sorted ascending (they should be)
     # print(e_vals.sum())
     # print(e_vals)
-    e_vals = e_vals[1:]  # dismiss first eigenvalue due to mean subtraction.
-    e_vecs = e_vecs[:, 1:]
+    if n_to_drop > 1:
+        full_eigv = sum(e_vals)
+        keep_eigv = sum(e_vals[n_to_drop:])
+        print('kept eigv fraction: ', keep_eigv / full_eigv)
+
+    e_vals = e_vals[n_to_drop:]  # dismiss first eigenvalue due to mean subtraction.
+    e_vecs = e_vecs[:, n_to_drop:]
     sqrt_vals = np.sqrt(np.maximum(e_vals, 0))
     whiten = np.diag(1. / sqrt_vals) @ e_vecs.T
     un_whiten = e_vecs @ np.diag(sqrt_vals)
@@ -259,6 +264,39 @@ def make_feat_map_mats(num_patches, map_name, classifier='alexnet', ph=8, pw=8,
         whiten, un_whiten = pca_whiten_mats(cov)
     elif whiten_mode == 'zca':
         whiten, un_whiten = zca_whiten_mats(cov)
+    else:
+        raise NotImplementedError
+
+    np.save(save_dir + 'whiten_' + whiten_mode + '.npy', whiten)
+    np.save(save_dir + 'unwhiten_' + whiten_mode + '.npy', un_whiten)
+
+    data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_whitened.npy', dtype=np.float32, mode='w+',
+                         shape=(num_patches, whiten.shape[0]))
+
+    for idx in range(num_patches):
+        image = raw_mat[idx, :]
+        image = whiten @ image
+        data_mat[idx, :] = image
+
+    data_mat.flush()
+    del data_mat
+
+
+def make_reduced_feat_map_mats(num_patches, load_dir, n_features, n_to_keep,
+                               save_dir='./data/patches/', whiten_mode='pca'):
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    raw_mat = np.memmap(load_dir + '/data_mat_raw.npy', dtype=np.float32, mode='r',
+                        shape=(num_patches, n_features))
+    cov = np.load(load_dir + 'cov.npy')
+
+    print('raw mat and cov loaded')
+
+    if whiten_mode == 'pca':
+        whiten, un_whiten = pca_whiten_mats(cov, n_to_drop=n_features - n_to_keep)
+    elif whiten_mode == 'zca':
+        raise NotImplementedError
     else:
         raise NotImplementedError
 

@@ -1,10 +1,5 @@
 # deep_restoration - MSc AI Thesis
 
-### Next Steps:
-- redo alexnet conv1/relu result
-- consider net_inversion rework which allows for trained priors and pre-image inputs.
-- find a way for loading dosovitskiy's caffe model into tensorflow or extract weights somehow (lower priority)
-
 
 
 ### Notes

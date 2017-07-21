@@ -20,17 +20,21 @@ mse = NormedMSELoss(target='img_rep:0', reconstruction='rec_rep:0', weighting=ms
 # tv_weight = 1. / (224. * 224. * (80. / 6.5) ** 2.)
 # tv_prior = TotalVariationLoss(tensor='pre_img_normed:0', beta=2, weighting=tv_weight)
 
-ica_prior = ICAPrior(tensor_names='pool1:0',
-                     weighting=0.001, name='ICAPrior',
-                     load_path='../logs/priors/ica_prior/alexnet/3by3_pool1/ckpt-20000',
-                     trainable=False, filter_dims=[3, 3], input_scaling=1.0, n_components=512, n_channels=96)
+# ica_prior = ICAPrior(tensor_names='pool1:0',
+#                      weighting=0.001, name='ICAPrior',
+#                      load_path='../logs/priors/ica_prior/alexnet/3by3_pool1/ckpt-20000',
+#                      trainable=False, filter_dims=[3, 3], input_scaling=1.0, n_components=512, n_channels=96)
 
+ica_prior = ICAPrior(tensor_names='conv2/relu:0',
+                     weighting=0.00001, name='ICAPrior',
+                     load_path='../logs/priors/ica_prior/alexnet/5x5_conv2_relu_1000comp/ckpt-30000',
+                     trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=1000, n_channels=256)
 
-modules = [split, mse]
+modules = [split, ica_prior]
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/',
+              log_path='../logs/net_inversion/alexnet/pure_prior/',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 10000
