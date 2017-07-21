@@ -71,7 +71,7 @@ class ICAPrior(LearnedPriorLoss):
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
                     whiten_mode='pca', data_dir='./data/patches_color/8by8/', num_data_samples=100000,
-                    n_features=-1, plot_filters=False):
+                    n_features=-1, log_freq=5000, plot_filters=False):
         log_path = self.load_path
         ph, pw = self.filter_dims
 
@@ -109,6 +109,11 @@ class ICAPrior(LearnedPriorLoss):
 
                 saver = tf.train.Saver()
 
+                checkpoint_file = os.path.join(log_path, 'ckpt')
+
+                if not os.path.exists(checkpoint_file):
+                    os.makedirs(checkpoint_file)
+
                 with tf.Session() as sess:
 
                     sess.run(tf.global_variables_initializer())
@@ -142,10 +147,8 @@ class ICAPrior(LearnedPriorLoss):
                             train_ratio = 100.0 * train_time / (time.time() - start_time)
                             print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
 
-                    checkpoint_file = os.path.join(log_path, 'ckpt')
-
-                    if not os.path.exists(checkpoint_file):
-                        os.makedirs(checkpoint_file)
+                        if (idx + 1) % log_freq == 0:
+                            saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=idx + 1)
 
                     saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=num_iterations)
 
