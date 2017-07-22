@@ -17,5 +17,5 @@ ica_prior = ICAPrior(tensor_names='conv3/relu:0',
 ica_prior.train_prior(batch_size=500, num_iterations=50000,
                       lr_lower_points=[(0, 1.0e-4), (10000, 1.0e-5), (40000, 3.0e-6), (45000, 1.0e-6)],
                       whiten_mode='pca', data_dir='../data/patches/alexnet/conv3_relu_5x5/',
-                      num_data_samples=100000, n_features=9600,
+                      num_data_samples=100000, n_features=9599,
                       plot_filters=False)
