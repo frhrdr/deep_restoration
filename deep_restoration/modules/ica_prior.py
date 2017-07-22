@@ -9,12 +9,13 @@ import os
 class ICAPrior(LearnedPriorLoss):
 
     def __init__(self, tensor_names, weighting, name, load_path, trainable,
-                 filter_dims, input_scaling, n_components, n_channels):
+                 filter_dims, input_scaling, n_components, n_channels, n_features_white):
         super().__init__(tensor_names, weighting, name, load_path, trainable)
         self.filter_dims = filter_dims  # tuple (height, width)
         self.input_scaling = input_scaling  # most likely 1 or 255
         self.n_components = n_components  # number of components to be produced
         self.n_channels = n_channels
+        self.n_features_white = n_features_white
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
@@ -32,15 +33,14 @@ class ICAPrior(LearnedPriorLoss):
                                                        axis=3)
 
             n_features_raw = filter_mat.shape[3]
-            n_features_white = n_features_raw - 1
 
-            whitening_tensor = tf.get_variable('whiten_mat', shape=[n_features_white, n_features_raw],
+            whitening_tensor = tf.get_variable('whiten_mat', shape=[self.n_features_white, n_features_raw],
                                                dtype=tf.float32, trainable=False)
 
             centered_patches = tf.reshape(centered_patches, shape=[-1, n_features_raw])
 
             ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable, dtype=tf.float32)
-            ica_w = tf.get_variable('ica_w', shape=[n_features_white, self.n_components],
+            ica_w = tf.get_variable('ica_w', shape=[self.n_features_white, self.n_components],
                                     trainable=self.trainable, dtype=tf.float32)
             ica_a_squeezed = tf.squeeze(ica_a)
 

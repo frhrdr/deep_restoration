@@ -10,11 +10,11 @@ from modules.ica_prior import ICAPrior
 
 ica_prior = ICAPrior(tensor_names='conv3/relu:0',
                      weighting=0.00001, name='ICAPrior',
-                     load_path='../logs/priors/ica_prior/alexnet/5x5_conv3_relu_2kcomp_1kfeats/',
-                     trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=2000, n_channels=384)
+                     load_path='../logs/priors/ica_prior/alexnet/5x5_conv3_relu_20kcomp_10kfeats/',
+                     trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=20000, n_channels=384)
 
 ica_prior.train_prior(batch_size=500, num_iterations=50000,
                       lr_lower_points=[(0, 1.0e-4), (10000, 1.0e-5), (40000, 3.0e-6), (45000, 1.0e-6)],
-                      whiten_mode='pca', data_dir='../data/patches/alexnet/conv3_relu_5x5_1000feats/',
-                      num_data_samples=100000, n_features=1000,
+                      whiten_mode='pca', data_dir='../data/patches/alexnet/conv3_relu_5x5/',
+                      num_data_samples=100000, n_features=9600,
                       plot_filters=False)
