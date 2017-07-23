@@ -37,4 +37,5 @@ ni = NetInversion(params)
 ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=2.7098e+4,
                    lr_lower_points=((0, 0.01), (1000, 0.003), (1200, 0.001), (3000, 0.0003),
-                                    (6000, 0.0001), (6000, 0.00003), (9000, 0.00001)))
+                                    (6000, 0.0001), (6000, 0.00003), (9000, 0.00001)),
+                   save_as_mat=True)
