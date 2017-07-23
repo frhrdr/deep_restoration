@@ -239,3 +239,15 @@ def make_patches_data(num_patches, ph=8, pw=8, color=False, save_dir='./data/pat
         target_file = save_dir + 'patch_' + str(idx) + '.bmp'
         skimage.io.imsave(target_file, image)
 
+
+def mat_to_img(load_path, mat_file_name):
+    plot_mat = np.load(load_path + mat_file_name)
+    fig = plt.figure(frameon=False)
+    fig.set_size_inches(2, 1)
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+    ax.imshow(plot_mat, aspect='auto')
+    plt.savefig(load_path + mat_file_name.split('.')[0] + '.png',
+                format='png', dpi=224)
+    plt.close()

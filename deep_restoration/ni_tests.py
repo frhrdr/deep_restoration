@@ -18,7 +18,7 @@ mse = NormedMSELoss(target='img_rep:0', reconstruction='rec_rep:0', weighting=ms
 #                      trainable=False, filter_dims=[3, 3], input_scaling=1.0, n_components=512, n_channels=96)
 
 ft2_prior = ICAPrior(tensor_names='conv2/relu:0',
-                     weighting=0.0001, name='Conv2Prior',
+                     weighting=1e-6, name='Conv2Prior',
                      load_path='../logs/priors/ica_prior/alexnet/5x5_conv2_relu_2kcomp_1kfeats/ckpt-30000',
                      trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=2000, n_channels=256,
                      n_features_white=1000)
@@ -34,7 +34,7 @@ modules = [split, mse, ft2_prior, img_prior]
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c4_rec/mse4_p2_pimg/',
+              log_path='../logs/net_inversion/alexnet/c4_rec/mse4_pimg_pc2_1e-6/',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 10000
