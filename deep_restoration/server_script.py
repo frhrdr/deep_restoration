@@ -10,13 +10,13 @@ split = SplitModule(name_to_split='conv4/relu:0', img_slice_name='img_rep', rec_
 mse = NormedMSELoss(target='img_rep:0', reconstruction='rec_rep:0', weighting=1.)
 
 ft3_prior = ICAPrior(tensor_names='conv3/relu:0',
-                     weighting=0.0001, name='Conv3Prior',
+                     weighting=1.e-5, name='Conv3Prior',
                      load_path='../logs/priors/ica_prior/alexnet/5x5_conv3_relu_10kcomp_10kfeats/ckpt-25000',
                      trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=10000, n_channels=384,
                      n_features_white=9599)
 
 img_prior = ICAPrior(tensor_names='pre_img/read:0',
-                     weighting=0.001, name='ImgPrior',
+                     weighting=1.e-3, name='ImgPrior',
                      load_path='../logs/priors/ica_prior/8by8_512_color/ckpt-10000',
                      trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512, n_channels=3,
                      n_features_white=64*3-1)
