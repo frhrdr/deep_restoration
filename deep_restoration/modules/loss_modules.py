@@ -104,15 +104,24 @@ class TotalVariationLoss(LossModule):
 
 class LearnedPriorLoss(LossModule):
 
-    def __init__(self, tensor_names, weighting, name, load_path, trainable):
+    def __init__(self, tensor_names, weighting, name, load_path, trainable, load_name):
         super().__init__(tensor_names, weighting)
         self.name = name
         self.load_path = load_path
         self.trainable = trainable
         self.var_list = []
+        self.load_name = load_name
 
     def load_weights(self, session):
-        loader = tf.train.Saver(var_list=self.var_list)
+        if self.load_name != '':
+
+            names = [k.name.split('/')[1:] for k in self.var_list]
+            names = [''.join(k) for k in names]
+            names = [self.load_name + '/' + k.split(':')[0] for k in names]
+            to_load = dict(zip(names, self.var_list))
+        else:
+            to_load = self.var_list
+        loader = tf.train.Saver(var_list=to_load)
         loader.restore(session, self.load_path)
 
     def save_weights(self, session, step):

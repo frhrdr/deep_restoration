@@ -9,8 +9,9 @@ import os
 class ICAPrior(LearnedPriorLoss):
 
     def __init__(self, tensor_names, weighting, name, load_path, trainable,
-                 filter_dims, input_scaling, n_components, n_channels, n_features_white):
-        super().__init__(tensor_names, weighting, name, load_path, trainable)
+                 filter_dims, input_scaling, n_components, n_channels, n_features_white,
+                 load_name='ICAPrior'):
+        super().__init__(tensor_names, weighting, name, load_path, trainable, load_name)
         self.filter_dims = filter_dims  # tuple (height, width)
         self.input_scaling = input_scaling  # most likely 1 or 255
         self.n_components = n_components  # number of components to be produced
@@ -132,6 +133,7 @@ class ICAPrior(LearnedPriorLoss):
                         batch_loss, _ = sess.run(fetches=[loss, opt_op], feed_dict={x_pl: data, lr_pl: lr})
                         sess.run(clip_op)
                         train_time += time.time() - batch_start
+
                         if idx % 100 == 0:
                             print(batch_loss)
 
