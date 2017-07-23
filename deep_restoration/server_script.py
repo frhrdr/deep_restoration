@@ -9,7 +9,7 @@ imagenet_mean = [123.68, 116.779, 103.939]
 split = SplitModule(name_to_split='conv4/relu:0', img_slice_name='img_rep', rec_slice_name='rec_rep')
 mse = NormedMSELoss(target='img_rep:0', reconstruction='rec_rep:0', weighting=1.)
 
-ft3_prior = ICAPrior(tensor_names='conv2/relu:0',
+ft3_prior = ICAPrior(tensor_names='conv3/relu:0',
                      weighting=0.0001, name='Conv3Prior',
                      load_path='../logs/priors/ica_prior/alexnet/5x5_conv3_relu_10kcomp_10kfeats/ckpt-25000',
                      trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=10000, n_channels=384,
