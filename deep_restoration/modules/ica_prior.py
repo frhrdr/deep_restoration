@@ -13,7 +13,7 @@ class ICAPrior(LearnedPriorLoss):
                  load_name='ICAPrior'):
         super().__init__(tensor_names, weighting, name, load_path, trainable, load_name)
         self.filter_dims = filter_dims  # tuple (height, width)
-        self.input_scaling = input_scaling  # most likely 1 or 255
+        self.input_scaling = input_scaling  # most likely 1, 255 or 1/255
         self.n_components = n_components  # number of components to be produced
         self.n_channels = n_channels
         self.n_features_white = n_features_white
@@ -21,16 +21,19 @@ class ICAPrior(LearnedPriorLoss):
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
             tensor = self.get_tensors()
+            scaled_tensor = tensor * self.input_scaling
             dims = [s.value for s in tensor.get_shape()]
             assert len(dims) == 4
             filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], dims[3]))
             flat_filter = tf.constant(filter_mat, dtype=tf.float32)
             x_pad = ((self.filter_dims[0] - 1) // 2, int(np.ceil((self.filter_dims[0] - 1) / 2)))
             y_pad = ((self.filter_dims[1] - 1) // 2, int(np.ceil((self.filter_dims[1] - 1) / 2)))
-            conv_input = tf.pad(tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
+            conv_input = tf.pad(scaled_tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
             flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
-            scaled_patches = flat_patches * self.input_scaling
-            centered_patches = flat_patches - tf.stack([tf.reduce_mean(scaled_patches, axis=3)] * filter_mat.shape[3],
+            # scaled_patches = flat_patches * self.input_scaling
+            # centered_patches = flat_patches - tf.stack([tf.reduce_mean(scaled_patches, axis=3)] * filter_mat.shape[3],
+            #                                            axis=3)
+            centered_patches = flat_patches - tf.stack([tf.reduce_mean(flat_patches, axis=3)] * filter_mat.shape[3],
                                                        axis=3)
 
             n_features_raw = filter_mat.shape[3]

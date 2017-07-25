@@ -125,7 +125,11 @@ class NetInversion:
             with tf.Session() as sess:
                 img_mat = load_image(image_path, resize=False)
                 image = tf.constant(img_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])
-                rec_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.0001))
+
+                if scale_pre_img == 2.7098e+4:
+                    rec_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.0001))
+                else:
+                    rec_init = tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=125, stddev=1)
                 pre_img = tf.get_variable('pre_img', dtype=tf.float32, initializer=rec_init)
 
                 jitter_x_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_x_pl')
