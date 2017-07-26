@@ -166,19 +166,6 @@ def measure_format_access_speeds():
     print('jpg: ' + str(time.time() - t))
 
 
-def mat_to_image(mat_file):
-    plot_mat = np.load(mat_file)
-    fig = plt.figure(frameon=False)
-    fig.set_size_inches(2, 1)
-    ax = plt.Axes(fig, [0., 0., 1., 1.])
-    ax.set_axis_off()
-    fig.add_axes(ax)
-    ax.imshow(plot_mat, aspect='auto')
-    save_path = mat_file[:-len('npy')] + 'png'
-    plt.savefig(save_path, format='png', dpi=224)
-    plt.close()
-
-
 def transform_all():
     # for l in range(1, 22):
     l = 17
@@ -240,14 +227,17 @@ def make_patches_data(num_patches, ph=8, pw=8, color=False, save_dir='./data/pat
         skimage.io.imsave(target_file, image)
 
 
-def mat_to_img(load_path, mat_file_name):
-    plot_mat = np.load(load_path + mat_file_name)
+def mat_to_img(mat_file, rescale=True, cols=1, rows=1):
+    plot_mat = np.load(mat_file)
+    if rescale:
+        plot_mat = (plot_mat - np.min(plot_mat)) / (np.max(plot_mat) - np.min(plot_mat))  # M&V just rescale
+
     fig = plt.figure(frameon=False)
-    fig.set_size_inches(2, 1)
+    fig.set_size_inches(cols, rows)
     ax = plt.Axes(fig, [0., 0., 1., 1.])
     ax.set_axis_off()
     fig.add_axes(ax)
     ax.imshow(plot_mat, aspect='auto')
-    plt.savefig(load_path + mat_file_name.split('.')[0] + '.png',
+    plt.savefig(mat_file[:-len('npy')] + 'png',
                 format='png', dpi=224)
     plt.close()

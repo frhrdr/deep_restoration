@@ -1,15 +1,14 @@
 from net_inversion import NetInversion
 from modules.ica_prior import ICAPrior
-from modules.loss_modules import NormedMSELoss, SoftRangeLoss, TotalVariationLoss
+from modules.loss_modules import NormedMSELoss
 from modules.split_module import SplitModule
-from modules.norm_module import NormModule
 from utils.parameter_utils import mv_default_params
 from shutil import copyfile
 import os
+import numpy as np
 
 split = SplitModule(name_to_split='conv4/relu:0', img_slice_name='img_rep', rec_slice_name='rec_rep')
-mse_weight = 1.
-mse = NormedMSELoss(target='img_rep:0', reconstruction='rec_rep:0', weighting=mse_weight)
+mse = NormedMSELoss(target='img_rep:0', reconstruction='rec_rep:0', weighting=1.)
 
 # ica_prior = ICAPrior(tensor_names='pool1:0',
 #                      weighting=0.001, name='ICAPrior',
@@ -25,15 +24,16 @@ mse = NormedMSELoss(target='img_rep:0', reconstruction='rec_rep:0', weighting=ms
 img_prior = ICAPrior(tensor_names='pre_img/read:0',
                      weighting=1e-3, name='ImgPrior',
                      load_path='../logs/priors/ica_prior/8by8_512_color/ckpt-10000',
-                     trainable=False, filter_dims=[8, 8], input_scaling=1/2.7098e+4, n_components=512, n_channels=3,
+                     trainable=False, filter_dims=[8, 8], input_scaling=1., n_components=512, n_channels=3,
                      n_features_white=64*3-1)
 # 2.7098e+4
+# note: ~1e-4 seems good initially but pales out quickly
 
 modules = [split, mse, img_prior]
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c4_rec/mse4_pimg_noscale/',
+              log_path='../logs/net_inversion/alexnet/c4_rec/mse4_pimg_low_lr/',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 17000
@@ -46,7 +46,10 @@ copyfile('./ni_tests.py', params['log_path'] + 'script.py')
 
 ni = NetInversion(params)
 
+# pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_2000.npy'), [1, 224, 224, 3])
+pre_img_init = None
+
 ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
-                   jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
-                   lr_lower_points=((0, 1e-1), (-1, 3e-2), (800, 1e-2), (1000, 3e-3),
-                                    (1500, 1e-3), (60000, 3e-4), (9000, 1e-4)))
+                   jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=2.7098e+4,
+                   lr_lower_points=((1, 3e-5), (9000, 1e-5)),
+                   save_as_plot=True, pre_img_init=pre_img_init)

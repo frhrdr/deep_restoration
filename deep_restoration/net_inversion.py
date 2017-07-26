@@ -111,13 +111,16 @@ class NetInversion:
 
     def train_pre_image(self, image_path, grad_clip=100.0, lr_lower_points=(),
                         range_b=80, jitter_t=0, optim_name='momentum',
-                        range_clip=False, save_as_mat=False, jitter_stop_point=-1, scale_pre_img=2.7098e+4):
+                        range_clip=False, save_as_plot=False, jitter_stop_point=-1, scale_pre_img=2.7098e+4,
+                        pre_img_init=None):
         """
         like mahendran & vedaldi, optimizes pre-image based on a single other image
         """
 
-        if not os.path.exists(self.params['log_path']):
-            os.makedirs(self.params['log_path'])
+        if not os.path.exists(self.params['log_path'] + 'mats/'):
+            os.makedirs(self.params['log_path'] + 'mats/')
+        if save_as_plot and not os.path.exists(self.params['log_path'] + 'imgs/'):
+            os.makedirs(self.params['log_path'] + 'imgs/')
 
         save_dict(self.params, self.params['log_path'] + 'params.txt')
 
@@ -126,11 +129,12 @@ class NetInversion:
                 img_mat = load_image(image_path, resize=False)
                 image = tf.constant(img_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])
 
-                if scale_pre_img == 2.7098e+4:
-                    rec_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.0001))
-                else:
-                    rec_init = tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=125, stddev=1)
-                pre_img = tf.get_variable('pre_img', dtype=tf.float32, initializer=rec_init)
+                if pre_img_init is None and scale_pre_img == 2.7098e+4:
+                    print('using special initializer')
+                    pre_img_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.0001))
+                elif pre_img_init is None:
+                    pre_img_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.27))
+                pre_img = tf.get_variable('pre_img', dtype=tf.float32, initializer=pre_img_init)
 
                 jitter_x_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_x_pl')
                 jitter_y_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_y_pl')
@@ -156,7 +160,6 @@ class NetInversion:
                               for k in tg_pairs]
                 train_op = optimizer.apply_gradients(tg_clipped)
 
-                # imgnet_mean = (123.68 + 116.779 + 103.939) / 3
                 imgnet_mean = [123.68, 116.779, 103.939]
                 box_rescale = tf.minimum(2 * range_b / tf.sqrt(tf.reduce_sum((pre_img - imgnet_mean) ** 2, axis=3)), 1.)
                 box_rescale = tf.stack([box_rescale] * 3, axis=3)
@@ -173,17 +176,8 @@ class NetInversion:
                 use_jitter = False if jitter_t == 0 else True
                 lr = self.params['learning_rate']
                 start_time = time.time()
-                for count in range(self.params['num_iterations']):
+                for count in range(1, self.params['num_iterations'] + 1):
                     jitter = np.random.randint(low=0, high=jitter_t + 1, dtype=int, size=(2,))
-
-                    if jitter_stop_point == count:
-                        print('Jittering stopped at ', count)
-                        use_jitter = False
-
-                    if lr_lower_points and lr_lower_points[0][0] == count:
-                        lr = lr_lower_points[0][1]
-                        print('new learning rate: ', lr)
-                        lr_lower_points = lr_lower_points[1:]
 
                     feed = {lr_pl: lr,
                             jitter_x_pl: jitter[0],
@@ -195,32 +189,42 @@ class NetInversion:
                     if range_clip:
                         sess.run(clip_op)
 
-                    rec_mat = sess.run(pre_img)
-                    if (count + 1) % self.params['summary_freq'] == 0:
+                    if count % self.params['summary_freq'] == 0:
                         summary_writer.add_summary(summary_string, count)
 
-                    if (count + 1) % self.params['print_freq'] == 0:
+                    if count % self.params['print_freq'] == 0:
                         print(('Iteration: {0:6d} Training Error:   {1:8.5f} ' +
-                               'Time: {2:5.1f} min').format(count + 1, batch_loss, (time.time() - start_time) / 60))
+                               'Time: {2:5.1f} min').format(count, batch_loss, (time.time() - start_time) / 60))
 
-                    if (count + 1) % self.params['log_freq'] == 0:
+                    if count % self.params['log_freq'] == 0:
+                        rec_mat = sess.run(pre_img)
+                        np.save(self.params['log_path'] + 'mats/rec_' + str(count) + '.npy', rec_mat)
+
                         plot_mat = np.zeros(shape=(self.img_hw, 2 * self.img_hw, 3))
 
                         plot_mat[:, :self.img_hw, :] = img_mat / 255.0
                         rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))  # M&V just rescale
                         plot_mat[:, self.img_hw:, :] = rec_mat
-                        if save_as_mat:
-                            np.save(self.params['log_path'] + 'rec_' + str(count + 1) + '.npy', plot_mat)
-                        else:
+
+                        if save_as_plot:
                             fig = plt.figure(frameon=False)
                             fig.set_size_inches(2, 1)
                             ax = plt.Axes(fig, [0., 0., 1., 1.])
                             ax.set_axis_off()
                             fig.add_axes(ax)
                             ax.imshow(plot_mat, aspect='auto')
-                            plt.savefig(self.params['log_path'] + 'rec_' + str(count + 1) + '.png',
+                            plt.savefig(self.params['log_path'] + 'imgs/rec_' + str(count) + '.png',
                                         format='png', dpi=self.img_hw)
                             plt.close()
+
+                    if jitter_stop_point == count:
+                        print('Jittering stopped at ', count)
+                        use_jitter = False
+
+                    if lr_lower_points and lr_lower_points[0][0] == count:
+                        lr = lr_lower_points[0][1]
+                        print('new learning rate: ', lr)
+                        lr_lower_points = lr_lower_points[1:]
 
     def train_on_dataset(self, optim_name='adam'):
         """
