@@ -166,13 +166,6 @@ def measure_format_access_speeds():
     print('jpg: ' + str(time.time() - t))
 
 
-def transform_all():
-    # for l in range(1, 22):
-    l = 17
-    for c in range(1, 3):
-        mat_to_image('./logs/mahendran_vedaldi/vgg16/l{0}/rec_{1}000.npy'.format(l, c))
-
-
 def concat_mv_images(num=21):
     model = 'vgg16'
     w = 7
@@ -229,9 +222,9 @@ def make_patches_data(num_patches, ph=8, pw=8, color=False, save_dir='./data/pat
 
 def mat_to_img(mat_file, rescale=True, cols=1, rows=1):
     plot_mat = np.load(mat_file)
+    plot_mat = np.reshape(plot_mat, [224, 224, 3])
     if rescale:
         plot_mat = (plot_mat - np.min(plot_mat)) / (np.max(plot_mat) - np.min(plot_mat))  # M&V just rescale
-
     fig = plt.figure(frameon=False)
     fig.set_size_inches(cols, rows)
     ax = plt.Axes(fig, [0., 0., 1., 1.])

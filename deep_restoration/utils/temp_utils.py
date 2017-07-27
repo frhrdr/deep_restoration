@@ -333,13 +333,16 @@ def patch_batch_gen(batch_size, data_dir='./data/patches_gray/new8by8/', whiten_
         yield batch
 
 
-def plot_img_mats(mat, color=False):
-    """ plot l*m*n mats as l m by n gray-scale images """
+def plot_img_mats(mat, color=False, rescale=False, show=True, save_path=''):
+    """ plot l,m,n[,3] mats as l m by n gray-scale or color images """
     n = mat.shape[0]
     cols = int(np.ceil(np.sqrt(n)))
-    rows = int(np.ceil(n // cols))
-    mat = np.maximum(mat, 0.0)
-    mat = np.minimum(mat, 1.0)
+    rows = int(np.ceil(n / cols))
+    if rescale:
+        mat = (mat - np.min(mat)) / (np.max(mat) - np.min(mat))
+    else:
+        mat = np.maximum(mat, 0.0)
+        mat = np.minimum(mat, 1.0)
     if not color:
         plt.style.use('grayscale')
     fig, ax_list = plt.subplots(ncols=cols, nrows=rows)
@@ -355,7 +358,11 @@ def plot_img_mats(mat, color=False):
                 ax.imshow(mat[idx, :, :], interpolation='none')
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
-    plt.show()
+    if show:
+        plt.show()
+    if save_path:
+        plt.savefig(save_path, format='png')
+        plt.close()
 
 
 def fast_ica_comp():

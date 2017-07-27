@@ -20,6 +20,43 @@
 	\item at some point look into hybrid mc sampling
 \end{enumerate}
 
+\section*{July 27.}
+
+\begin{enumerate}
+	\item meeting with jörn
+	\begin{enumerate}
+		\item look into distributed computation for tensorflow
+		\item visualize learned filters
+		\item consider making ica priors for independent feature maps (independence assumptions are strong, but the computations save a lot of space)
+		\item consider training priors not on relu outputs but on conv output, because structure might be smoother
+		\item isolate even smaller subproblem: invert single conv block (e.g. pool2 to pool1 or conv2/lin to conv1/lin). visualize reconstructed feature maps with and without prior. 
+		\item set up L-BFGS as optimizer for potentially better results
+	\end{enumerate}
+\end{enumerate}
+
+
+\section*{July 26.}
+
+\begin{enumerate}
+	\item ran 32k prior series
+	\item fixed some logging inefficiencies
+\end{enumerate}
+
+
+\section*{July 25.}
+
+\begin{enumerate}
+	\item half day (Bosch interview + prep)
+	\item accumulated 1k prior results, experimented with img prior weighting
+\end{enumerate}
+
+
+\section*{July 24.}
+
+\begin{enumerate}
+	\item off day (BCCN interview, prepping Bosch interview)
+\end{enumerate}
+
 \section*{July 23.}
 
 \begin{enumerate}
@@ -28,6 +65,11 @@
 	\item differnce between dim reduced and full conv3 prior (amlab pc)
 \end{enumerate}
 
+\section*{July 23.}
+
+\begin{enumerate}
+	\item off day
+\end{enumerate}
 
 \section*{July 21.}
 

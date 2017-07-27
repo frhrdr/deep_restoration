@@ -173,3 +173,46 @@ class ICAPrior(LearnedPriorLoss):
                         comps /= np.max(comps)
                         co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
                         plot_img_mats(co, color=True)
+
+    def plot_filters(self, filter_ids, save_path):
+        """
+        visualizes the patch for each channel of a trained filter and saves this as one plot.
+        does so for the filter of each given index
+
+        :param filter_ids: collection of filter indices
+        :param save_path: location to save plots
+        :return: None
+        """
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+        with tf.Graph().as_default():
+
+            with tf.variable_scope(self.name):
+                n_features_raw = self.filter_dims[0] * self.filter_dims[1] * self.n_channels
+                unwhitening_tensor = tf.get_variable('unwhiten_mat', shape=[self.n_features_white, n_features_raw],
+                                                     dtype=tf.float32, trainable=False)
+                ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable,
+                                        dtype=tf.float32)
+                ica_w = tf.get_variable('ica_w', shape=[self.n_features_white, self.n_components],
+                                        trainable=self.trainable, dtype=tf.float32)
+            self.var_list = [unwhitening_tensor, ica_a, ica_w]
+
+            with tf.Session() as sess:
+                self.load_weights(sess)
+                unwhitening_mat, a_mat, w_mat = sess.run(self.var_list)
+
+            print('matrices loaded')
+
+            rotated_w_mat = np.dot(w_mat.T, unwhitening_mat)
+
+            print('whitening reversed')
+
+            for idx in filter_ids:
+                flat_filter = rotated_w_mat[idx, :]
+                alpha = a_mat[idx]
+                chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.filter_dims[1], self.n_channels])
+
+                file_name = 'filter_{}_alpha_{:.3e}.png'.format(idx, float(alpha))
+                plot_img_mats(np.rollaxis(chan_filter, 2), rescale=True, show=False, save_path=save_path + file_name)
+                print('filter {} done'.format(idx))
