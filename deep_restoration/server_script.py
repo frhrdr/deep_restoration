@@ -25,7 +25,7 @@ ica_prior.train_prior(batch_size=200, num_iterations=30000,
                       lr_lower_points=[(1, 1.0e-4)],
                       whiten_mode='pca', data_dir='../data/patches/alexnet/conv2_relu_5x5/',
                       num_data_samples=100000, n_features=6399,
-                      plot_filters=False, prev_ckpt=30000)
+                      plot_filters=False, prev_ckpt=10000)
 
 
 # call 1
