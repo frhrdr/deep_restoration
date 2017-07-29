@@ -17,7 +17,7 @@ import os
 
 ica_prior = ICAPrior(tensor_names='conv2/relu:0',
                      weighting=0.00001, name='ICAPrior',
-                     load_path='../logs/priors/ica_prior/alexnet/5x5_conv2_relu_10000comp_6400feats/',
+                     load_path='../logs/priors/ica_prior/alexnet/5x5_conv2_relu_10000comp_6400feats/ckpt-30000',
                      trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=10000, n_channels=256,
                      n_features_white=6399)
 #
