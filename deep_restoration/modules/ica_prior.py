@@ -71,8 +71,9 @@ class ICAPrior(LearnedPriorLoss):
         return term_1 + term_2, term_1, term_2
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
-                    whiten_mode='pca', data_dir='./data/patches_color/8by8/', num_data_samples=100000,
-                    n_features=-1, log_freq=5000, summary_freq=10, print_freq=100, plot_filters=False):
+                    whiten_mode='pca', data_dir='./data/patches/image/color/8by8/', num_data_samples=100000,
+                    n_features=-1, log_freq=5000, summary_freq=10, print_freq=100, plot_filters=False,
+                    prev_ckpt=0):
         log_path = self.load_path
         ph, pw = self.filter_dims
 
@@ -124,30 +125,36 @@ class ICAPrior(LearnedPriorLoss):
                 with tf.Session() as sess:
 
                     sess.run(tf.global_variables_initializer())
+
+                    if prev_ckpt:
+                        prev_path = self.load_path + 'ckpt-' + str(prev_ckpt)
+                        saver.restore(sess, prev_path)
+
                     sess.run(clip_op)
 
                     start_time = time.time()
                     train_time = 0
-                    for count in range(num_iterations):
+                    for count in range(prev_ckpt + 1, prev_ckpt + num_iterations + 1):
                         data = next(data_gen)
 
-                        if lr_lower_points and lr_lower_points[0][0] == count:
+                        if lr_lower_points and lr_lower_points[0][0] <= count:
                             lr = lr_lower_points[0][1]
                             print('new learning rate: ', lr)
                             lr_lower_points = lr_lower_points[1:]
+
                         batch_start = time.time()
                         batch_loss, _, summary_string = sess.run(fetches=[loss, opt_op, train_summary_op],
                                                                  feed_dict={x_pl: data, lr_pl: lr})
                         sess.run(clip_op)
                         train_time += time.time() - batch_start
 
-                        if (count + 1) % summary_freq == 0:
+                        if count % summary_freq == 0:
                             summary_writer.add_summary(summary_string, count)
 
-                        if (count + 1) % print_freq == 0:
+                        if count % print_freq == 0:
                             print(batch_loss)
 
-                        if (count + 1) % (print_freq * 10) == 0:
+                        if count % (print_freq * 10) == 0:
                             term_1 = graph.get_tensor_by_name('ICAPrior/t1:0')
                             term_2 = graph.get_tensor_by_name('ICAPrior/t2:0')
                             w_res, alp, t1, t2 = sess.run([w_mat, alpha, term_1, term_2], feed_dict={x_pl: data})
@@ -159,8 +166,8 @@ class ICAPrior(LearnedPriorLoss):
                             train_ratio = 100.0 * train_time / (time.time() - start_time)
                             print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
 
-                        if (count + 1) % log_freq == 0:
-                            saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=count + 1)
+                        if count % log_freq == 0:
+                            saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=count)
 
                     saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=num_iterations)
 
