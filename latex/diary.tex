@@ -26,12 +26,19 @@
 	\item meeting with jörn
 	\begin{enumerate}
 		\item look into distributed computation for tensorflow
+		\item sign up for das4
 		\item visualize learned filters
 		\item consider making ica priors for independent feature maps (independence assumptions are strong, but the computations save a lot of space)
 		\item consider training priors not on relu outputs but on conv output, because structure might be smoother
 		\item isolate even smaller subproblem: invert single conv block (e.g. pool2 to pool1 or conv2/lin to conv1/lin). visualize reconstructed feature maps with and without prior. 
 		\item set up L-BFGS as optimizer for potentially better results
 	\end{enumerate}
+	\item set up filter vis for feature map patch priors
+	\begin{enumerate}
+		\item dim reduced priors look wavelet-ish which is good but could be due to pca
+		\item non-reduced priors must be done remotely. training conv2 relu prior for that
+	\end{enumerate}
+	\item set up up L-BFGS as pre-img optimizer (need to set up callbacks/logging) initial results don't look very good though
 \end{enumerate}
 
 

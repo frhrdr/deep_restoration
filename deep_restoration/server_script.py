@@ -20,13 +20,15 @@ ica_prior = ICAPrior(tensor_names='conv2/relu:0',
                      load_path='../logs/priors/ica_prior/alexnet/5x5_conv2_relu_10000comp_6400feats/',
                      trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=10000, n_channels=256,
                      n_features_white=6399)
+#
+# ica_prior.train_prior(batch_size=200, num_iterations=30000,
+#                       lr_lower_points=[(0, 1.0e-4), (10000, 1.0e-5), (20000, 3.0e-6), (25000, 1.0e-6)],
+#                       whiten_mode='pca', data_dir='../data/patches/alexnet/conv2_relu_5x5/',
+#                       num_data_samples=100000, n_features=6399,
+#                       plot_filters=False)
 
-ica_prior.train_prior(batch_size=200, num_iterations=30000,
-                      lr_lower_points=[(0, 1.0e-4), (10000, 1.0e-5), (20000, 3.0e-6), (25000, 1.0e-6)],
-                      whiten_mode='pca', data_dir='../data/patches/alexnet/conv2_relu_5x5/',
-                      num_data_samples=100000, n_features=6399,
-                      plot_filters=False)
-
+ica_prior.plot_filters(range(10), '../logs/priors/ica_prior/alexnet/5x5_conv2_relu_10000comp_6400feats/filter_vis/',
+                       save_as_mat=True, save_as_plot=False)
 
 # call 1
 

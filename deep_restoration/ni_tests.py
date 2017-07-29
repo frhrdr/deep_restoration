@@ -23,7 +23,7 @@ mse = NormedMSELoss(target='img_rep:0', reconstruction='rec_rep:0', weighting=1.
 
 img_prior = ICAPrior(tensor_names='pre_img/read:0',
                      weighting=1e-3, name='ImgPrior',
-                     load_path='../logs/priors/ica_prior/8by8_512_color/ckpt-10000',
+                     load_path='../logs/priors/ica_prior/image/8by8_512_color/ckpt-10000',
                      trainable=False, filter_dims=[8, 8], input_scaling=1., n_components=512, n_channels=3,
                      n_features_white=64*3-1)
 # 2.7098e+4
@@ -33,10 +33,10 @@ modules = [split, mse, img_prior]
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c4_rec/mse4_pimg_low_lr/',
+              log_path='../logs/net_inversion/alexnet/c4_rec/mse4_pimg_bfgs/',
               load_path='')
 params.update(mv_default_params())
-params['num_iterations'] = 17000
+params['num_iterations'] = 1
 params['learning_rate'] = 0.01
 
 if not os.path.exists(params['log_path']):
@@ -49,7 +49,7 @@ ni = NetInversion(params)
 # pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_2000.npy'), [1, 224, 224, 3])
 pre_img_init = None
 
-ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
+ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='l-bfgs-b',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=2.7098e+4,
                    lr_lower_points=((1, 3e-5), (9000, 1e-5)),
                    save_as_plot=True, pre_img_init=pre_img_init)

@@ -174,13 +174,15 @@ class ICAPrior(LearnedPriorLoss):
                         co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
                         plot_img_mats(co, color=True)
 
-    def plot_filters(self, filter_ids, save_path):
+    def plot_filters(self, filter_ids, save_path, save_as_mat=False, save_as_plot=True):
         """
         visualizes the patch for each channel of a trained filter and saves this as one plot.
         does so for the filter of each given index
 
         :param filter_ids: collection of filter indices
         :param save_path: location to save plots
+        :param save_as_mat: if true, saves each filter as channel x height x width matrix
+        :param save_as_plot:  if true, saves each filter as image
         :return: None
         """
         if not os.path.exists(save_path):
@@ -204,15 +206,20 @@ class ICAPrior(LearnedPriorLoss):
 
             print('matrices loaded')
 
-            rotated_w_mat = np.dot(w_mat.T, unwhitening_mat)
+            rotated_w_mat = np.dot(w_mat[:, filter_ids].T, unwhitening_mat)
 
             print('whitening reversed')
 
-            for idx in filter_ids:
+            for idx, filter_id in enumerate(filter_ids):
                 flat_filter = rotated_w_mat[idx, :]
-                alpha = a_mat[idx]
+                alpha = a_mat[filter_id]
                 chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.filter_dims[1], self.n_channels])
+                plottable_filters = np.rollaxis(chan_filter, 2)
 
-                file_name = 'filter_{}_alpha_{:.3e}.png'.format(idx, float(alpha))
-                plot_img_mats(np.rollaxis(chan_filter, 2), rescale=True, show=False, save_path=save_path + file_name)
-                print('filter {} done'.format(idx))
+                if save_as_mat:
+                    file_name = 'filter_{}_alpha_{:.3e}.npy'.format(filter_id, float(alpha))
+                    np.save(save_path + file_name, plottable_filters)
+                if save_as_plot:
+                    file_name = 'filter_{}_alpha_{:.3e}.png'.format(filter_id, float(alpha))
+                    plot_img_mats(plottable_filters, rescale=True, show=False, save_path=save_path + file_name)
+                    print('filter {} done'.format(filter_id))
