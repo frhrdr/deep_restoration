@@ -6,7 +6,10 @@ import time
 import os
 
 
-class ICAPrior(LearnedPriorLoss):
+class IndependentICAPrior(LearnedPriorLoss):
+    """
+    ICA prior which views each channel as independent
+    """
 
     def __init__(self, tensor_names, weighting, name, load_path, trainable,
                  filter_dims, input_scaling, n_components, n_channels, n_features_white,
@@ -22,9 +25,9 @@ class ICAPrior(LearnedPriorLoss):
         with tf.variable_scope(self.name):
             tensor = self.get_tensors()
             scaled_tensor = tensor * self.input_scaling
-            dims = [s.value for s in tensor.get_shape()]
-            assert len(dims) == 4
-            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], dims[3]))
+
+            feats_per_channel = self.filter_dims[0] * self.filter_dims[1]
+            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], self.n_channels))
             flat_filter = tf.constant(filter_mat, dtype=tf.float32)
             x_pad = ((self.filter_dims[0] - 1) // 2, int(np.ceil((self.filter_dims[0] - 1) / 2)))
             y_pad = ((self.filter_dims[1] - 1) // 2, int(np.ceil((self.filter_dims[1] - 1) / 2)))
@@ -33,12 +36,11 @@ class ICAPrior(LearnedPriorLoss):
             centered_patches = flat_patches - tf.stack([tf.reduce_mean(flat_patches, axis=3)] * filter_mat.shape[3],
                                                        axis=3)
 
-            n_features_raw = filter_mat.shape[3]
-            centered_patches = tf.reshape(centered_patches, shape=[-1, n_features_raw])
+            centered_patches = tf.reshape(centered_patches, shape=[-1, self.n_channels, feats_per_channel])
 
-            whitening_tensor = tf.get_variable('whiten_mat', shape=[self.n_features_white, n_features_raw],
+            whitening_tensor = tf.get_variable('whiten_mat',
+                                               shape=[self.n_channels, self.n_features_white, feats_per_channel],
                                                dtype=tf.float32, trainable=False)
-
             ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable, dtype=tf.float32)
             ica_w = tf.get_variable('ica_w', shape=[self.n_features_white, self.n_components],
                                     trainable=self.trainable, dtype=tf.float32)
@@ -71,25 +73,28 @@ class ICAPrior(LearnedPriorLoss):
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
                     whiten_mode='pca', data_dir='./data/patches/image/color/8by8/', num_data_samples=100000,
-                    log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0,
-                    plot_filters=False, do_clip=True):
+                    n_features=-1, log_freq=5000, summary_freq=10, print_freq=100, plot_filters=False,
+                    prev_ckpt=0):
         log_path = self.load_path
         ph, pw = self.filter_dims
 
+        if n_features == -1:
+            n_features = ph * pw * self.n_channels - 1  # mean substraction removes one degree of freedom
+
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
-                                   data_shape=(num_data_samples, self.n_features_white))
+                                   data_shape=(num_data_samples, n_features))
         unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
         whiten_mat = np.load(data_dir + 'whiten_' + whiten_mode + '.npy').astype(np.float32)
         with tf.Graph().as_default() as graph:
-            with tf.variable_scope(self.name):
+            with tf.variable_scope('ICAPrior'):
                 # add whitening mats to the save-files for later retrieval
                 tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
                 tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
 
-                x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_features_white], name='x_pl')
+                x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, n_features], name='x_pl')
                 lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
 
-                w_mat = tf.get_variable(shape=[self.n_features_white, self.n_components], dtype=tf.float32, name='ica_w',
+                w_mat = tf.get_variable(shape=[n_features, self.n_components], dtype=tf.float32, name='ica_w',
                                         initializer=tf.random_normal_initializer(stddev=0.001))
                 alpha = tf.get_variable(shape=[self.n_components, 1], dtype=tf.float32, name='ica_a',
                                         initializer=tf.random_normal_initializer())
@@ -141,10 +146,7 @@ class ICAPrior(LearnedPriorLoss):
                         batch_start = time.time()
                         batch_loss, _, summary_string = sess.run(fetches=[loss, opt_op, train_summary_op],
                                                                  feed_dict={x_pl: data, lr_pl: lr})
-
-                        if do_clip:
-                            sess.run(clip_op)
-
+                        sess.run(clip_op)
                         train_time += time.time() - batch_start
 
                         if count % summary_freq == 0:
@@ -154,10 +156,10 @@ class ICAPrior(LearnedPriorLoss):
                             print(batch_loss)
 
                         if count % (print_freq * 10) == 0:
-                            term_1 = graph.get_tensor_by_name(self.name + '/t1:0')
-                            term_2 = graph.get_tensor_by_name(self.name + '/t2:0')
+                            term_1 = graph.get_tensor_by_name('ICAPrior/t1:0')
+                            term_2 = graph.get_tensor_by_name('ICAPrior/t2:0')
                             w_res, alp, t1, t2 = sess.run([w_mat, alpha, term_1, term_2], feed_dict={x_pl: data})
-                            print('it: ', count, ' / ', num_iterations + prev_ckpt)
+                            print('it: ', count, ' / ', num_iterations)
                             print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
                             print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
                             print('term_1: ', t1, ' term_2: ', t2)

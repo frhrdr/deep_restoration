@@ -315,6 +315,57 @@ def make_reduced_feat_map_mats(num_patches, load_dir, n_features, n_to_keep,
     del data_mat
 
 
+def make_channel_separate_feat_map_mats(num_patches, load_dir, n_features, n_channels,
+                                        save_dir, whiten_mode='pca'):
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    assert n_features % n_channels == 0
+    n_feats_per_channel = n_features / n_channels
+
+    raw_mat = np.memmap(load_dir + '/data_mat_raw.npy', dtype=np.float32, mode='r',
+                        shape=(num_patches, n_features))
+    cov = np.load(load_dir + 'cov.npy')
+
+    print('raw mat and cov loaded')
+
+    channel_covs = np.zeros(shape=[n_channels, n_feats_per_channel, n_feats_per_channel])
+
+    for idx in range(n_channels):
+        channel_step = range(idx, n_features, step=n_channels)
+        channel_covs[idx, :, :] = cov[channel_step, channel_step]
+
+    print('channel covs extracted')
+    channel_whiten = np.zeros(shape=[n_channels, n_feats_per_channel, n_feats_per_channel - 1])
+    channel_unwhiten = np.zeros(shape=[n_channels, n_feats_per_channel - 1, n_feats_per_channel])
+
+    for idx in range(n_channels):
+
+        if whiten_mode == 'pca':
+            whiten, unwhiten = pca_whiten_mats(channel_covs[idx, :, :], n_to_drop=1)
+        elif whiten_mode == 'zca':
+            raise NotImplementedError
+        else:
+            raise NotImplementedError
+
+        channel_whiten[idx, :, :] = whiten
+        channel_unwhiten[idx, :, :] = unwhiten
+
+    np.save(save_dir + 'channel_whiten_' + whiten_mode + '.npy', channel_whiten)
+    np.save(save_dir + 'channel_unwhiten_' + whiten_mode + '.npy', channel_unwhiten)
+
+    data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_whitened.npy', dtype=np.float32, mode='w+',
+                         shape=(num_patches, whiten.shape[0]))
+
+    for idx in range(num_patches):
+        image = raw_mat[idx, :]
+        image = whiten @ image
+        data_mat[idx, :] = image
+
+    data_mat.flush()
+    del data_mat
+
+
 def patch_batch_gen(batch_size, data_dir='./data/patches_gray/new8by8/', whiten_mode='pca',
                     data_shape=(100000, 63)):
     data_mat = np.memmap(data_dir + 'data_mat_' + whiten_mode + '_whitened.npy', dtype=np.float32, mode='r',

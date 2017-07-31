@@ -3,29 +3,30 @@ from modules.ica_prior import ICAPrior
 from modules.loss_modules import NormedMSELoss
 from modules.split_module import SplitModule
 from utils.parameter_utils import mv_default_params
+from utils.temp_utils import make_feat_map_mats, make_reduced_feat_map_mats
 from shutil import copyfile
 import os
 
-# make_feat_map_mats(num_patches=100000, map_name='conv2/relu:0', classifier='alexnet', ph=5, pw=5,
-#                    save_dir='../data/patches/alexnet/conv2_relu_5x5/', whiten_mode='pca', batch_size=50)
-#
-# make_reduced_feat_map_mats(100000, load_dir='../data/patches/alexnet/conv2_relu_5x5/',
-#                            n_features=6400, n_to_keep=3200,
-#                            save_dir='../data/patches/alexnet/conv2_relu_5x5_3200feats/')
+make_feat_map_mats(num_patches=100000, map_name='conv2/lin:0', classifier='alexnet', ph=5, pw=5,
+                   save_dir='../data/patches/alexnet/conv2_lin_5x5/', whiten_mode='pca', batch_size=50)
+
+make_reduced_feat_map_mats(100000, load_dir='../data/patches/alexnet/conv2_lin_5x5/',
+                           n_features=6400, n_to_keep=3200,
+                           save_dir='../data/patches/alexnet/conv2_lin_5x5_3200feats/')
 
 # kept 97.8% eigv fraction
 
-ica_prior = ICAPrior(tensor_names='conv2/relu:0',
-                     weighting=0.00001, name='ICAPrior',
-                     load_path='../logs/priors/ica_prior/alexnet/5x5_conv2_relu_10000comp_6400feats/',
-                     trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=10000, n_channels=256,
-                     n_features_white=6399)
-
-ica_prior.train_prior(batch_size=200, num_iterations=30000,
-                      lr_lower_points=[(1, 1.0e-4)],
-                      whiten_mode='pca', data_dir='../data/patches/alexnet/conv2_relu_5x5/',
-                      num_data_samples=100000, n_features=6399,
-                      plot_filters=False, prev_ckpt=10000)
+# ica_prior = ICAPrior(tensor_names='conv2/relu:0',
+#                      weighting=0.00001, name='ICAPrior',
+#                      load_path='../logs/priors/ica_prior/alexnet/5x5_conv2_relu_10000comp_6400feats/',
+#                      trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=10000, n_channels=256,
+#                      n_features_white=6399)
+#
+# ica_prior.train_prior(batch_size=200, num_iterations=30000,
+#                       lr_lower_points=[(1, 1.0e-4)],
+#                       whiten_mode='pca', data_dir='../data/patches/alexnet/conv2_relu_5x5/',
+#                       num_data_samples=100000, n_features=6399,
+#                       plot_filters=False, prev_ckpt=10000)
 
 
 # call 1
