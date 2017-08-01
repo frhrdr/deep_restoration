@@ -25,7 +25,7 @@ import os
 #
 # ica_prior.train_prior(batch_size=200, num_iterations=30000,
 #                       lr_lower_points=[(1, 1.0e-4)],
-#                       whiten_mode='pca', data_dir='../data/patches/alexnet/conv2_relu_5x5/',
+#                       whiten_mode='pca', data_dir='../data/patches/alexnet/conv2_relu_5x5_6399feats/',
 #                       num_data_samples=100000, n_features=6399,
 #                       plot_filters=False, prev_ckpt=10000)
 
@@ -40,8 +40,8 @@ if not os.path.exists(foe_prior.load_path):
 copyfile('./server_script.py', foe_prior.load_path + 'script.py')
 
 foe_prior.train_prior(batch_size=500, num_iterations=80000,
-                      lr_lower_points=[(0, 3e-4), (3000, 1e-4), (6000, 3e-5),
-                                       (10000, 1e-5), (13000, 3e-6)],
+                      lr_lower_points=[(0, 3e-4), (10000, 1e-4), (13000, 3e-5),
+                                       (16000, 1e-5), (19000, 3e-6)],
                       whiten_mode='pca',
                       num_data_samples=100000,
                       plot_filters=False, prev_ckpt=7000, log_freq=500, do_clip=True)
