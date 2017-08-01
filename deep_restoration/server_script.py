@@ -1,5 +1,6 @@
 from net_inversion import NetInversion
 from modules.ica_prior import ICAPrior
+from modules.foe_prior import FoEPrior
 from modules.loss_modules import NormedMSELoss
 from modules.split_module import SplitModule
 from utils.parameter_utils import mv_default_params
@@ -7,18 +8,18 @@ from utils.temp_utils import make_feat_map_mats, make_reduced_feat_map_mats
 from shutil import copyfile
 import os
 
-make_feat_map_mats(num_patches=100000, map_name='conv2/lin:0', classifier='alexnet', ph=5, pw=5,
-                   save_dir='../data/patches/alexnet/conv2_lin_5x5/', whiten_mode='pca', batch_size=50)
-
-make_reduced_feat_map_mats(100000, load_dir='../data/patches/alexnet/conv2_lin_5x5/',
-                           n_features=6400, n_to_keep=3200,
-                           save_dir='../data/patches/alexnet/conv2_lin_5x5_3200feats/')
+# make_feat_map_mats(num_patches=100000, map_name='conv2/lin:0', classifier='alexnet', ph=5, pw=5,
+#                    save_dir='../data/patches/alexnet/conv2_lin_5x5/', whiten_mode='pca', batch_size=50)
+#
+# make_reduced_feat_map_mats(100000, load_dir='../data/patches/alexnet/conv2_lin_5x5/',
+#                            n_features=6400, n_to_keep=3200,
+#                            save_dir='../data/patches/alexnet/conv2_lin_5x5_3200feats/')
 
 # kept 97.8% eigv fraction
 
 # ica_prior = ICAPrior(tensor_names='conv2/relu:0',
 #                      weighting=0.00001, name='ICAPrior',
-#                      load_path='../logs/priors/ica_prior/alexnet/5x5_conv2_relu_10000comp_6400feats/',
+#                      load_path='../logs/priors/ica_prior/alexnet/conv2_relu_5x5_10000comp_6400feats/',
 #                      trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=10000, n_channels=256,
 #                      n_features_white=6399)
 #
@@ -28,6 +29,24 @@ make_reduced_feat_map_mats(100000, load_dir='../data/patches/alexnet/conv2_lin_5
 #                       num_data_samples=100000, n_features=6399,
 #                       plot_filters=False, prev_ckpt=10000)
 
+foe_prior = FoEPrior(tensor_names='conv2/lin:0',
+                     weighting=0.001, name='FoEPrior',
+                     load_path='../logs/priors/foe_prior/alexnet/5x5_conv2_lin_6400comp_3200feats/',
+                     trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=6400, n_channels=256,
+                     n_features_white=3200)
+
+if not os.path.exists(foe_prior.load_path):
+    os.makedirs(foe_prior.load_path)
+copyfile('./server_script.py', foe_prior.load_path + 'script.py')
+
+foe_prior.train_prior(batch_size=500, num_iterations=80000,
+                      lr_lower_points=[(0, 1e-3), (10000, 3e-4), (15000, 1e-3),
+                                       (20000, 3e-4), (25000, 1e-4), (30000, 3e-5),
+                                       (35000, 1e-5), (40000, 3e-6), (45000, 1e-6),
+                                       (50000, 3e-7), (60000, 3e-8)],
+                      whiten_mode='pca', data_dir='../data/patches/alexnet/conv2_lin_5x5_3200feats/',
+                      num_data_samples=100000,
+                      plot_filters=False, prev_ckpt=0, log_freq=500, do_clip=True)
 
 # call 1
 
@@ -36,13 +55,13 @@ make_reduced_feat_map_mats(100000, load_dir='../data/patches/alexnet/conv2_lin_5
 #
 # ft2_prior = ICAPrior(tensor_names='conv2/relu:0',
 #                      weighting=1e-9, name='Conv2Prior',
-#                      load_path='../logs/priors/ica_prior/alexnet/5x5_conv2_relu_6400comp_3200feats/ckpt-30000',
+#                      load_path='../logs/priors/ica_prior/alexnet/conv2_relu_5x5_6400comp_3200feats/ckpt-30000',
 #                      trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=6400, n_channels=256,
 #                      n_features_white=3200)
 #
 # img_prior = ICAPrior(tensor_names='pre_img/read:0',
 #                      weighting=1e-3, name='ImgPrior',
-#                      load_path='../logs/priors/ica_prior/8by8_512_color/ckpt-10000',
+#                      load_path='../logs/priors/ica_prior/color_8x8_512comp/ckpt-10000',
 #                      trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512, n_channels=3,
 #                      n_features_white=64*3-1)
 #

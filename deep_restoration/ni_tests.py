@@ -12,18 +12,18 @@ mse = NormedMSELoss(target='img_rep:0', reconstruction='rec_rep:0', weighting=1.
 
 # ica_prior = ICAPrior(tensor_names='pool1:0',
 #                      weighting=0.001, name='ICAPrior',
-#                      load_path='../logs/priors/ica_prior/alexnet/3by3_pool1/ckpt-20000',
+#                      load_path='../logs/priors/ica_prior/alexnet/pool1_3x3/ckpt-20000',
 #                      trainable=False, filter_dims=[3, 3], input_scaling=1.0, n_components=512, n_channels=96)
 
 # ft2_prior = ICAPrior(tensor_names='conv2/relu:0',
 #                      weighting=1e-9, name='Conv2Prior',
-#                      load_path='../logs/priors/ica_prior/alexnet/5x5_conv2_relu_2kcomp_1kfeats/ckpt-30000',
+#                      load_path='../logs/priors/ica_prior/alexnet/conv2_relu_5x5_2000comp_1000feats/ckpt-30000',
 #                      trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=2000, n_channels=256,
 #                      n_features_white=1000)
 
 img_prior = ICAPrior(tensor_names='pre_img/read:0',
                      weighting=1e-3, name='ImgPrior',
-                     load_path='../logs/priors/ica_prior/image/8by8_512_color/ckpt-10000',
+                     load_path='../logs/priors/ica_prior/image/color_8x8_512comp/ckpt-10000',
                      trainable=False, filter_dims=[8, 8], input_scaling=1., n_components=512, n_channels=3,
                      n_features_white=64*3-1)
 # 2.7098e+4
