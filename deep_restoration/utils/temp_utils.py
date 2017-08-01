@@ -334,7 +334,7 @@ def make_channel_separate_feat_map_mats(num_patches, load_dir, n_features, n_cha
         os.makedirs(save_dir)
 
     assert n_features % n_channels == 0
-    n_feats_per_channel = n_features / n_channels
+    n_feats_per_channel = n_features // n_channels
 
     raw_mat = np.memmap(load_dir + '/data_mat_raw.npy', dtype=np.float32, mode='r',
                         shape=(num_patches, n_features))
@@ -345,11 +345,13 @@ def make_channel_separate_feat_map_mats(num_patches, load_dir, n_features, n_cha
     channel_covs = np.zeros(shape=[n_channels, n_feats_per_channel, n_feats_per_channel])
 
     for idx in range(n_channels):
-        channel_step = range(idx, n_features, step=n_channels)
+        channel_step = range(idx, n_features, n_channels)
         channel_covs[idx, :, :] = cov[channel_step, channel_step]
 
+    np.save(save_dir + 'channel_covs.npy', channel_covs)
     print('channel covs extracted')
-    channel_whiten = np.zeros(shape=[n_channels, n_feats_per_channel, n_feats_per_channel - 1])
+
+    channel_whiten = np.zeros(shape=[n_channels, n_feats_per_channel - 1, n_feats_per_channel])
     channel_unwhiten = np.zeros(shape=[n_channels, n_feats_per_channel - 1, n_feats_per_channel])
 
     for idx in range(n_channels):
@@ -366,14 +368,15 @@ def make_channel_separate_feat_map_mats(num_patches, load_dir, n_features, n_cha
 
     np.save(save_dir + 'channel_whiten_' + whiten_mode + '.npy', channel_whiten)
     np.save(save_dir + 'channel_unwhiten_' + whiten_mode + '.npy', channel_unwhiten)
+    print('whitening mats saved')
 
-    data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_whitened.npy', dtype=np.float32, mode='w+',
-                         shape=(num_patches, whiten.shape[0]))
+    data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_channel_whitened.npy', dtype=np.float32, mode='w+',
+                         shape=(num_patches, n_channels, channel_whiten.shape[1]))
 
     for idx in range(num_patches):
-        image = raw_mat[idx, :]
-        image = whiten @ image
-        data_mat[idx, :] = image
+        image = raw_mat[idx, :].reshape([n_feats_per_channel, n_channels]).T
+        image = np.expand_dims(image, axis=2)
+        data_mat[idx, :] = np.squeeze(channel_whiten @ image)
 
     data_mat.flush()
     del data_mat

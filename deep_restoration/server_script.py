@@ -40,11 +40,11 @@ if not os.path.exists(foe_prior.load_path):
 copyfile('./server_script.py', foe_prior.load_path + 'script.py')
 
 foe_prior.train_prior(batch_size=500, num_iterations=80000,
-                      lr_lower_points=[(0, 3e-4), (10000, 1e-4), (13000, 3e-5),
-                                       (16000, 1e-5), (19000, 3e-6)],
+                      lr_lower_points=[(0, 1e-5), (11000, 1e-6),
+                                       (12000, 1e-7), (13000, 1e-8)],
                       whiten_mode='pca',
                       num_data_samples=100000,
-                      plot_filters=False, prev_ckpt=7000, log_freq=500, do_clip=True)
+                      plot_filters=False, prev_ckpt=10000, log_freq=500, do_clip=True)
 
 # call 1
 
