@@ -8,15 +8,18 @@ import os
 
 class ICAPrior(LearnedPriorLoss):
 
-    def __init__(self, tensor_names, weighting, name, load_path, trainable,
+    def __init__(self, tensor_names, weighting, name, classifier, trainable,
                  filter_dims, input_scaling, n_components, n_channels, n_features_white,
-                 load_name='ICAPrior'):
+                 load_name='ICAPrior', dir_name='ica_prior'):
+        load_path = self.get_load_path(dir_name, classifier, tensor_names, filter_dims, n_components, n_features_white)
         super().__init__(tensor_names, weighting, name, load_path, trainable, load_name)
         self.filter_dims = filter_dims  # tuple (height, width)
         self.input_scaling = input_scaling  # most likely 1, 255 or 1/255
         self.n_components = n_components  # number of components to be produced
         self.n_channels = n_channels
         self.n_features_white = n_features_white
+        self.dir_name = dir_name
+        self.classifier = classifier
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
@@ -70,11 +73,19 @@ class ICAPrior(LearnedPriorLoss):
         return term_1 + term_2, term_1, term_2
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
-                    whiten_mode='pca', data_dir='./data/patches/image/color/8by8/', num_data_samples=100000,
+                    whiten_mode='pca', num_data_samples=100000,
                     log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0,
                     plot_filters=False, do_clip=True):
         log_path = self.load_path
         ph, pw = self.filter_dims
+
+        d_str = str(self.filter_dims[0]) + 'x' + str(self.filter_dims[1])
+        if 'pre_img' in self.in_tensor_names:
+            subdir = 'image/' + d_str
+        else:
+            t_str = self.in_tensor_names[:-len(':0')].replace('/', '_')
+            subdir = self.classifier + '/' + t_str + '_' + d_str + '_' + str(self.n_features_white) + 'feats'
+        data_dir = '../data/patches/' + subdir + '/'
 
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
                                    data_shape=(num_data_samples, self.n_features_white))
@@ -229,3 +240,11 @@ class ICAPrior(LearnedPriorLoss):
                     file_name = 'filter_{}_alpha_{:.3e}.png'.format(filter_id, float(alpha))
                     plot_img_mats(plottable_filters, rescale=True, show=False, save_path=save_path + file_name)
                     print('filter {} done'.format(filter_id))
+
+    @staticmethod
+    def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components, n_features_white):
+        d_str = str(filter_dims[0]) + 'x' + str(filter_dims[1])
+        cf_str = str(n_components) + 'comps_' + str(n_features_white) + 'feats'
+        target_dir = tensor_name[:-len(':0')].replace('/', '_') + '_' + d_str + '_' + cf_str
+        load_path = '../logs/priors/' + dir_name + '/' + classifier + '/' + target_dir + '/'
+        return load_path

@@ -1,25 +1,22 @@
 import tensorflow as tf
 import numpy as np
-from modules.loss_modules import LearnedPriorLoss
+from modules.ica_prior import ICAPrior
 from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats
 import time
 import os
 
 
-class IndependentICAPrior(LearnedPriorLoss):
+class ChannelICAPrior(ICAPrior):
     """
     ICA prior which views each channel as independent
     """
 
-    def __init__(self, tensor_names, weighting, name, load_path, trainable,
-                 filter_dims, input_scaling, n_components, n_channels, n_features_white,
-                 load_name='ICAPrior'):
-        super().__init__(tensor_names, weighting, name, load_path, trainable, load_name)
-        self.filter_dims = filter_dims  # tuple (height, width)
-        self.input_scaling = input_scaling  # most likely 1, 255 or 1/255
-        self.n_components = n_components  # number of components to be produced
-        self.n_channels = n_channels
-        self.n_features_white = n_features_white
+    def __init__(self, tensor_names, weighting, name, classifier, trainable,
+                 filter_dims, input_scaling, n_components,  n_channels, n_features_white,
+                 load_name='ChannelICAPrior', dir_name='channel_ica_prior'):
+        super().__init__(tensor_names, weighting, name, classifier, trainable,
+                         filter_dims, input_scaling, n_components,  n_channels,
+                         n_features_white, load_name=load_name, dir_name=dir_name)
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
@@ -72,7 +69,7 @@ class IndependentICAPrior(LearnedPriorLoss):
         return term_1 + term_2, term_1, term_2
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
-                    whiten_mode='pca', data_dir='./data/patches/image/color/8by8/', num_data_samples=100000,
+                    whiten_mode='pca', data_dir='./data/patches/image/color/8x8/', num_data_samples=100000,
                     n_features=-1, log_freq=5000, summary_freq=10, print_freq=100, plot_filters=False,
                     prev_ckpt=0):
         log_path = self.load_path

@@ -8,12 +8,12 @@ import os
 
 class FoEPrior(ICAPrior):
 
-    def __init__(self, tensor_names, weighting, name, load_path, trainable,
+    def __init__(self, tensor_names, weighting, name, classifier, trainable,
                  filter_dims, input_scaling, n_components,  n_channels, n_features_white,
-                 load_name='FoEPrior'):
-        super().__init__(tensor_names, weighting, name, load_path, trainable,
+                 load_name='FoEPrior', dir_name='foe_prior'):
+        super().__init__(tensor_names, weighting, name, classifier, trainable,
                          filter_dims, input_scaling, n_components,  n_channels,
-                         n_features_white, load_name=load_name)
+                         n_features_white, load_name=load_name, dir_name=dir_name)
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
@@ -68,12 +68,3 @@ class FoEPrior(ICAPrior):
         term_1 = tf.reduce_sum(alpha * w_norm * gp_vec, name='t1')
         term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
         return term_1 + term_2, term_1, term_2
-
-    def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
-                    whiten_mode='pca', data_dir='./data/patches/image/color/8by8/', num_data_samples=100000,
-                    log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0,
-                    plot_filters=False, do_clip=False):
-        super().train_prior(batch_size, num_iterations, lr=lr, lr_lower_points=lr_lower_points, grad_clip=grad_clip,
-                            n_vis=n_vis, whiten_mode=whiten_mode, data_dir=data_dir, num_data_samples=num_data_samples,
-                            log_freq=log_freq, summary_freq=summary_freq, print_freq=print_freq,
-                            prev_ckpt=prev_ckpt, plot_filters=plot_filters, do_clip=do_clip)

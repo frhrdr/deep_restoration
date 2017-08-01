@@ -187,7 +187,7 @@ def concat_mv_images(num=21):
     plt.close()
 
 
-def make_patches_data(num_patches, ph=8, pw=8, color=False, save_dir='./data/patches_color/8by8/', whiten_mode='pca'):
+def make_patches_data(num_patches, ph=8, pw=8, color=False, save_dir='./data/patches_color/8x8/', whiten_mode='pca'):
     img_hw = 224
     max_h = img_hw - ph
     max_w = img_hw - pw

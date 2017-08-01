@@ -88,7 +88,7 @@ def zca_whiten(data):
     return data, unwhiten
 
 
-def make_data_mat_from_patches(data_dir='./data/patches_gray/8by8/', whiten_mode='pca'):
+def make_data_mat_from_patches(data_dir='./data/patches_gray/8x8/', whiten_mode='pca'):
     data_set_size = len([name for name in os.listdir(data_dir) if name.startswith('patch')])
     mm = np.memmap(data_dir + '/data_mat_' + whiten_mode + '.npy', dtype=np.float32, mode='w+',
                    shape=(data_set_size, 63))
@@ -110,7 +110,7 @@ def make_data_mat_from_patches(data_dir='./data/patches_gray/8by8/', whiten_mode
         mm[idx, :] = image
 
 
-def make_cov_acc(data_dir='./data/patches_gray/8by8/'):
+def make_cov_acc(data_dir='./data/patches_gray/8x8/'):
     data_set_size = len([name for name in os.listdir(data_dir) if name.startswith('patch')])
     cov_acc = 0
     for idx in range(data_set_size):
@@ -317,6 +317,19 @@ def make_reduced_feat_map_mats(num_patches, load_dir, n_features, n_to_keep,
 
 def make_channel_separate_feat_map_mats(num_patches, load_dir, n_features, n_channels,
                                         save_dir, whiten_mode='pca'):
+    """
+    creates whitening, covariance and whitened feature matrices for separate channels.
+    They are saved as 3d matrices where the first dimension is the channel index
+
+    :param num_patches: number of patches in the raw data mat
+    :param load_dir: take raw data mat and accumulated cov from here
+    :param n_features: number of patch features summed over all channels
+    :param n_channels: number of channels
+    :param save_dir: place to save
+    :param whiten_mode: 'pca' or 'zca'. only pca whitening is supported atm
+    :return: None. objects are saved
+    """
+
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
