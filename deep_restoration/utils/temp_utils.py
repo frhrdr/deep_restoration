@@ -384,20 +384,38 @@ def make_channel_separate_feat_map_mats(num_patches, load_dir, n_features, n_cha
 
 def patch_batch_gen(batch_size, data_dir='./data/patches_gray/new8by8/', whiten_mode='pca',
                     data_shape=(100000, 63)):
-    data_mat = np.memmap(data_dir + 'data_mat_' + whiten_mode + '_whitened.npy', dtype=np.float32, mode='r',
-                         shape=data_shape)
-    n_samples, n_features = data_shape
-    idx = 0
-    while True:
-        if idx + batch_size < n_samples:
-            batch = data_mat[idx:(idx + batch_size), :]
-            idx += batch_size
-        else:
-            last_bit = data_mat[idx:, :]
-            idx = (idx + batch_size) % n_samples
-            first_bit = data_mat[:idx, :]
-            batch = np.concatenate((last_bit, first_bit), axis=0)
-        yield batch
+    if len(data_shape) == 2:
+        data_mat = np.memmap(data_dir + 'data_mat_' + whiten_mode + '_whitened.npy',
+                             dtype=np.float32, mode='r', shape=data_shape)
+        n_samples, n_features = data_shape
+        idx = 0
+        while True:
+            if idx + batch_size < n_samples:
+                batch = data_mat[idx:(idx + batch_size), :]
+                idx += batch_size
+            else:
+                last_bit = data_mat[idx:, :]
+                idx = (idx + batch_size) % n_samples
+                first_bit = data_mat[:idx, :]
+                batch = np.concatenate((last_bit, first_bit), axis=0)
+            yield batch
+    elif len(data_shape) == 3:
+        data_mat = np.memmap(data_dir + 'data_mat_' + whiten_mode + '_channel_whitened.npy',
+                             dtype=np.float32, mode='r', shape=data_shape)
+        n_samples, n_channels, n_features = data_shape
+        idx = 0
+        while True:
+            if idx + batch_size < n_samples:
+                batch = data_mat[idx:(idx + batch_size), :, :]
+                idx += batch_size
+            else:
+                last_bit = data_mat[idx:, :, :]
+                idx = (idx + batch_size) % n_samples
+                first_bit = data_mat[:idx, :, :]
+                batch = np.concatenate((last_bit, first_bit), axis=0)
+            yield batch
+    else:
+        raise NotImplementedError
 
 
 def plot_img_mats(mat, color=False, rescale=False, show=True, save_path=''):

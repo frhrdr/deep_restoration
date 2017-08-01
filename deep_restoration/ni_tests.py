@@ -17,7 +17,7 @@ mse = NormedMSELoss(target='img_rep:0', reconstruction='rec_rep:0', weighting=1.
 
 # ft2_prior = ICAPrior(tensor_names='conv2/relu:0',
 #                      weighting=1e-9, name='Conv2Prior',
-#                      load_path='../logs/priors/ica_prior/alexnet/conv2_relu_5x5_2000comp_1000feats/ckpt-30000',
+#                      load_path='../logs/priors/ica_prior/alexnet/conv2_relu_5x5_2000comps_1000feats/ckpt-30000',
 #                      trainable=False, filter_dims=[5, 5], input_scaling=1.0, n_components=2000, n_channels=256,
 #                      n_features_white=1000)
 
