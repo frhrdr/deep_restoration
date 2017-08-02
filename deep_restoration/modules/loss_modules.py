@@ -25,16 +25,19 @@ class LossModule(Module):
         super().__init__(in_tensor_names)
         self.weighting = weighting
         self.loss = None
+        self.add_loss = True
 
     def build(self, scope_suffix=''):
         self.loss = 0
 
     def get_loss(self, weighted=True):
-        if self.loss is not None:
+        if self.loss is not None and self.add_loss:
             if weighted:
                 return self.loss * self.weighting
             else:
                 return self.loss
+        elif not self.add_loss:
+            return 0
         else:
             raise AttributeError
 
@@ -46,7 +49,8 @@ class LossModule(Module):
             return g.get_tensor_by_name(self.in_tensor_names)
 
     def scalar_summary(self, weighted=True):
-        tf.summary.scalar(self.name, self.get_loss(weighted))
+        loss = self.loss * self.weighting if weighted else self.loss
+        tf.summary.scalar(self.name, loss)
 
 
 class MSELoss(LossModule):
@@ -122,7 +126,11 @@ class LearnedPriorLoss(LossModule):
         else:
             to_load = self.var_list
         loader = tf.train.Saver(var_list=to_load)
-        loader.restore(session, self.load_path)
+
+        with open(os.path.join(self.load_path, 'checkpoint')) as f:
+            ckpt = f.readline().split('"')[1]
+            print('For module {0}: loading weights from {1}'.format(self.name, ckpt))
+        loader.restore(session, os.path.join(self.load_path, ckpt))
 
     def save_weights(self, session, step):
         saver = tf.train.Saver(var_list=self.var_list)

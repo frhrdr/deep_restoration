@@ -1,16 +1,16 @@
 import tensorflow as tf
 import numpy as np
 from modules.loss_modules import LearnedPriorLoss
-from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats
+from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
 import time
 import os
 
 
 class ICAPrior(LearnedPriorLoss):
 
-    def __init__(self, tensor_names, weighting, name, classifier, trainable,
-                 filter_dims, input_scaling, n_components, n_channels, n_features_white,
-                 load_name='ICAPrior', dir_name='ica_prior'):
+    def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
+                 n_features_white,
+                 trainable=False, name='ICAPrior',load_name='ICAPrior', dir_name='ica_prior'):
         load_path = self.get_load_path(dir_name, classifier, tensor_names, filter_dims, n_components, n_features_white)
         super().__init__(tensor_names, weighting, name, load_path, trainable, load_name)
         self.filter_dims = filter_dims  # tuple (height, width)
@@ -74,7 +74,7 @@ class ICAPrior(LearnedPriorLoss):
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
                     whiten_mode='pca', num_data_samples=100000,
-                    log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0,
+                    log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0, optimizer_name='momentum',
                     plot_filters=False, do_clip=True):
         log_path = self.load_path
         ph, pw = self.filter_dims
@@ -106,9 +106,10 @@ class ICAPrior(LearnedPriorLoss):
                                         initializer=tf.random_normal_initializer())
 
                 loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, w_mat=w_mat, alpha=alpha)
+
                 clip_op = tf.assign(w_mat, w_mat / tf.norm(w_mat, ord=2, axis=0))
 
-                opt = tf.train.MomentumOptimizer(learning_rate=lr_pl, momentum=0.9)
+                opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
                 tvars = tf.trainable_variables()
                 grads = tf.gradients(loss, tvars)
                 tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
@@ -244,7 +245,12 @@ class ICAPrior(LearnedPriorLoss):
     @staticmethod
     def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components, n_features_white):
         d_str = str(filter_dims[0]) + 'x' + str(filter_dims[1])
+        if 'pre_img' in tensor_name:
+            subdir = 'image/color'
+        else:
+            subdir = classifier + '/' + tensor_name[:-len(':0')].replace('/', '_')
+
         cf_str = str(n_components) + 'comps_' + str(n_features_white) + 'feats'
-        target_dir = tensor_name[:-len(':0')].replace('/', '_') + '_' + d_str + '_' + cf_str
-        load_path = '../logs/priors/' + dir_name + '/' + classifier + '/' + target_dir + '/'
+        target_dir =  '_' + d_str + '_' + cf_str
+        load_path = '../logs/priors/' + dir_name + '/' + subdir + target_dir + '/'
         return load_path

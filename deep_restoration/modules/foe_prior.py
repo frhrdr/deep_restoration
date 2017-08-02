@@ -8,12 +8,11 @@ import os
 
 class FoEPrior(ICAPrior):
 
-    def __init__(self, tensor_names, weighting, name, classifier, trainable,
-                 filter_dims, input_scaling, n_components,  n_channels, n_features_white,
-                 load_name='FoEPrior', dir_name='foe_prior'):
-        super().__init__(tensor_names, weighting, name, classifier, trainable,
-                         filter_dims, input_scaling, n_components,  n_channels,
-                         n_features_white, load_name=load_name, dir_name=dir_name)
+    def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
+                 n_features_white,
+                 trainable=False, name='FoEPrior', load_name='FoEPrior', dir_name='foe_prior'):
+        super().__init__(tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
+                         n_features_white, trainable=trainable, name=name, load_name=load_name, dir_name=dir_name)
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):

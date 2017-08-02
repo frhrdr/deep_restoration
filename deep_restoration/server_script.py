@@ -59,7 +59,7 @@ foe_prior.train_prior(batch_size=500, num_iterations=80000,
 #
 # img_prior = ICAPrior(tensor_names='pre_img/read:0',
 #                      weighting=1e-3, name='ImgPrior',
-#                      load_path='../logs/priors/ica_prior/color_8x8_512comp/ckpt-10000',
+#                      load_path='../logs/priors/ica_prior/color_8x8_512comps_191feats/ckpt-10000',
 #                      trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512, n_channels=3,
 #                      n_features_white=64*3-1)
 #

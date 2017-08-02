@@ -2,6 +2,7 @@ import tensorflow as tf
 from tf_vgg import vgg16
 from tf_alexnet import alexnet
 from utils.filehandling_utils import save_dict, load_image
+from utils.temp_utils import get_optimizer
 from modules.inv_modules import TrainedModule
 from modules.loss_modules import LossModule, LearnedPriorLoss
 import os
@@ -21,16 +22,6 @@ class NetInversion:
         self.imagenet_mean = np.asarray([123.68, 116.779, 103.939])  # in RGB order
         self.img_hw = 224
         self.img_channels = 3
-
-    def get_optimizer(self, name, lr_pl, momentum=0.9):
-        if name.lower() == 'adam':
-            return tf.train.AdamOptimizer(lr_pl)
-        elif name.lower() == 'momentum':
-            return tf.train.MomentumOptimizer(lr_pl, momentum=momentum)
-        elif name.lower() == 'adagrad':
-            return tf.train.AdagradOptimizer(lr_pl)
-        else:
-            raise NotImplementedError
 
     def load_classifier(self, img_pl):
         if self.params['classifier'].lower() == 'vgg16':
@@ -165,7 +156,7 @@ class NetInversion:
                     np.save(self.params['log_path'] + 'mats/rec_{}.npy'.format(self.params['num_iterations']), rec_mat)
                 else:
                     lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
-                    optimizer = self.get_optimizer(optim_name, lr_pl)
+                    optimizer = get_optimizer(optim_name, lr_pl)
 
                     tvars = tf.trainable_variables()
                     grads = tf.gradients(loss, tvars)
@@ -235,7 +226,7 @@ class NetInversion:
                             print('Jittering stopped at ', count)
                             use_jitter = False
 
-                        if lr_lower_points and lr_lower_points[0][0] == count:
+                        if lr_lower_points and lr_lower_points[0][0] <= count:
                             lr = lr_lower_points[0][1]
                             print('new learning rate: ', lr)
                             lr_lower_points = lr_lower_points[1:]
@@ -260,7 +251,7 @@ class NetInversion:
                 loss = self.build_model()
 
                 lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
-                optimizer = self.get_optimizer(optim_name, lr_pl)
+                optimizer = get_optimizer(optim_name, lr_pl)
                 train_op = optimizer.minimize(loss)
 
                 train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)

@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from modules.ica_prior import ICAPrior
-from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats
+from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
 import time
 import os
 
@@ -11,14 +11,13 @@ class ChannelICAPrior(ICAPrior):
     ICA prior which views each channel as independent
     """
 
-    def __init__(self, tensor_names, weighting, name, classifier, trainable,
-                 filter_dims, input_scaling, n_components, n_channels, n_features_white,
-                 load_name='ChannelICAPrior', dir_name='channel_ica_prior'):
-        super().__init__(tensor_names, weighting, name, classifier, trainable,
-                         filter_dims, input_scaling, n_components, n_channels,
-                         n_features_white, load_name=load_name, dir_name=dir_name)
+    def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
+                 n_features_white,
+                 trainable=False, name='ChannelICAPrior', load_name='ChannelICAPrior', dir_name='channel_ica_prior'):
+        super().__init__(tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
+                         n_features_white, trainable=trainable, name=name, load_name=load_name, dir_name=dir_name)
         self.n_features_total = n_features_white * n_channels
-        self.load_path += '_channelwise'
+        self.load_path = self.load_path.rstrip('/') + '_channelwise/'
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
@@ -57,19 +56,14 @@ class ChannelICAPrior(ICAPrior):
     @staticmethod
     def score_matching_loss(x_mat, w_mat, alpha):
         """
-
         :param x_mat: data -- n_channels x batch_size x n_features_per_channel_white
         :param w_mat: filters -- n_channels x n_features_per_channel_white x n_components_per_channel
         :param alpha: scaling -- n_channels x n_components_per_channel
         :return: full loss, and two partial loss terms
         """
-        print(x_mat.get_shape())
-        print(w_mat.get_shape())
-        print(alpha.get_shape())
-
+        alpha = tf.nn.softplus(alpha)
         const_t = x_mat.get_shape()[0].value
         xw_mat = tf.matmul(x_mat, w_mat)
-        print(xw_mat.get_shape())
         g_mat = -tf.tanh(xw_mat)
         gp_mat = -4.0 / tf.square(tf.exp(xw_mat) + tf.exp(-xw_mat))  # d/dx tanh(x) = 4 / (exp(x) + exp(-x))^2
         gp_vec = tf.reduce_sum(gp_mat, axis=1) / const_t
@@ -77,26 +71,18 @@ class ChannelICAPrior(ICAPrior):
         aa_mat = tf.matmul(alpha, alpha, transpose_b=True)
         ww_mat = tf.matmul(w_mat, w_mat, transpose_a=True)
 
-        print(gp_mat.get_shape())
-        print(gp_vec.get_shape())
-        print(gg_mat.get_shape())
-        print(aa_mat.get_shape())
-        print(ww_mat.get_shape())
-
         ww_list = tf.split(ww_mat, num_or_size_splits=ww_mat.get_shape()[0].value, axis=0)
         w_norm_list = [tf.diag_part(tf.squeeze(k)) for k in ww_list]
-        print(w_norm_list[0].get_shape())
-        print(len(w_norm_list))
         w_norm = tf.stack(w_norm_list, axis=0, name='w_norm')
-        print(w_norm.get_shape())
 
+        # w_norm = tf.Print(w_norm, [g_mat, gp_mat, xw_mat, x_mat])
         term_1 = tf.reduce_sum(tf.squeeze(alpha) * w_norm * gp_vec, name='t1')
         term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
         return term_1 + term_2, term_1, term_2
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
                     whiten_mode='pca', num_data_samples=100000,
-                    log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0,
+                    log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0, optimizer_name='momentum',
                     plot_filters=False, do_clip=True):
         log_path = self.load_path
         ph, pw = self.filter_dims
@@ -120,20 +106,24 @@ class ChannelICAPrior(ICAPrior):
                 tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
                 tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
 
-                x_pl = tf.placeholder(dtype=tf.float32, shape=[self.n_channels, batch_size, self.n_features_white],
+                x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_channels, self.n_features_white],
                                       name='x_pl')
+                x_mat = tf.transpose(x_pl, perm=[1, 0, 2], name='x_mat')
                 lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
 
                 w_mat = tf.get_variable(shape=[self.n_channels, self.n_features_white, self.n_components],
                                         dtype=tf.float32, name='ica_w',
-                                        initializer=tf.random_normal_initializer(stddev=0.001))
+                                        initializer=tf.random_normal_initializer(stddev=0.00001))
                 alpha = tf.get_variable(shape=[self.n_channels, self.n_components, 1], dtype=tf.float32, name='ica_a',
                                         initializer=tf.random_normal_initializer())
 
-                loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, w_mat=w_mat, alpha=alpha)
-                clip_op = tf.assign(w_mat, w_mat / tf.norm(w_mat, ord=2, axis=0))
+                loss, term_1, term_2 = self.score_matching_loss(x_mat=x_mat, w_mat=w_mat, alpha=alpha)
 
-                opt = tf.train.MomentumOptimizer(learning_rate=lr_pl, momentum=0.9)
+                w_norm = tf.norm(w_mat, ord=2, axis=1)
+                w_norm = tf.stack([w_norm] * self.n_features_white, axis=1)
+                clip_op = tf.assign(w_mat, w_mat / w_norm)
+                opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
+
                 tvars = tf.trainable_variables()
                 grads = tf.gradients(loss, tvars)
                 tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
@@ -163,11 +153,21 @@ class ChannelICAPrior(ICAPrior):
                         saver.restore(sess, prev_path)
 
                     sess.run(clip_op)
-
+                    # plot_img_mats(whiten_mat[0, :, :].reshape([-1, 8, 8]), color=False, rescale=True)
+                    # print(whiten_mat[0, :, :] @ unwhiten_mat[0, :, :].T)
                     start_time = time.time()
                     train_time = 0
                     for count in range(prev_ckpt + 1, prev_ckpt + num_iterations + 1):
                         data = next(data_gen)
+                        data = np.expand_dims(data[:, 0, :], axis=1)
+                        # print(data.shape)
+                        # comps = np.dot(data[:100, 0, :], unwhiten_mat[0, :, :])
+                        # print(comps.shape)
+                        #
+                        # comps -= np.min(comps)
+                        # comps /= np.max(comps)
+                        # co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
+                        # plot_img_mats(co, color=False)
 
                         if lr_lower_points and lr_lower_points[0][0] <= count:
                             lr = lr_lower_points[0][1]
@@ -206,12 +206,13 @@ class ChannelICAPrior(ICAPrior):
                     if plot_filters:
                         w_res, alp = sess.run([w_mat, alpha])
                         print(alp)
-                        comps = np.dot(w_res.T, unwhiten_mat)
+                        comps = np.dot(w_res[0, :, :].T, unwhiten_mat[0, :, :])
+                        # comps = np.concatenate((w_res[0, :, :], np.zeros(shape=[1, w_res.shape[2]])), axis=0).T
                         print(comps.shape)
                         comps -= np.min(comps)
                         comps /= np.max(comps)
-                        co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
-                        plot_img_mats(co, color=True)
+                        co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
+                        plot_img_mats(co, color=False)
 
     def plot_filters(self, filter_ids, save_path, save_as_mat=False, save_as_plot=True):
         """
@@ -222,7 +223,7 @@ class ChannelICAPrior(ICAPrior):
         :param save_path: location to save plots
         :param save_as_mat: if true, saves each filter as channel x height x width matrix
         :param save_as_plot:  if true, saves each filter as image
-        :return: None
+        :return None
         """
         if not os.path.exists(save_path):
             os.makedirs(save_path)
