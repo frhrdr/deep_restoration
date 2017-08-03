@@ -25,16 +25,23 @@ class ChannelICAPrior(ICAPrior):
             scaled_tensor = tensor * self.input_scaling
 
             feats_per_channel = self.filter_dims[0] * self.filter_dims[1]
-            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], self.n_channels))
+            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], 1))
             flat_filter = tf.constant(filter_mat, dtype=tf.float32)
+
             x_pad = ((self.filter_dims[0] - 1) // 2, int(np.ceil((self.filter_dims[0] - 1) / 2)))
             y_pad = ((self.filter_dims[1] - 1) // 2, int(np.ceil((self.filter_dims[1] - 1) / 2)))
             conv_input = tf.pad(scaled_tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
-            flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
-            centered_patches = flat_patches - tf.stack([tf.reduce_mean(flat_patches, axis=3)] * filter_mat.shape[3],
-                                                       axis=3)
 
-            centered_patches = tf.reshape(centered_patches, shape=[-1, self.n_channels, feats_per_channel])
+            feat_map_list = tf.split(conv_input, num_or_size_splits=conv_input.get_shape()[3].value, axis=3)
+
+            flat_patches_list = [tf.nn.conv2d(k, flat_filter, strides=[1, 1, 1, 1], padding='VALID') for k in feat_map_list]
+
+            flat_patches = tf.stack(flat_patches_list, axis=0)
+            print(0, flat_patches.get_shape())
+            centered_patches = flat_patches - tf.stack([tf.reduce_mean(flat_patches, axis=4)] * feats_per_channel,
+                                                       axis=4)
+
+            centered_patches = tf.reshape(centered_patches, shape=[self.n_channels, -1, feats_per_channel])
 
             whitening_tensor = tf.get_variable('whiten_mat',
                                                shape=[self.n_channels, self.n_features_total, feats_per_channel],
@@ -56,7 +63,7 @@ class ChannelICAPrior(ICAPrior):
     @staticmethod
     def score_matching_loss(x_mat, w_mat, alpha):
         """
-        :param x_mat: data -- n_channels x batch_size x n_features_per_channel_white
+        :param x_mat: data    -- n_channels x batch_size x n_features_per_channel_white
         :param w_mat: filters -- n_channels x n_features_per_channel_white x n_components_per_channel
         :param alpha: scaling -- n_channels x n_components_per_channel
         :return: full loss, and two partial loss terms
@@ -159,7 +166,7 @@ class ChannelICAPrior(ICAPrior):
                     train_time = 0
                     for count in range(prev_ckpt + 1, prev_ckpt + num_iterations + 1):
                         data = next(data_gen)
-                        data = np.expand_dims(data[:, 0, :], axis=1)
+                        # data = np.expand_dims(data[:, 0, :], axis=1)
                         # print(data.shape)
                         # comps = np.dot(data[:100, 0, :], unwhiten_mat[0, :, :])
                         # print(comps.shape)
@@ -190,7 +197,7 @@ class ChannelICAPrior(ICAPrior):
                             term_1 = graph.get_tensor_by_name('ICAPrior/t1:0')
                             term_2 = graph.get_tensor_by_name('ICAPrior/t2:0')
                             w_res, alp, t1, t2 = sess.run([w_mat, alpha, term_1, term_2], feed_dict={x_pl: data})
-                            print('it: ', count, ' / ', num_iterations)
+                            print('it: ', count, ' / ', num_iterations + prev_ckpt)
                             print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
                             print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
                             print('term_1: ', t1, ' term_2: ', t2)

@@ -23,7 +23,7 @@ class FoEPrior(ICAPrior):
             flat_filter = tf.constant(filter_mat, dtype=tf.float32)
             x_pad = ((self.filter_dims[0] - 1) // 2, int(np.ceil((self.filter_dims[0] - 1) / 2)))
             y_pad = ((self.filter_dims[1] - 1) // 2, int(np.ceil((self.filter_dims[1] - 1) / 2)))
-            print(x_pad, y_pad)
+
             conv_input = tf.pad(tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
             flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
             scaled_patches = flat_patches  # * self.input_scaling

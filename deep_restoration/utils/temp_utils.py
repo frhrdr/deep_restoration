@@ -374,12 +374,14 @@ def make_channel_separate_feat_map_mats(num_patches, ph, pw, classifier, map_nam
                     img_path = image_paths[idx + (count * batch_size) % len(image_paths)]
                     img_mat[idx, :, :, :] = load_image(img_path, resize=False)
 
-                print(np.max(img_mat))
+                if count == 0:
+                    print('Verifying scale - this should be around 255: ', np.max(img_mat))
                 map_mat = sess.run(feat_map, feed_dict={img_pl: img_mat})
+
                 for idx in range(batch_size):
                     h = np.random.randint(0, max_h)
                     w = np.random.randint(0, max_w)
-                    map_patch = map_mat[idx, h:h + ph, w:w + pw, :]
+                    map_patch = np.rollaxis(map_mat[idx, h:h + ph, w:w + pw, :], axis=2)
 
                     map_patch = map_patch.reshape([n_channels, -1]).astype(np.float32)
                     map_patch = (map_patch.T - map_patch.mean(axis=1)).T
@@ -495,10 +497,11 @@ def plot_img_mats(mat, color=False, rescale=False, show=True, save_path=''):
                 ax.imshow(mat[idx, :, :], interpolation='none')
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
-    if show:
-        plt.show()
     if save_path:
         plt.savefig(save_path, format='png')
+    if show:
+        plt.show()
+    else:
         plt.close()
 
 

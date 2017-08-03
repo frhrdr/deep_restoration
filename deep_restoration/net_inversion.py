@@ -103,7 +103,7 @@ class NetInversion:
     def train_pre_image(self, image_path, grad_clip=100.0, lr_lower_points=(),
                         range_b=80, jitter_t=0, optim_name='momentum',
                         range_clip=False, save_as_plot=False, jitter_stop_point=-1, scale_pre_img=2.7098e+4,
-                        pre_img_init=None):
+                        pre_img_init=None, tensor_names_to_save=()):
         """
         like mahendran & vedaldi, optimizes pre-image based on a single other image
         """
@@ -115,7 +115,7 @@ class NetInversion:
 
         save_dict(self.params, self.params['log_path'] + 'params.txt')
 
-        with tf.Graph().as_default():
+        with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
                 img_mat = load_image(image_path, resize=False)
                 image = tf.constant(img_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])
@@ -140,6 +140,8 @@ class NetInversion:
                 self.load_classifier(net_input)
 
                 loss = self.build_model()
+
+                tensors_to_save = [graph.get_tensor_by_name(k) for k in tensor_names_to_save]
 
                 if optim_name.lower() == 'l-bfgs-b':
                     options = {'maxiter': self.params['num_iterations']}
@@ -221,6 +223,13 @@ class NetInversion:
                                 plt.savefig(self.params['log_path'] + 'imgs/rec_' + str(count) + '.png',
                                             format='png', dpi=self.img_hw)
                                 plt.close()
+
+                            if tensors_to_save:
+                                mats_to_save = sess.run(tensors_to_save, feed_dict=feed)
+
+                                for idx, mat in enumerate(mats_to_save):
+                                    file_name = tensor_names_to_save[idx] + '-' + str(count) + '.npy'
+                                    np.save(self.params['log_path'] + 'mats/' + file_name, mat)
 
                         if jitter_stop_point == count:
                             print('Jittering stopped at ', count)
