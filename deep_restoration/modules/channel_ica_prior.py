@@ -44,18 +44,27 @@ class ChannelICAPrior(ICAPrior):
             centered_patches = tf.reshape(centered_patches, shape=[self.n_channels, -1, feats_per_channel])
 
             whitening_tensor = tf.get_variable('whiten_mat',
-                                               shape=[self.n_channels, self.n_features_total, feats_per_channel],
+                                               shape=[self.n_channels, self.n_features_white, feats_per_channel],
                                                dtype=tf.float32, trainable=False)
-            ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable, dtype=tf.float32)
-            ica_w = tf.get_variable('ica_w', shape=[self.n_features_total, self.n_components],
+            ica_a = tf.get_variable('ica_a', shape=[self.n_channels, self.n_components, 1], trainable=self.trainable, dtype=tf.float32)
+            ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_white, self.n_components],
                                     trainable=self.trainable, dtype=tf.float32)
-            ica_a_squeezed = tf.squeeze(ica_a)
+            ica_a_squeezed = tf.squeeze(tf.nn.softplus(ica_a))
 
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
+            print(1, centered_patches.get_shape())
+            print(2, whitened_mixing.get_shape())
+            print(3, whitening_tensor.get_shape())
             xw = tf.matmul(centered_patches, whitened_mixing)
-            neg_g_wx = tf.log(0.5 * (tf.exp(-xw) + tf.exp(xw))) * ica_a_squeezed
+            print(4, xw.get_shape())
+
+            neg_g_wx = tf.log(0.5 * (tf.exp(-xw) + tf.exp(xw))) * tf.stack([ica_a_squeezed] * xw.get_shape()[1].value,
+                                                                           axis=1)
+            print(5, neg_g_wx.get_shape())
             neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
+            print(6, neg_log_p_patches.get_shape())
             naive_mean = tf.reduce_mean(neg_log_p_patches, name='loss')
+            print(7, naive_mean.get_shape())
             self.loss = naive_mean
 
             self.var_list = [ica_a, ica_w, whitening_tensor]
@@ -108,7 +117,7 @@ class ChannelICAPrior(ICAPrior):
         whiten_mat = np.load(data_dir + 'channel_whiten_' + whiten_mode + '.npy').astype(np.float32)
 
         with tf.Graph().as_default() as graph:
-            with tf.variable_scope('ICAPrior'):
+            with tf.variable_scope(self.name):
                 # add whitening mats to the save-files for later retrieval
                 tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
                 tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
@@ -194,8 +203,8 @@ class ChannelICAPrior(ICAPrior):
                             print(batch_loss)
 
                         if count % (print_freq * 10) == 0:
-                            term_1 = graph.get_tensor_by_name('ICAPrior/t1:0')
-                            term_2 = graph.get_tensor_by_name('ICAPrior/t2:0')
+                            term_1 = graph.get_tensor_by_name(self.name + '/t1:0')
+                            term_2 = graph.get_tensor_by_name(self.name + '/t2:0')
                             w_res, alp, t1, t2 = sess.run([w_mat, alpha, term_1, term_2], feed_dict={x_pl: data})
                             print('it: ', count, ' / ', num_iterations + prev_ckpt)
                             print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))

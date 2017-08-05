@@ -51,15 +51,14 @@ def pca_whiten_mats(cov, n_to_drop=1):
     # print(e_vals)
     full_eigv = sum(e_vals)
     keep_eigv = sum(e_vals[n_to_drop:])
+
     print('kept eigv fraction: ', keep_eigv / full_eigv)
-    print(e_vals)
+
     e_vals = e_vals[n_to_drop:]  # dismiss first eigenvalue due to mean subtraction.
     e_vecs = e_vecs[:, n_to_drop:]
     sqrt_vals = np.sqrt(np.maximum(e_vals, 0))
     whiten = np.diag(1. / sqrt_vals) @ e_vecs.T
     un_whiten = e_vecs @ np.diag(sqrt_vals)
-    print('whiten mat shape: ', whiten.shape)
-    print('un-whiten mat shape: ', un_whiten.shape)
     return whiten, un_whiten.T
 
 

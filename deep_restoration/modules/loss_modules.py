@@ -4,9 +4,10 @@ import os
 
 class Module:
 
-    def __init__(self, in_tensor_names):
+    def __init__(self, in_tensor_names, name=None):
         self.in_tensor_names = in_tensor_names
-        self.name = self.__class__.__name__
+        self.name = name if name is not None else self.__class__.__name__
+
 
     def build(self, scope_suffix=''):
         raise NotImplementedError
@@ -21,8 +22,8 @@ class Module:
 
 class LossModule(Module):
 
-    def __init__(self, in_tensor_names, weighting):
-        super().__init__(in_tensor_names)
+    def __init__(self, in_tensor_names, weighting, name=None):
+        super().__init__(in_tensor_names, name=name)
         self.weighting = weighting
         self.loss = None
         self.add_loss = True
@@ -55,19 +56,21 @@ class LossModule(Module):
 
 class MSELoss(LossModule):
 
-    def __init__(self, target, reconstruction, weighting):
-        super().__init__((target, reconstruction), weighting)
+    def __init__(self, target, reconstruction, weighting, name=None):
+        super().__init__((target, reconstruction), weighting, name=name)
 
     def build(self, scope_suffix=''):
-        tgt, rec = self.get_tensors()
-        self.loss = tf.losses.mean_squared_error(tgt, rec)
+        with tf.variable_scope(self.name):
+            tgt, rec = self.get_tensors()
+            self.loss = tf.losses.mean_squared_error(tgt, rec)
 
 
 class NormedMSELoss(MSELoss):
 
     def build(self, scope_suffix=''):
-        tgt, rec = self.get_tensors()
-        self.loss = tf.reduce_sum((tgt - rec) ** 2) / tf.reduce_sum(tgt * rec)
+        with tf.variable_scope(self.name):
+            tgt, rec = self.get_tensors()
+            self.loss = tf.reduce_sum((tgt - rec) ** 2) / tf.reduce_sum(tgt * rec)
 
 
 class SoftRangeLoss(LossModule):

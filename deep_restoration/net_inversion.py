@@ -47,7 +47,7 @@ class NetInversion:
         return loss
 
     def build_logging(self, loss):
-        tf.summary.scalar('total_loss', loss)
+        tf.summary.scalar('Total_Loss', loss)
         for mod in self.params['modules']:
             if isinstance(mod, LossModule):
                 mod.scalar_summary()

@@ -4,8 +4,8 @@ import tensorflow as tf
 
 class SplitModule(Module):
 
-    def __init__(self, name_to_split, img_slice_name, rec_slice_name):
-        super().__init__(name_to_split)
+    def __init__(self, name_to_split, img_slice_name, rec_slice_name, name=None):
+        super().__init__(name_to_split, name=name)
         self.img_slice_name = img_slice_name
         self.rec_slice_name = rec_slice_name
 
