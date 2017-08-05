@@ -1,21 +1,53 @@
-from mahendran_vedaldi_2016 import invert_layer
+from utils.temp_utils import make_channel_separate_feat_map_mats, make_feat_map_mats, make_reduced_feat_map_mats
+from modules.channel_ica_prior import ChannelICAPrior
+import numpy as np
+# r = range(500, 17000, 500)
+# for i in r:
+#     mat_to_img('../logs/net_inversion/alexnet/c4_rec/mse4_pimg_pc2rich_1e-9/mats/rec_' + str(i) + '.npy', cols=1)
+# mat_to_img('../logs/net_inversion/alexnet/c3_rec/mse3_foe2lin_1e-8/mats/rec_10000.npy', cols=1)
 
-params = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',
-              classifier='alexnet',
-              img_HW=224,
-              jitter_T=0,
-              mse_C=300.0,
-              alpha_sr=6, beta_tv=2,
-              range_B=80,
-              range_V=80/6.5,
-              learning_rate=0.1,
-              num_iterations=10000,
-              print_freq=100, log_freq=2000, summary_freq=10, lr_lower_freq=10000,
-              grad_clip=100.0,
-              log_path='./logs/mahendran_vedaldi/2016/',
-              save_as_mat=False)
+make_channel_separate_feat_map_mats(num_patches=100000, ph=8, pw=8, classifier='alexnet',
+                                    map_name='conv1/lin:0', n_channels=96,
+                                    save_dir='../data/patches/alexnet/conv1_lin_8x8_24feats_channelwise/',
+                                    whiten_mode='pca', batch_size=100)
 
-invert_layer(params)
+make_feat_map_mats(100000, map_name='conv1/lin:0', classifier='alexnet', ph=5, pw=5,
+                   save_dir='../data/patches/alexnet/conv1_lin_5x5_2399feats/', whiten_mode='pca', batch_size=10)
+
+make_reduced_feat_map_mats(num_patches=100000, load_dir='../data/patches/alexnet/conv1_lin_5x5_2399feats/',
+                           n_features=2399, n_to_keep=1200,
+                           save_dir='../data/patches/alexnet/conv1_lin_5x5_1200feats/', whiten_mode='pca')
+
+
+
+
+
+
+
+
+
+
+
+
+
+# from mahendran_vedaldi_2016 import invert_layer
+#
+# params = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',
+#               classifier='alexnet',
+#               img_HW=224,
+#               jitter_T=0,
+#               mse_C=300.0,
+#               alpha_sr=6, beta_tv=2,
+#               range_B=80,
+#               range_V=80/6.5,
+#               learning_rate=0.1,
+#               num_iterations=10000,
+#               print_freq=100, log_freq=2000, summary_freq=10, lr_lower_freq=10000,
+#               grad_clip=100.0,
+#               log_path='./logs/mahendran_vedaldi/2016/',
+#               save_as_mat=False)
+#
+# invert_layer(params)
 
 # from net_inversion import NetInversion
 # from parameter_utils import default_params
