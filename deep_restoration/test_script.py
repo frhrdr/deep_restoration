@@ -9,7 +9,7 @@ import numpy as np
 
 # make_channel_separate_feat_map_mats(num_patches=100000, ph=8, pw=8, classifier='alexnet',
 #                                     map_name='conv1/lin:0', n_channels=96,
-#                                     save_dir='../data/patches/alexnet/conv1_lin_8x8_24feats_channelwise/',
+#                                     save_dir='../data/patches/alexnet/conv1_lin_8x8_63feats_channelwise/',
 #                                     whiten_mode='pca', batch_size=100)
 #
 # make_feat_map_mats(100000, map_name='conv1/lin:0', classifier='alexnet', ph=5, pw=5,
@@ -26,7 +26,7 @@ c1_prior = FoEPrior(tensor_names='conv1/lin:0',
                     n_features_white=2399)
 
 c1_prior.train_prior(batch_size=500, num_iterations=30000, lr=3e-5,
-                       lr_lower_points=((0, 3e-2), (5000, 3e-3), (10000, 3e-4), (25000, 3e-5)),
+                       lr_lower_points=((0, 3e-3), (5000, 3e-4), (10000, 3e-4), (25000, 3e-5)),
                        grad_clip=100.0,
                        whiten_mode='pca', num_data_samples=100000,
                        log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0, optimizer_name='adam',
