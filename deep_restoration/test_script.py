@@ -25,8 +25,8 @@ c1_prior = FoEPrior(tensor_names='conv1/lin:0',
                     filter_dims=[5, 5], input_scaling=1.0, n_components=4800, n_channels=96,
                     n_features_white=2399)
 
-c1_prior.train_prior(batch_size=500, num_iterations=30000, lr=3e-5,
-                    lr_lower_points=((0, 3e-4), (5000, 3e-4), (10000, 3e-4), (25000, 3e-5)),
+c1_prior.train_prior(batch_size=500, num_iterations=30000, lr=1e-7,
+                    lr_lower_points=((0, 3e-7), (5000, 3e-4), (10000, 3e-4), (25000, 3e-5)),
                     grad_clip=100.0,
                     whiten_mode='pca', num_data_samples=100000,
                     log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0, optimizer_name='adam',
