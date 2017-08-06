@@ -1,5 +1,6 @@
 from utils.temp_utils import make_channel_separate_feat_map_mats, make_feat_map_mats, make_reduced_feat_map_mats
 from modules.channel_ica_prior import ChannelICAPrior
+from modules.ica_prior import ICAPrior
 from modules.foe_prior import FoEPrior
 import numpy as np
 # r = range(500, 17000, 500)
@@ -19,7 +20,7 @@ import numpy as np
 #                            n_features=2399, n_to_keep=1200,
 #                            save_dir='../data/patches/alexnet/conv1_lin_5x5_1200feats/', whiten_mode='pca')
 
-c1_prior = FoEPrior(tensor_names='conv1/lin:0',
+c1_prior = ICAPrior(tensor_names='conv1/lin:0',
                     weighting=1., name='FoEPrior',
                     classifier='alexnet',
                     filter_dims=[5, 5], input_scaling=1.0, n_components=4800, n_channels=96,
