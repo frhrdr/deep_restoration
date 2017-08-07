@@ -13,8 +13,13 @@ import numpy as np
 #                                     save_dir='../data/patches/alexnet/conv1_lin_8x8_63feats_channelwise/',
 #                                     whiten_mode='pca', batch_size=100)
 #
-make_feat_map_mats(100000, map_name='conv1/lin:0', classifier='alexnet', ph=5, pw=5,
-                   save_dir='../data/patches/alexnet/conv1_lin_5x5_2399feats/', whiten_mode='pca', batch_size=100)
+make_feat_map_mats(100000, map_name='conv2/lin:0', classifier='alexnet', ph=5, pw=5,
+                   save_dir='../data/patches/alexnet/conv2_lin_5x5_6399feats_redo/',
+                   whiten_mode='pca', batch_size=100)
+
+make_feat_map_mats(100000, map_name='conv2/relu:0', classifier='alexnet', ph=5, pw=5,
+                   save_dir='../data/patches/alexnet/conv2_relu_5x5_6399feats_redo/',
+                   whiten_mode='pca', batch_size=100)
 #
 # make_reduced_feat_map_mats(num_patches=100000, load_dir='../data/patches/alexnet/conv1_lin_5x5_2399feats/',
 #                            n_features=2399, n_to_keep=1200,

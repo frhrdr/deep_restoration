@@ -53,7 +53,7 @@ def pca_whiten_mats(cov, n_to_drop=1):
     keep_eigv = sum(e_vals[n_to_drop:])
 
     print('kept eigv fraction: ', keep_eigv / full_eigv)
-    print(e_vals)
+    print(np.sum(e_vals < 0))
     e_vals = e_vals[n_to_drop:]  # dismiss first eigenvalue due to mean subtraction.
     e_vecs = e_vecs[:, n_to_drop:]
     sqrt_vals = np.sqrt(np.maximum(e_vals, 0))
@@ -124,7 +124,7 @@ def make_cov_acc(data_dir='./data/patches_gray/8x8/'):
     np.save(data_dir + '/cov.npy', cov_acc)
 
 
-def make_data_mats(num_patches, ph=8, pw=8, color=False, save_dir='./data/patches_gray/new8by8/', whiten_mode='pca'):
+def make_img_data_mats(num_patches, ph=8, pw=8, color=False, save_dir='./data/patches_gray/new8by8/', whiten_mode='pca'):
     img_hw = 224
     max_h = img_hw - ph
     max_w = img_hw - pw
@@ -241,13 +241,13 @@ def make_feat_map_mats(num_patches, map_name, classifier='alexnet', ph=8, pw=8,
                     map_patch = map_mat[idx, h:h + ph, w:w + pw, :]
                     map_patch = map_patch.flatten().astype(np.float32)
                     map_patch -= map_patch.mean()  # subtract image mean
-
                     raw_mat[idx + (count * batch_size), :] = map_patch
-                    cov_acc = cov_acc + np.outer(map_patch, map_patch)
+                    cov_acc = cov_acc + (np.outer(map_patch, map_patch) / (num_patches - 1))
 
                     if idx + (count * batch_size) % (num_patches // 100) == 0:
                         print(100 * (idx + count * batch_size) / num_patches, '% cov accumulation done')
-            cov = cov_acc / (num_patches - 1)
+
+            cov = cov_acc
             np.save(save_dir + 'cov.npy', cov)
 
             raw_mat.flush()
@@ -532,3 +532,29 @@ def get_optimizer(name, lr_pl, momentum=0.9):
         return tf.train.AdagradOptimizer(lr_pl)
     else:
         raise NotImplementedError
+
+
+def find_memmap_size(path, data_type=np.float32):
+    ub = None
+    lb = None
+    size = 1
+    while ub == None:
+        try:
+            np.memmap(path, dtype=data_type, mode='r',
+                      shape=(size,))
+            size *= 2
+        except ValueError:
+            ub = size
+            lb = size // 2
+
+    while abs(lb - ub) > 1:
+        size = (lb + ub) // 2
+        try:
+            np.memmap(path, dtype=data_type, mode='r',
+                      shape=(size,))
+            lb = size
+        except ValueError:
+            ub = size
+
+    print('computed size:', lb)
+

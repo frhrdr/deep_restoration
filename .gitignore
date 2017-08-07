@@ -97,3 +97,4 @@ data/imagenet2012-validationset/images_resized/
 data/imagenet2012-validationset/xml_annotations/
 data/imagenet2012-validationset/features/
 plots/
+!/deep_restoration/

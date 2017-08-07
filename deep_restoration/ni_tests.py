@@ -52,15 +52,15 @@ cica_img = ChannelICAPrior(tensor_names='pre_img/read:0',
 cica_c1l = ChannelICAPrior(tensor_names='conv1_lin:0',
                            weighting=1e-5, name='Conv1LinCICAPrior',
                            classifier='alexnet',
-                           filter_dims=[5, 5], input_scaling=1.0, n_components=50, n_channels=96,
-                           n_features_white=24)
+                           filter_dims=[8, 8], input_scaling=1.0, n_components=150, n_channels=96,
+                           n_features_white=63)
 
 
-modules = [split2, mse2, split1, mse1]
+modules = [split2, mse2, split1, mse1, cica_c1l]
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c2_rec/mse2_mse1_track/',
+              log_path='../logs/net_inversion/alexnet/c2_rec/mse2_mse1_track_cica_8x8_c1l_1e-5/',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 10000
@@ -71,11 +71,11 @@ if not os.path.exists(params['log_path']):
     os.makedirs(params['log_path'])
 copyfile('./ni_tests.py', params['log_path'] + 'script.py')
 
-
 ni = NetInversion(params)
 
 # pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_10000.npy'), [1, 224, 224, 3])
 pre_img_init = None
+
 ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
                    lr_lower_points=((0, 9e-1),),
