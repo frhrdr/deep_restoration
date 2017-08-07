@@ -3,7 +3,7 @@ from modules.ica_prior import ICAPrior
 from modules.loss_modules import NormedMSELoss, SoftRangeLoss, TotalVariationLoss
 from modules.split_module import SplitModule
 from modules.norm_module import NormModule
-from utils.parameter_utils import mv_default_params
+from utils.parameter_defaults import mv_default_params
 
 # imagenet_mean = (123.68 + 116.779 + 103.939) / 3
 imagenet_mean = [123.68, 116.779, 103.939]

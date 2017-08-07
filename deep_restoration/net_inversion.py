@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tf_vgg import vgg16
 from tf_alexnet import alexnet
-from utils.filehandling_utils import save_dict, load_image
+from utils.filehandling import save_dict, load_image
 from utils.temp_utils import get_optimizer
 from modules.inv_modules import TrainedModule
 from modules.loss_modules import LossModule, LearnedPriorLoss

@@ -4,7 +4,7 @@ from modules.foe_prior import FoEPrior
 from modules.channel_ica_prior import ChannelICAPrior
 from modules.loss_modules import NormedMSELoss
 from modules.split_module import SplitModule
-from utils.parameter_utils import mv_default_params
+from utils.parameter_defaults import mv_default_params
 from shutil import copyfile
 import os
 import numpy as np

@@ -21,6 +21,45 @@
 \end{enumerate}
 
 
+\section*{August 7.}
+
+\begin{enumerate}
+	\item investigate assumptions behind current patch whitening procedure
+	\begin{enumerate}
+		\item typically one is suppose to center and rescale each feature before using pca \& whitening
+		\item by stationarity assumption of stationarity, every feature should have the same mean. Subtracting the patch mean per channel (given equal variance) then takes care of the feature mean as well
+		\item on natural images roughly equal variance across features (including different channels) is assumed.
+		\item the stationarity assumption should hold for feature maps as well. the assumption of equal variance, however, is not as well-motivated.
+		\item comparing patches from conv2/relu, conv1/lin\_cw and image layer, this can be observed to some degree, where standard deviations by channel range from roughly 20 to 30 in the image layer and from 2 to 70 and 12 to 300 in the other two layers. notably, within a channel in conv1/lin\_cw the values are again quite consistent, which supports the assumption of stationarity again.
+	\end{enumerate}
+	\item consider adding variance normalization, creating a new preprocessing pipeline
+	\begin{enumerate}
+		\item store truly raw (non-centered) patches in raw\_mat
+		\item center all features by respective channel mean (global mean seems ill-advised even for priors with no channel independence assumptions), store 
+		channel means for retrieval by prior
+		\item then divide features by channel standard deviation. store those as well for retrieval by the prior
+		\item only then accumulate the covariance matrix
+		\item proceed with eigen-decomposition for pca whitening.
+	\end{enumerate}
+	\item there is also a second option, which throws away a little more information, but might be less prone to a bad set of training patches (and maybe the information thrown away is irrelevant in the first place)
+	\begin{enumerate}
+		\item as in 2. but instead of training set mean, take the sample mean per channel (like right now)
+		\item also divide by the sample standard deviation. this step might be throwing away too much though. could also use sample mean and stored std\_dev instead
+	\end{enumerate}
+	\item So the necessary implementations steps look like this
+	\begin{enumerate}
+		\item separate out raw mat generation (channel separate even for full cov) (done)
+		separate patch extraction and covariance accumulation (done)
+		\item add switches
+		mean: sample/dataset, channel/global
+		sdev: none/sample/dataset (global would just be a rescale)
+		\item implement switch functionalities
+		
+	\end{enumerate}
+\end{enumerate}
+
+
+
 \section*{August 6.}
 
 \begin{enumerate}

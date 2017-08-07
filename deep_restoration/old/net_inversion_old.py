@@ -1,14 +1,16 @@
-import tensorflow as tf
-from tf_vgg import vgg16
-from tf_alexnet import alexnet
-from utils.parameter_utils import check_params
-from utils.filehandling_utils import save_dict, load_image
-from utils.model_utils import conv_deconv_model, deconv_conv_model, deconv_deconv_model
 import os
 import time
-import numpy as np
-from skimage.color import grey2rgb
+
 import matplotlib
+import numpy as np
+import tensorflow as tf
+from old.model_utils import conv_deconv_model, deconv_conv_model, deconv_deconv_model
+from skimage.color import grey2rgb
+from tf_alexnet import alexnet
+from tf_vgg import vgg16
+from utils.filehandling import save_dict, load_image
+from utils.parameter_defaults import check_params
+
 matplotlib.use('tkagg', force=True)
 import matplotlib.pyplot as plt
 

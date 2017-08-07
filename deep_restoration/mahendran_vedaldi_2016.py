@@ -3,7 +3,7 @@ matplotlib.use('tkagg', force=True)
 import tensorflow as tf
 from tf_alexnet.alexnet import AlexNet
 from tf_vgg.vgg16 import Vgg16
-from utils.filehandling_utils import load_image, save_dict
+from utils.filehandling import load_image, save_dict
 import time
 import numpy as np
 import matplotlib.pyplot as plt

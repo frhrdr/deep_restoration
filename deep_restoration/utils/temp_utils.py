@@ -1,12 +1,12 @@
-import numpy as np
-from utils.filehandling_utils import load_image
 import os
-import skimage
-from sklearn.decomposition import FastICA
+
 import matplotlib.pyplot as plt
-from tf_vgg.vgg16 import Vgg16
-from tf_alexnet.alexnet import AlexNet
+import numpy as np
+import skimage
 import tensorflow as tf
+from sklearn.decomposition import FastICA
+from utils.filehandling import load_image
+from utils.whitening import pca_whiten_mats, zca_whiten_mats
 
 
 def flattening_filter(dims):
@@ -19,71 +19,6 @@ def flattening_filter(dims):
 
         f[x, y, z, idx] = 1
     return f
-
-
-def pca_whiten_as_ica(data):
-    n_samples, n_features = data.shape
-    data = data.T
-    data -= data.mean(axis=-1)[:, np.newaxis]
-    u, d, _ = np.linalg.svd(data, full_matrices=False)
-    K = (u / d).T[:n_features]
-    data = np.dot(K, data)
-    data *= np.sqrt(n_samples)
-    return data.T, K
-
-
-def pca_whiten_as_pca(data):
-    n_samples, n_features = data.shape
-    u, s, v = np.linalg.svd(data, full_matrices=False)
-    max_abs_cols = np.argmax(np.abs(u), axis=0)
-    signs = np.sign(u[max_abs_cols, range(u.shape[1])])
-    u *= signs
-    u *= np.sqrt(n_samples)
-    v *= signs[:, np.newaxis]
-    rerotate = v / s[:, np.newaxis] * np.sqrt(n_samples)
-    return u, rerotate
-
-
-def pca_whiten_mats(cov, n_to_drop=1):
-    e_vals, e_vecs = np.linalg.eigh(cov)
-    assert all(a <= b for a, b in zip(e_vals[:-1], e_vals[1:]))  # make sure vals are sorted ascending (they should be)
-    # print(e_vals.sum())
-    # print(e_vals)
-    full_eigv = sum(e_vals)
-    keep_eigv = sum(e_vals[n_to_drop:])
-
-    print('kept eigv fraction: ', keep_eigv / full_eigv)
-    print(np.sum(e_vals < 0))
-    e_vals = e_vals[n_to_drop:]  # dismiss first eigenvalue due to mean subtraction.
-    e_vecs = e_vecs[:, n_to_drop:]
-    sqrt_vals = np.sqrt(np.maximum(e_vals, 0))
-    whiten = np.diag(1. / sqrt_vals) @ e_vecs.T
-    un_whiten = e_vecs @ np.diag(sqrt_vals)
-    return whiten, un_whiten.T
-
-
-def pca_whiten(data):
-    cov = np.dot(data.T, data) / (data.shape[0] - 1)
-    whiten, unwhiten = pca_whiten_mats(cov)
-    data = np.dot(data, whiten.T)
-    return data, unwhiten
-
-
-def zca_whiten_mats(cov):
-    U, S, _ = np.linalg.svd(cov)
-    s = np.sqrt(S.clip(1.e-6))
-    s_inv = np.diag(1. / s)
-    s = np.diag(s)
-    whiten = np.dot(np.dot(U, s_inv), U.T)
-    un_whiten = np.dot(np.dot(U, s), U.T)
-    return whiten, un_whiten
-
-
-def zca_whiten(data):
-    cov = np.dot(data.T, data) / (data.shape[0] - 1)
-    whiten, unwhiten = zca_whiten_mats(cov)
-    data = np.dot(data, whiten.T)
-    return data, unwhiten
 
 
 def make_data_mat_from_patches(data_dir='./data/patches_gray/8x8/', whiten_mode='pca'):
@@ -186,253 +121,6 @@ def make_img_data_mats(num_patches, ph=8, pw=8, color=False, save_dir='./data/pa
         image = raw_mat[idx, :]
         image = whiten @ image
         data_mat[idx, :] = image
-
-
-def make_feat_map_mats(num_patches, map_name, classifier='alexnet', ph=8, pw=8,
-                       save_dir='./data/patches/', whiten_mode='pca', batch_size=10):
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    assert num_patches % batch_size == 0
-
-    if classifier.lower() == 'vgg16':
-        classifier = Vgg16()
-    elif classifier.lower() == 'alexnet':
-        classifier = AlexNet()
-    else:
-        raise NotImplementedError
-
-    with tf.Graph().as_default() as graph:
-        with tf.Session() as sess:
-
-            img_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, 224, 224, 3])
-            classifier.build(img_pl, rescale=1.0)
-            feat_map = graph.get_tensor_by_name(map_name)
-            map_dims = [d.value for d in feat_map.get_shape()]
-            n_features = ph * pw * map_dims[3]
-            print(n_features)
-            data_path = '../data/imagenet2012-validationset/'
-            img_file = 'train_48k_images.txt'
-
-            raw_mat = np.memmap(save_dir + 'data_mat_raw.npy', dtype=np.float32, mode='w+',
-                                shape=(num_patches, n_features))
-            max_h = map_dims[1] - ph
-            max_w = map_dims[2] - pw
-
-            with open(data_path + img_file) as f:
-                image_files = [k.rstrip() for k in f.readlines()]
-
-            image_paths = [data_path + 'images_resized/' + k[:-len('JPEG')] + 'bmp' for k in image_files]
-            img_mat = np.zeros(shape=[batch_size, 224, 224, 3])
-
-            cov_acc = 0
-
-            for count in range(num_patches // batch_size):
-
-                for idx in range(batch_size):
-                    img_path = image_paths[idx + (count * batch_size) % len(image_paths)]
-                    img_mat[idx, :, :, :] = load_image(img_path, resize=False)
-
-                map_mat = sess.run(feat_map, feed_dict={img_pl: img_mat})
-                for idx in range(batch_size):
-                    h = np.random.randint(0, max_h)
-                    w = np.random.randint(0, max_w)
-
-                    map_patch = map_mat[idx, h:h + ph, w:w + pw, :]
-                    map_patch = map_patch.flatten().astype(np.float32)
-                    map_patch -= map_patch.mean()  # subtract image mean
-                    raw_mat[idx + (count * batch_size), :] = map_patch
-                    cov_acc = cov_acc + (np.outer(map_patch, map_patch) / (num_patches - 1))
-
-                    if idx + (count * batch_size) % (num_patches // 100) == 0:
-                        print(100 * (idx + count * batch_size) / num_patches, '% cov accumulation done')
-
-            cov = cov_acc
-            np.save(save_dir + 'cov.npy', cov)
-
-            raw_mat.flush()
-            del raw_mat
-
-    print('raw mat and cov done')
-
-    raw_mat = np.memmap(save_dir + '/data_mat_raw.npy', dtype=np.float32, mode='r',
-                        shape=(num_patches, n_features))
-
-    if whiten_mode == 'pca':
-        whiten, un_whiten = pca_whiten_mats(cov)
-    elif whiten_mode == 'zca':
-        whiten, un_whiten = zca_whiten_mats(cov)
-    else:
-        raise NotImplementedError
-
-    np.save(save_dir + 'whiten_' + whiten_mode + '.npy', whiten)
-    np.save(save_dir + 'unwhiten_' + whiten_mode + '.npy', un_whiten)
-
-    data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_whitened.npy', dtype=np.float32, mode='w+',
-                         shape=(num_patches, whiten.shape[0]))
-
-    for idx in range(num_patches):
-        image = raw_mat[idx, :]
-        image = whiten @ image
-        data_mat[idx, :] = image
-
-    data_mat.flush()
-    del data_mat
-
-
-def make_reduced_feat_map_mats(num_patches, load_dir, n_features, n_to_keep,
-                               save_dir='./data/patches/', whiten_mode='pca'):
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    raw_mat = np.memmap(load_dir + '/data_mat_raw.npy', dtype=np.float32, mode='r',
-                        shape=(num_patches, n_features))
-    cov = np.load(load_dir + 'cov.npy')
-
-    print('raw mat and cov loaded')
-
-    if whiten_mode == 'pca':
-        whiten, un_whiten = pca_whiten_mats(cov, n_to_drop=n_features - n_to_keep)
-    elif whiten_mode == 'zca':
-        raise NotImplementedError
-    else:
-        raise NotImplementedError
-
-    np.save(save_dir + 'whiten_' + whiten_mode + '.npy', whiten)
-    np.save(save_dir + 'unwhiten_' + whiten_mode + '.npy', un_whiten)
-
-    data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_whitened.npy', dtype=np.float32, mode='w+',
-                         shape=(num_patches, whiten.shape[0]))
-
-    for idx in range(num_patches):
-        image = raw_mat[idx, :]
-        image = whiten @ image
-        data_mat[idx, :] = image
-
-    data_mat.flush()
-    del data_mat
-
-
-def make_channel_separate_feat_map_mats(num_patches, ph, pw, classifier, map_name, n_channels,
-                                        save_dir, whiten_mode='pca', batch_size=10):
-    """
-    creates whitening, covariance, raw and whitened feature matrices for separate channels.
-    They are saved as 3d matrices where the first dimension is the channel index
-
-    :param num_patches: number of patches in the raw data mat
-    :param load_dir: take raw data mat and accumulated cov from here
-    :param n_features: number of patch features summed over all channels
-    :param n_channels: number of channels
-    :param save_dir: place to save
-    :param whiten_mode: 'pca' or 'zca'. only pca whitening is supported atm
-    :return: None. objects are saved
-    """
-
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    assert num_patches % batch_size == 0
-
-    if classifier.lower() == 'vgg16':
-        classifier = Vgg16()
-    elif classifier.lower() == 'alexnet':
-        classifier = AlexNet()
-    else:
-        raise NotImplementedError
-
-    with tf.Graph().as_default() as graph:
-        with tf.Session() as sess:
-
-            img_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, 224, 224, 3], name='img_pl')
-            classifier.build(img_pl, rescale=1.0)
-            feat_map = graph.get_tensor_by_name(map_name)
-            map_dims = [d.value for d in feat_map.get_shape()]
-            n_feats_per_channel = ph * pw
-            n_features = n_feats_per_channel * map_dims[3]
-
-            data_path = '../data/imagenet2012-validationset/'
-            img_file = 'train_48k_images.txt'
-
-            raw_mat = np.memmap(save_dir + 'data_mat_raw_channel.npy', dtype=np.float32, mode='w+',
-                                shape=(num_patches, n_channels, n_feats_per_channel))
-
-            max_h = map_dims[1] - ph
-            max_w = map_dims[2] - pw
-
-            with open(data_path + img_file) as f:
-                image_files = [k.rstrip() for k in f.readlines()]
-
-            image_paths = [data_path + 'images_resized/' + k[:-len('JPEG')] + 'bmp' for k in image_files]
-            img_mat = np.zeros(shape=[batch_size, 224, 224, 3])
-
-            channel_covs = np.zeros(shape=[n_channels, n_feats_per_channel, n_feats_per_channel])
-
-            for count in range(num_patches // batch_size):
-
-                for idx in range(batch_size):
-                    img_path = image_paths[idx + (count * batch_size) % len(image_paths)]
-                    img_mat[idx, :, :, :] = load_image(img_path, resize=False)
-
-                if count == 0:
-                    print('Verifying scale - this should be around 255: ', np.max(img_mat))
-                map_mat = sess.run(feat_map, feed_dict={img_pl: img_mat})
-
-                for idx in range(batch_size):
-                    h = np.random.randint(0, max_h)
-                    w = np.random.randint(0, max_w)
-                    map_patch = np.rollaxis(map_mat[idx, h:h + ph, w:w + pw, :], axis=2)
-
-                    map_patch = map_patch.reshape([n_channels, -1]).astype(np.float32)
-                    map_patch = (map_patch.T - map_patch.mean(axis=1)).T
-
-                    raw_mat[idx + (count * batch_size), :, :] = map_patch
-                    acc = np.matmul(map_patch.reshape([n_channels, -1, 1]), map_patch.reshape([n_channels, 1, -1]))
-                    channel_covs = channel_covs + acc
-
-                    if idx + (count * batch_size) % (num_patches // 100) == 0:
-                        print(100 * (idx + count * batch_size) / num_patches, '% cov accumulation done')
-
-            channel_covs = channel_covs / (num_patches - 1)
-            np.save(save_dir + 'channel_covs.npy', channel_covs)
-
-            raw_mat.flush()
-            del raw_mat
-
-    print('raw mat and cov done')
-
-    channel_whiten = np.zeros(shape=[n_channels, n_feats_per_channel - 1, n_feats_per_channel])
-    channel_unwhiten = np.zeros(shape=[n_channels, n_feats_per_channel - 1, n_feats_per_channel])
-
-    for idx in range(n_channels):
-
-        if whiten_mode == 'pca':
-            whiten, unwhiten = pca_whiten_mats(channel_covs[idx, :, :], n_to_drop=1)
-        elif whiten_mode == 'zca':
-            raise NotImplementedError
-        else:
-            raise NotImplementedError
-
-        channel_whiten[idx, :, :] = whiten
-        channel_unwhiten[idx, :, :] = unwhiten
-
-    np.save(save_dir + 'channel_whiten_' + whiten_mode + '.npy', channel_whiten)
-    np.save(save_dir + 'channel_unwhiten_' + whiten_mode + '.npy', channel_unwhiten)
-    print('whitening mats saved')
-
-    data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_channel_whitened.npy', dtype=np.float32, mode='w+',
-                         shape=(num_patches, n_channels, channel_whiten.shape[1]))
-
-    raw_mat = np.memmap(save_dir + 'data_mat_raw_channel.npy', dtype=np.float32, mode='r',
-                        shape=(num_patches, n_features))
-
-    for idx in range(num_patches):
-        image = raw_mat[idx, :].reshape([n_feats_per_channel, n_channels]).T
-        image = np.expand_dims(image, axis=2)
-        data_mat[idx, :] = np.squeeze(channel_whiten @ image)
-
-    data_mat.flush()
-    del data_mat
-    del raw_mat
 
 
 def patch_batch_gen(batch_size, data_dir='./data/patches_gray/new8by8/', whiten_mode='pca',
@@ -558,3 +246,14 @@ def find_memmap_size(path, data_type=np.float32):
 
     print('computed size:', lb)
 
+
+def pca_whiten_as_pca(data):
+    n_samples, n_features = data.shape
+    u, s, v = np.linalg.svd(data, full_matrices=False)
+    max_abs_cols = np.argmax(np.abs(u), axis=0)
+    signs = np.sign(u[max_abs_cols, range(u.shape[1])])
+    u *= signs
+    u *= np.sqrt(n_samples)
+    v *= signs[:, np.newaxis]
+    rerotate = v / s[:, np.newaxis] * np.sqrt(n_samples)
+    return u, rerotate

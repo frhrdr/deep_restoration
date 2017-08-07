@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tf_vgg import vgg16
-from utils.filehandling_utils import load_image
+from utils.filehandling import load_image
 from collections import namedtuple
 import os
 import time

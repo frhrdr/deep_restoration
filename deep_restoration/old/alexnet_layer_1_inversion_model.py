@@ -8,7 +8,7 @@ import matplotlib
 matplotlib.use('qt5agg', warn=False, force=True)
 import matplotlib.pyplot as plt
 from skimage.color import grey2rgb
-from utils.filehandling_utils import load_image
+from utils.filehandling import load_image
 
 Parameters = namedtuple('Paramters', ['conv_height', 'conv_width',
                                       'deconv_height', 'deconv_width', 'deconv_channels',

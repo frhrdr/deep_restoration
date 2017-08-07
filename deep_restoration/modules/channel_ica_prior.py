@@ -175,15 +175,6 @@ class ChannelICAPrior(ICAPrior):
                     train_time = 0
                     for count in range(prev_ckpt + 1, prev_ckpt + num_iterations + 1):
                         data = next(data_gen)
-                        # data = np.expand_dims(data[:, 0, :], axis=1)
-                        # print(data.shape)
-                        # comps = np.dot(data[:100, 0, :], unwhiten_mat[0, :, :])
-                        # print(comps.shape)
-                        #
-                        # comps -= np.min(comps)
-                        # comps /= np.max(comps)
-                        # co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
-                        # plot_img_mats(co, color=False)
 
                         if lr_lower_points and lr_lower_points[0][0] <= count:
                             lr = lr_lower_points[0][1]
