@@ -134,8 +134,8 @@ def make_reduced_feat_map_mats(num_patches, load_dir, n_features, n_to_keep,
     del data_mat
 
 
-def make_channel_separate_feat_map_mats(num_patches, ph, pw, classifier, map_name, n_channels,
-                                        save_dir, whiten_mode='pca', batch_size=10):
+def dep_make_channel_separate_feat_map_mats(num_patches, ph, pw, classifier, map_name, n_channels,
+                                            save_dir, whiten_mode='pca', batch_size=10):
     """
     ABOUT TO BE DEPRECATED
     creates whitening, covariance, raw and whitened feature matrices for separate channels.
@@ -257,9 +257,45 @@ def make_channel_separate_feat_map_mats(num_patches, ph, pw, classifier, map_nam
     del raw_mat
 
 
+def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_channels,
+                              save_dir, n_feats_white, whiten_mode='pca', batch_size=100,
+                              mean_mode='local_full', cov_mode='global_feature'):
+    """
+        creates whitening, covariance, raw and whitened feature matrices for separate channels.
+        They are saved as 3d matrices where the first dimension is the channel index
+        """
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir)
+    print('raw mat done')
+
+    norm_mat = normed_patch_data_mat(raw_mat, save_dir, mean_mode=mean_mode, cov_mode=cov_mode)
+    print('normed mat done')
+
+    flat_mat = norm_mat.reshape([num_patches, -1])
+
+    cov = flattened_cov_acc(flat_mat, save_dir)
+    print('cov done')
+
+    whiten, unwhiten = flattened_whitening_mats(cov, whiten_mode, save_dir, n_feats_white)
+    print('whitening mats done')
+
+    data_mat = np.memmap(save_dir + 'white_mat_' + whiten_mode + '_channelwise.npy', dtype=np.float32, mode='w+',
+                         shape=(num_patches, n_feats_white))
+
+    for idx in range(num_patches // batch_size):
+        image = flat_mat[idx * batch_size:(idx + 1) * batch_size, :]  # [bs, n_f]
+        # whiten is [n_fw, n_f], target [bs, n_fw]
+        data_mat[idx * batch_size:(idx + 1) * batch_size, :] = image @ whiten.T  # [bs, n_f] x [n_f, n_fw] = [bs, n_fw]
+    print('whitened data done')
+
+
+
 def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, n_channels,
-                                     save_dir, whiten_mode='pca', batch_size=10,
-                                     store_mean=True, channel_mean=True, store_cov=True):
+                                     save_dir, whiten_mode='pca', batch_size=100,
+                                     mean_mode='global_channel', cov_mode='global_channel'):
     """
     creates whitening, covariance, raw and whitened feature matrices for separate channels.
     They are saved as 3d matrices where the first dimension is the channel index
@@ -271,25 +307,23 @@ def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, 
     raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir)
     print('raw mat done')
 
-    data_mat = normed_patch_data_mat(raw_mat, store_mean, channel_mean, store_cov, save_dir)
+    norm_mat = normed_patch_data_mat(raw_mat, save_dir, mean_mode=mean_mode, cov_mode=cov_mode)
     print('normed mat done')
 
-    cov = channel_independent_cov_acc(data_mat, save_dir)
+    cov = channel_independent_cov_acc(norm_mat, save_dir)
     print('cov done')
 
     channel_whiten, channel_unwhiten = channel_independent_whitening_mats(cov, whiten_mode, save_dir)
     print('whitening mats done')
 
-
     data_mat = np.memmap(save_dir + 'white_mat_' + whiten_mode + '_channelwise.npy', dtype=np.float32, mode='w+',
                          shape=(num_patches, n_channels, channel_whiten.shape[1]))
 
-    n_feats_per_channel = cov.shape[1]
     for idx in range(num_patches):
-        image = data_mat[idx, :, :]  # [n_c, n_fpc]               .reshape([n_feats_per_channel, n_channels]).T
-        image = np.expand_dims(image, axis=2)
-        data_mat[idx, :] = np.squeeze(channel_whiten @ image)
-
+        image = norm_mat[idx, :, :]  # [n_c, n_fpc]
+        # channel_whiten is [n_c, n_fpcw, n_fpc], target [n_c, n_fpcw]
+        image = np.expand_dims(image, axis=2)  # [n_c, n_fpc, 1]
+        data_mat[idx, :] = np.squeeze(channel_whiten @ image)  # [n_c, n_fpcw, n_fpc] x [n_c, n_fpc, 1] = [n_c, n_fpcw]
     print('whitened data done')
 
 
@@ -355,31 +389,131 @@ def raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_
         del raw_mat
 
     raw_mat = np.memmap(file_path, dtype=np.float32, mode='r',
-                        shape=(num_patches, n_features))
+                        shape=(num_patches, n_channels, n_feats_per_channel))
     return raw_mat
 
 
-def normed_patch_data_mat(raw_mat, store_mean, channel_mean, store_cov, save_dir, file_name='normed_mat.npy'):
+def normed_patch_data_mat(raw_mat, save_dir,
+                          mean_mode='global_channel', cov_mode='global_channel',
+                          file_name='normed_mat.npy', batch_size=100):
 
-    return raw_mat
+    modes =  ('global_channel', 'global_feature', 'local_channel', 'local_full')
+    assert mean_mode in modes
+    assert cov_mode in modes
+    num_patches = raw_mat.shape[0]
+    assert num_patches % batch_size == 0
+    data_mat = np.memmap(save_dir + file_name, dtype=np.float32, mode='w+',
+                         shape=raw_mat.shape)
 
-def channel_independent_cov_acc(data_mat, save_dir, batch_size=100, file_name='cov.npy'):
-    num_patches, n_channels, n_feats_per_channel = data_mat.shape
+    if mean_mode == 'global_channel':
+        channel_mean = np.mean(raw_mat, axis=(0, 2))
 
-    channel_covs = np.zeros(shape=[n_channels, n_feats_per_channel, n_feats_per_channel])
+        for idx in range(num_patches // batch_size):
+            batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
+            batch = np.rollaxis(np.rollaxis(batch, axis=2, start=1) - channel_mean, axis=2, start=1)
+            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch
+
+        np.save(save_dir + 'channel_mean.npy', channel_mean)
+
+    elif mean_mode == 'global_feature':
+        raise NotImplementedError
+
+    elif mean_mode == 'local_channel':
+        for idx in range(num_patches // batch_size):
+            batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
+            channel_mean = np.expand_dims(np.mean(batch, axis=2), axis=1)
+            batch = np.rollaxis(np.rollaxis(batch, axis=2, start=1) - channel_mean, axis=2, start=1)
+            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch
+
+    else:  # mean_mode =='local_full'
+        for idx in range(num_patches // batch_size):
+            batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
+            sample_mean = np.mean(batch, axis=(1, 2))
+            batch = (batch.transpose() - sample_mean).transpose()
+            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch
+
+    if cov_mode == 'global_channel':
+        channel_cov = np.mean(raw_mat, axis=(0, 2))
+
+        for idx in range(num_patches // batch_size):
+            batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
+            batch = np.rollaxis(np.rollaxis(batch, axis=2, start=1) / channel_cov, axis=2, start=1)
+            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch
+
+        np.save(save_dir + 'channel_cov.npy', channel_cov)
+
+    elif cov_mode == 'global_feature':
+        feat_cov = np.mean(raw_mat, axis=0)
+
+        for idx in range(num_patches // batch_size):
+            batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
+            batch = batch / feat_cov
+            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch
+
+        np.save(save_dir + 'feature_cov.npy', feat_cov)
+
+
+    elif cov_mode == 'local_channel':
+        raise NotImplementedError
+
+    else:  # cov_mode =='local_full'
+        raise NotImplementedError
+
+    del data_mat
+    data_mat = np.memmap(save_dir + file_name, dtype=np.float32, mode='r',
+                         shape=raw_mat.shape)
+    return data_mat
+
+
+def flattened_cov_acc(norm_mat, save_dir, batch_size=100, file_name='cov.npy'):
+    num_patches, n_feats = norm_mat.shape
+
+    channel_covs = np.zeros(shape=[n_feats, n_feats])
 
     assert num_patches % batch_size == 0
 
-    for idx in range(num_patches % batch_size):
-        batch = data_mat[idx * batch_size:(idx + 1) * batch_size, :, :]  # batch has shape [bs, n_c, n_fpc]
-        batch = np.rollaxis(batch, axis=0, start=2)
-        channel_covs += np.matmul(np.rollaxis(batch, axis=0, start=2), np.rollaxis(batch, axis=0, start=1))
+    for idx in range(num_patches // batch_size):
+        batch = norm_mat[idx * batch_size:(idx + 1) * batch_size, :]  # batch has shape [bs, n_f]
+        channel_covs += np.matmul(batch.T, batch)
 
     channel_covs = channel_covs / (num_patches - 1)
 
     np.save(save_dir + file_name, channel_covs)
 
     return channel_covs
+
+
+def channel_independent_cov_acc(norm_mat, save_dir, batch_size=100, file_name='cov.npy'):
+    num_patches, n_channels, n_feats_per_channel = norm_mat.shape
+
+    channel_covs = np.zeros(shape=[n_channels, n_feats_per_channel, n_feats_per_channel])
+
+    assert num_patches % batch_size == 0
+
+    for idx in range(num_patches // batch_size):
+        batch = norm_mat[idx * batch_size:(idx + 1) * batch_size, :, :]  # batch has shape [bs, n_c, n_fpc]
+        channel_covs += np.matmul(batch.transpose((1, 2, 0)), batch.transpose((1, 0, 2)))
+
+    channel_covs = channel_covs / (num_patches - 1)
+
+    np.save(save_dir + file_name, channel_covs)
+
+    return channel_covs
+
+
+def flattened_whitening_mats(cov, whiten_mode, save_dir, n_feats_white):
+    n_to_drop = cov.shape[0] - n_feats_white
+    if whiten_mode == 'pca':
+        whiten, unwhiten = pca_whiten_mats(cov, n_to_drop=n_to_drop)
+    elif whiten_mode == 'zca':
+        raise NotImplementedError
+    else:
+        raise NotImplementedError
+
+    np.save(save_dir + 'whiten_' + whiten_mode + '.npy', whiten)
+    np.save(save_dir + 'unwhiten_' + whiten_mode + '.npy', unwhiten)
+
+    return whiten, unwhiten
 
 
 def channel_independent_whitening_mats(cov, whiten_mode, save_dir):

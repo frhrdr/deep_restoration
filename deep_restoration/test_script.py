@@ -1,5 +1,5 @@
 from utils.preprocessing import make_feat_map_mats, make_reduced_feat_map_mats, \
-    make_channel_separate_feat_map_mats
+    dep_make_channel_separate_feat_map_mats
 from modules.channel_ica_prior import ChannelICAPrior
 from modules.ica_prior import ICAPrior
 from modules.foe_prior import FoEPrior

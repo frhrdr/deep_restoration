@@ -4,8 +4,8 @@ import numpy as np
 def pca_whiten_mats(cov, n_to_drop=1):
     e_vals, e_vecs = np.linalg.eigh(cov)
     assert all(a <= b for a, b in zip(e_vals[:-1], e_vals[1:]))  # make sure vals are sorted ascending (they should be)
-    # print(e_vals.sum())
-    # print(e_vals)
+    print(e_vals.sum())
+    print(e_vals)
     full_eigv = sum(e_vals)
     keep_eigv = sum(e_vals[n_to_drop:])
 
