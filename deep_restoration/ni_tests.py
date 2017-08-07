@@ -79,4 +79,4 @@ pre_img_init = None
 ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
                    lr_lower_points=((0, 9e-1),),
-                   save_as_plot=True, pre_img_init=pre_img_init, tensor_names_to_save=())
+                   save_as_plot=False, pre_img_init=pre_img_init, tensor_names_to_save=())
