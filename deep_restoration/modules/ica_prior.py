@@ -2,16 +2,26 @@ import tensorflow as tf
 import numpy as np
 from modules.loss_modules import LearnedPriorLoss
 from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
+from utils.preprocessing import preprocess_tensor
 import time
 import os
-
+# _mean_lf_sdev_none
 
 class ICAPrior(LearnedPriorLoss):
 
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
                  n_features_white,
-                 trainable=False, name='ICAPrior',load_name='ICAPrior', dir_name='ica_prior'):
-        load_path = self.get_load_path(dir_name, classifier, tensor_names, filter_dims, n_components, n_features_white)
+                 trainable=False, name='ICAPrior',load_name='ICAPrior', dir_name='ica_prior',
+                 mean_mode='lf', sdev_mode='none'):
+        mode_abbreviatons = {'global_channel': 'gc', 'global_feature': 'gf', 'local_channel': 'lc', 'local_full': 'lf'}
+        if mean_mode in mode_abbreviatons:
+            mean_mode = mode_abbreviatons[mean_mode]
+        if sdev_mode in mode_abbreviatons:
+            sdev_mode = mode_abbreviatons[sdev_mode]
+
+        load_path = self.get_load_path(dir_name, classifier, tensor_names, filter_dims,
+                                       n_components, n_features_white, mean_mode, sdev_mode)
+
         super().__init__(tensor_names, weighting, name, load_path, trainable, load_name)
         self.filter_dims = filter_dims  # tuple (height, width)
         self.input_scaling = input_scaling  # most likely 1, 255 or 1/255
@@ -20,24 +30,42 @@ class ICAPrior(LearnedPriorLoss):
         self.n_features_white = n_features_white
         self.dir_name = dir_name
         self.classifier = classifier
+        self.mean_mode = mean_mode
+        self.sdev_mode = sdev_mode
+
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
             tensor = self.get_tensors()
             scaled_tensor = tensor * self.input_scaling
-            dims = [s.value for s in tensor.get_shape()]
-            assert len(dims) == 4
-            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], dims[3]))
+
+            # filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], dims[3]))
+            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], 1))
+
             flat_filter = tf.constant(filter_mat, dtype=tf.float32)
             x_pad = ((self.filter_dims[0] - 1) // 2, int(np.ceil((self.filter_dims[0] - 1) / 2)))
             y_pad = ((self.filter_dims[1] - 1) // 2, int(np.ceil((self.filter_dims[1] - 1) / 2)))
             conv_input = tf.pad(scaled_tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
-            flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
-            centered_patches = flat_patches - tf.stack([tf.reduce_mean(flat_patches, axis=3)] * filter_mat.shape[3],
-                                                       axis=3)
+            # flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
 
-            n_features_raw = filter_mat.shape[3]
-            centered_patches = tf.reshape(centered_patches, shape=[-1, n_features_raw])
+            feat_map_list = tf.split(conv_input, num_or_size_splits=conv_input.get_shape()[3].value, axis=3)
+            flat_patches_list = [tf.nn.conv2d(k, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
+                                 for k in feat_map_list]  # first, filter per channel
+            flat_patches = tf.stack(flat_patches_list, axis=4)
+            fps = [k.value for k in flat_patches.get_shape()]  # shape=[bs, h, w, n_fpc, n_c]
+            n_patches = fps[1] * fps[2]
+            n_features_raw = fps[3] * fps[4]
+            flat_patches = tf.reshape(flat_patches, shape=[fps[0], n_patches, fps[3], fps[4]])  # flatten h,w
+            assert fps[0] == 1  # commit to singular batch size
+            flat_patches = tf.squeeze(flat_patches)
+            print(1, flat_patches.get_shape())
+
+            # prep goes here: out shape=[h*w, n_fpc, n_c]
+            normed_patches = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode)
+            normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
+            # flat_patches = tf.reshape(flat_patches, shape=[n_patches, n_features_raw])
+            # means = tf.stack([tf.reduce_mean(flat_patches, axis=1)] * n_features_raw, axis=1)
+            # centered_patches = flat_patches - means
 
             whitening_tensor = tf.get_variable('whiten_mat', shape=[self.n_features_white, n_features_raw],
                                                dtype=tf.float32, trainable=False)
@@ -46,12 +74,17 @@ class ICAPrior(LearnedPriorLoss):
             ica_w = tf.get_variable('ica_w', shape=[self.n_features_white, self.n_components],
                                     trainable=self.trainable, dtype=tf.float32)
             ica_a_squeezed = tf.squeeze(ica_a)
-
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
-            xw = tf.matmul(centered_patches, whitened_mixing)
+
+            # normed_patches = tf.Print(normed_patches, [tf.reduce_max(normed_patches), tf.reduce_max(flat_patches),
+            #                                            tf.reduce_max(tensor), tf.reduce_max(ica_a_squeezed)])
+
+            xw = tf.matmul(normed_patches, whitened_mixing)
             neg_g_wx = tf.log(0.5 * (tf.exp(-xw) + tf.exp(xw))) * ica_a_squeezed
             neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
             naive_mean = tf.reduce_mean(neg_log_p_patches, name='loss')
+            # naive_mean = tf.Print(naive_mean, [tf.reduce_max(xw), tf.reduce_max(neg_log_p_patches),
+            #                                    tf.reduce_max(neg_g_wx), tf.reduce_max(naive_mean)])
             self.loss = naive_mean
 
             self.var_list = [ica_a, ica_w, whitening_tensor]
@@ -79,23 +112,18 @@ class ICAPrior(LearnedPriorLoss):
         log_path = self.load_path
         ph, pw = self.filter_dims
 
-        d_str = str(self.filter_dims[0]) + 'x' + str(self.filter_dims[1])
-        if 'pre_img' in self.in_tensor_names:
-            subdir = 'image/' + d_str
-        else:
-            t_str = self.in_tensor_names[:-len(':0')].replace('/', '_')
-            subdir = self.classifier + '/' + t_str + '_' + d_str + '_' + str(self.n_features_white) + 'feats'
-        data_dir = '../data/patches/' + subdir + '/'
+        data_dir = self.make_data_dir()
 
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
                                    data_shape=(num_data_samples, self.n_features_white))
-        unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
-        whiten_mat = np.load(data_dir + 'whiten_' + whiten_mode + '.npy').astype(np.float32)
+        # unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
+        # whiten_mat = np.load(data_dir + 'whiten_' + whiten_mode + '.npy').astype(np.float32)
         with tf.Graph().as_default() as graph:
             with tf.variable_scope(self.name):
                 # add whitening mats to the save-files for later retrieval
-                tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
-                tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
+                # tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
+                # tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
+                self.add_preprocessing_to_graph(data_dir, whiten_mode)
 
                 x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_features_white], name='x_pl')
                 lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
@@ -183,14 +211,16 @@ class ICAPrior(LearnedPriorLoss):
                     saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=num_iterations)
 
                     if plot_filters:
+                        unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
                         w_res, alp = sess.run([w_mat, alpha])
-                        print(alp)
                         comps = np.dot(w_res.T, unwhiten_mat)
                         print(comps.shape)
                         comps -= np.min(comps)
                         comps /= np.max(comps)
-                        co = np.reshape(comps[:n_vis, :], [-1, ph, pw, 3])
-                        plot_img_mats(co, color=True)
+                        # co = np.reshape(comps[:n_vis, :], [n_vis, ph, pw, 3])
+                        co = np.reshape(comps[:n_vis, :], [n_vis, 3, ph, pw])
+                        co = np.transpose(co, axes=[0, 2, 3, 1])
+                        plot_img_mats(co, color=True, rescale=True)
 
     def plot_filters(self, filter_ids, save_path, save_as_mat=False, save_as_plot=True):
         """
@@ -243,7 +273,8 @@ class ICAPrior(LearnedPriorLoss):
                     print('filter {} done'.format(filter_id))
 
     @staticmethod
-    def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components, n_features_white):
+    def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
+                      n_features_white, mean_mode, sdev_mode):
         d_str = str(filter_dims[0]) + 'x' + str(filter_dims[1])
         if 'pre_img' in tensor_name:
             subdir = 'image/color'
@@ -252,5 +283,38 @@ class ICAPrior(LearnedPriorLoss):
 
         cf_str = str(n_components) + 'comps_' + str(n_features_white) + 'feats'
         target_dir =  '_' + d_str + '_' + cf_str
-        load_path = '../logs/priors/' + dir_name + '/' + subdir + target_dir + '/'
+        mode_str = '_mean_' + mean_mode + '_sdev_' + sdev_mode
+        load_path = '../logs/priors/' + dir_name + '/' + subdir + target_dir + mode_str + '/'
+
         return load_path
+
+    def make_data_dir(self):
+        d_str = str(self.filter_dims[0]) + 'x' + str(self.filter_dims[1])
+        mode_str = ''
+        retrieve_modes = ('gc', 'gf')
+        if self.mean_mode in retrieve_modes or self.sdev_mode in retrieve_modes:
+            mode_str = '_mean_{0}_sdev_{1}'.format(self.mean_mode, self.sdev_mode)
+        if 'pre_img' in self.in_tensor_names:
+            subdir = 'image/' + d_str
+        else:
+            t_str = self.in_tensor_names[:-len(':0')].replace('/', '_')
+            subdir = self.classifier + '/' + t_str + '_' + d_str + '_' + str(self.n_features_white) + 'feats'
+        data_dir = '../data/patches/' + subdir + mode_str + '/'
+        return data_dir
+
+
+    def add_preprocessing_to_graph(self, data_dir, whiten_mode):
+        unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
+        whiten_mat = np.load(data_dir + 'whiten_' + whiten_mode + '.npy').astype(np.float32)
+
+        tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
+        tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
+
+        retrieve_modes = ('gc', 'gf')
+        if self.mean_mode in retrieve_modes:
+            mean_mat = np.load(data_dir + 'data_mean.npy').astype(np.float32)
+            tf.get_variable('centering_mean', initializer=mean_mat, trainable=False, dtype=tf.float32)
+
+        if self.sdev_mode in retrieve_modes:
+            sdev_mat = np.load(data_dir + 'data_sdev.npy').astype(np.float32)
+            tf.get_variable('rescaling_sdev', initializer=sdev_mat, trainable=False, dtype=tf.float32)

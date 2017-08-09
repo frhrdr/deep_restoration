@@ -21,7 +21,7 @@ def flattening_filter(dims):
     return f
 
 
-def make_data_mat_from_patches(data_dir='./data/patches_gray/8x8/', whiten_mode='pca'):
+def dep_make_data_mat_from_patches(data_dir='./data/patches_gray/8x8/', whiten_mode='pca'):
     data_set_size = len([name for name in os.listdir(data_dir) if name.startswith('patch')])
     mm = np.memmap(data_dir + '/data_mat_' + whiten_mode + '.npy', dtype=np.float32, mode='w+',
                    shape=(data_set_size, 63))
@@ -43,7 +43,7 @@ def make_data_mat_from_patches(data_dir='./data/patches_gray/8x8/', whiten_mode=
         mm[idx, :] = image
 
 
-def make_cov_acc(data_dir='./data/patches_gray/8x8/'):
+def dep_make_cov_acc(data_dir='./data/patches_gray/8x8/'):
     data_set_size = len([name for name in os.listdir(data_dir) if name.startswith('patch')])
     cov_acc = 0
     for idx in range(data_set_size):
@@ -59,7 +59,7 @@ def make_cov_acc(data_dir='./data/patches_gray/8x8/'):
     np.save(data_dir + '/cov.npy', cov_acc)
 
 
-def make_img_data_mats(num_patches, ph=8, pw=8, color=False, save_dir='./data/patches_gray/new8by8/', whiten_mode='pca'):
+def dep_make_img_data_mats(num_patches, ph=8, pw=8, color=False, save_dir='./data/patches_gray/new8by8/', whiten_mode='pca'):
     img_hw = 224
     max_h = img_hw - ph
     max_w = img_hw - pw
@@ -123,7 +123,7 @@ def make_img_data_mats(num_patches, ph=8, pw=8, color=False, save_dir='./data/pa
         data_mat[idx, :] = image
 
 
-def patch_batch_gen(batch_size, data_dir='./data/patches_gray/new8by8/', whiten_mode='pca',
+def patch_batch_gen(batch_size, data_dir, whiten_mode='pca',
                     data_shape=(100000, 63)):
     if len(data_shape) == 2:
         data_mat = np.memmap(data_dir + 'data_mat_' + whiten_mode + '_whitened.npy',
@@ -141,7 +141,7 @@ def patch_batch_gen(batch_size, data_dir='./data/patches_gray/new8by8/', whiten_
                 batch = np.concatenate((last_bit, first_bit), axis=0)
             yield batch
     elif len(data_shape) == 3:
-        data_mat = np.memmap(data_dir + 'data_mat_' + whiten_mode + '_channel_whitened.npy',
+        data_mat = np.memmap(data_dir + 'data_mat_' + whiten_mode + '_whitened_channelwise.npy',
                              dtype=np.float32, mode='r', shape=data_shape)
         n_samples, n_channels, n_features = data_shape
         idx = 0
@@ -165,7 +165,9 @@ def plot_img_mats(mat, color=False, rescale=False, show=True, save_path=''):
     cols = int(np.ceil(np.sqrt(n)))
     rows = int(np.ceil(n / cols))
     if rescale:
-        mat = (mat - np.min(mat)) / (np.max(mat) - np.min(mat))
+        mat_min = np.min(mat.reshape([n, -1]), axis=1)
+        mat_max = np.max(mat.reshape([n, -1]), axis=1)
+        mat = ((mat.transpose() - mat_min) / (mat_max- mat_min)).transpose()
     else:
         mat = np.maximum(mat, 0.0)
         mat = np.minimum(mat, 1.0)
@@ -257,3 +259,11 @@ def pca_whiten_as_pca(data):
     v *= signs[:, np.newaxis]
     rerotate = v / s[:, np.newaxis] * np.sqrt(n_samples)
     return u, rerotate
+
+
+def patch_data_vis(patch_file, mat_shape, patch_hw, n_vis=100):
+    mat = np.memmap(patch_file, dtype=np.float32, mode='r', shape=mat_shape)
+    mat = np.transpose(mat, axes=(0, 2, 1))
+    mat = mat[:n_vis, :, :].reshape([n_vis, patch_hw, patch_hw, 3])
+
+    plot_img_mats(mat, color=True, rescale=True)

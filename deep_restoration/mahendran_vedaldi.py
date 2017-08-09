@@ -82,7 +82,7 @@ def invert_layer(params):
 
             ica_prior = ICAPrior(tensor_names='reconstruction/read:0',
                                  weighting=5.0e-6, name='ICAPrior',
-                                 load_path='./logs/priors/ica_prior/color_8x8_512comps_191feats/ckpt-10000',
+                                 load_path='./logs/priors/ica_prior/color_8x8_512comps_191feats_mean_lf_sdev_none/ckpt-10000',
                                  trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
 
             ica_prior.build()

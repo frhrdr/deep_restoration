@@ -2,9 +2,10 @@ import tensorflow as tf
 import numpy as np
 from modules.ica_prior import ICAPrior
 from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
+from utils.preprocessing import preprocess_tensor
 import time
 import os
-
+#  _mean_lc_sdev_none
 
 class ChannelICAPrior(ICAPrior):
     """
@@ -13,9 +14,11 @@ class ChannelICAPrior(ICAPrior):
 
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
                  n_features_white,
-                 trainable=False, name='ChannelICAPrior', load_name='ChannelICAPrior', dir_name='channel_ica_prior'):
+                 trainable=False, name='ChannelICAPrior', load_name='ChannelICAPrior', dir_name='channel_ica_prior',
+                 mean_mode='lc', sdev_mode='none'):
         super().__init__(tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                         n_features_white, trainable=trainable, name=name, load_name=load_name, dir_name=dir_name)
+                         n_features_white, trainable=trainable, name=name, load_name=load_name, dir_name=dir_name,
+                         mean_mode=mean_mode, sdev_mode=sdev_mode)
         self.n_features_total = n_features_white * n_channels
         self.load_path = self.load_path.rstrip('/') + '_channelwise/'
 
@@ -25,7 +28,7 @@ class ChannelICAPrior(ICAPrior):
             scaled_tensor = tensor * self.input_scaling
 
             feats_per_channel = self.filter_dims[0] * self.filter_dims[1]
-            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], 1))
+            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], 1))  # diff
             flat_filter = tf.constant(filter_mat, dtype=tf.float32)
 
             x_pad = ((self.filter_dims[0] - 1) // 2, int(np.ceil((self.filter_dims[0] - 1) / 2)))
@@ -33,15 +36,17 @@ class ChannelICAPrior(ICAPrior):
             conv_input = tf.pad(scaled_tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
 
             feat_map_list = tf.split(conv_input, num_or_size_splits=conv_input.get_shape()[3].value, axis=3)
+            flat_patches_list = [tf.nn.conv2d(k, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
+                                 for k in feat_map_list]
+            flat_patches = tf.stack(flat_patches_list, axis=4)
+            fps = [k.value for k in flat_patches.get_shape()]  # shape=[bs, h, w, n_fpc, n_c]
+            flat_patches = tf.reshape(flat_patches, shape=[fps[0], fps[1] * fps[2], fps[3], fps[4]])  # flatten h,w
+            assert fps[0] == 1  # commit to singular batch size
+            flat_patches = tf.squeeze(flat_patches)
+            print(0, flat_patches.get_shape())  # shape=[h*w, n_fpc, n_c]
 
-            flat_patches_list = [tf.nn.conv2d(k, flat_filter, strides=[1, 1, 1, 1], padding='VALID') for k in feat_map_list]
-
-            flat_patches = tf.stack(flat_patches_list, axis=0)
-            print(0, flat_patches.get_shape())
-            centered_patches = flat_patches - tf.stack([tf.reduce_mean(flat_patches, axis=4)] * feats_per_channel,
-                                                       axis=4)
-
-            centered_patches = tf.reshape(centered_patches, shape=[self.n_channels, -1, feats_per_channel])
+            # prep goes here: out shape=[h*w, n_fpc, n_c]
+            normed_patches = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode)
 
             whitening_tensor = tf.get_variable('whiten_mat',
                                                shape=[self.n_channels, self.n_features_white, feats_per_channel],
@@ -52,10 +57,10 @@ class ChannelICAPrior(ICAPrior):
             ica_a_squeezed = tf.squeeze(tf.nn.softplus(ica_a))
 
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
-            print(1, centered_patches.get_shape())
+            print(1, normed_patches.get_shape())
             print(2, whitened_mixing.get_shape())
             print(3, whitening_tensor.get_shape())
-            xw = tf.matmul(centered_patches, whitened_mixing)
+            xw = tf.matmul(tf.transpose(normed_patches, perm=[2, 0, 1]), whitened_mixing)
             print(4, xw.get_shape())
 
             neg_g_wx = tf.log(0.5 * (tf.exp(-xw) + tf.exp(xw))) * tf.stack([ica_a_squeezed] * xw.get_shape()[1].value,
@@ -103,24 +108,27 @@ class ChannelICAPrior(ICAPrior):
         log_path = self.load_path
         ph, pw = self.filter_dims
 
-        d_str = str(self.filter_dims[0]) + 'x' + str(self.filter_dims[1])
-        if 'pre_img' in self.in_tensor_names:
-            subdir = 'image/' + d_str
-        else:
-            t_str = self.in_tensor_names[:-len(':0')].replace('/', '_')
-            subdir = self.classifier + '/' + t_str + '_' + d_str + '_' + str(self.n_features_white) + 'feats'
-        data_dir = '../data/patches/' + subdir + '_channelwise/'
+        # d_str = str(self.filter_dims[0]) + 'x' + str(self.filter_dims[1])
+        # if 'pre_img' in self.in_tensor_names:
+        #     subdir = 'image/' + d_str
+        # else:
+        #     t_str = self.in_tensor_names[:-len(':0')].replace('/', '_')
+        #     subdir = self.classifier + '/' + t_str + '_' + d_str + '_' + str(self.n_features_white) + 'feats'
+        # data_dir = '../data/patches/' + subdir + '_channelwise/'
+        data_dir = self.make_data_dir()
 
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
                                    data_shape=(num_data_samples, self.n_channels, self.n_features_white))
-        unwhiten_mat = np.load(data_dir + 'channel_unwhiten_' + whiten_mode + '.npy').astype(np.float32)
-        whiten_mat = np.load(data_dir + 'channel_whiten_' + whiten_mode + '.npy').astype(np.float32)
+        # unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '_channelwise.npy').astype(np.float32)
+        # whiten_mat = np.load(data_dir + 'whiten_' + whiten_mode + '_channelwise.npy').astype(np.float32)
+
 
         with tf.Graph().as_default() as graph:
             with tf.variable_scope(self.name):
                 # add whitening mats to the save-files for later retrieval
-                tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
-                tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
+                # tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
+                # tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
+                self.add_preprocessing_to_graph(data_dir, whiten_mode)
 
                 x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_channels, self.n_features_white],
                                       name='x_pl')
@@ -211,6 +219,7 @@ class ChannelICAPrior(ICAPrior):
                     saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=num_iterations)
 
                     if plot_filters:
+                        unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
                         w_res, alp = sess.run([w_mat, alpha])
                         print(alp)
                         comps = np.dot(w_res[0, :, :].T, unwhiten_mat[0, :, :])
@@ -270,3 +279,6 @@ class ChannelICAPrior(ICAPrior):
                     file_name = 'filter_{}_alpha_{:.3e}.png'.format(filter_id, float(alpha))
                     plot_img_mats(plottable_filters, rescale=True, show=False, save_path=save_path + file_name)
                     print('filter {} done'.format(filter_id))
+
+    def make_data_dir(self):
+        return super().make_data_dir().rstrip('/') + '_channelwise/'

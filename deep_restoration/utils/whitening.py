@@ -10,7 +10,7 @@ def pca_whiten_mats(cov, n_to_drop=1):
     keep_eigv = sum(e_vals[n_to_drop:])
 
     print('kept eigv fraction: ', keep_eigv / full_eigv)
-    print(np.sum(e_vals < 0))
+    print('number of negative eigenvals', np.sum(e_vals < 0))
     e_vals = e_vals[n_to_drop:]  # dismiss first eigenvalue due to mean subtraction.
     e_vecs = e_vecs[:, n_to_drop:]
     sqrt_vals = np.sqrt(np.maximum(e_vals, 0))
