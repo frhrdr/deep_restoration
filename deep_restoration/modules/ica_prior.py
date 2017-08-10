@@ -52,15 +52,13 @@ class ICAPrior(LearnedPriorLoss):
             flat_patches_list = [tf.nn.conv2d(k, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
                                  for k in feat_map_list]  # first, filter per channel
             flat_patches = tf.stack(flat_patches_list, axis=4)
-            fps = [k.value for k in flat_patches.get_shape()]  # shape=[bs, h, w, n_fpc, n_c]
+            fps = [k.value for k in flat_patches.get_shape()]  # shape = [bs, h, w, n_fpc, n_c]
             n_patches = fps[1] * fps[2]
             n_features_raw = fps[3] * fps[4]
             flat_patches = tf.reshape(flat_patches, shape=[fps[0], n_patches, fps[3], fps[4]])  # flatten h,w
             assert fps[0] == 1  # commit to singular batch size
             flat_patches = tf.squeeze(flat_patches)
-            print(1, flat_patches.get_shape())
 
-            # prep goes here: out shape=[h*w, n_fpc, n_c]
             normed_patches = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode)
             normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
             # flat_patches = tf.reshape(flat_patches, shape=[n_patches, n_features_raw])
@@ -76,15 +74,16 @@ class ICAPrior(LearnedPriorLoss):
             ica_a_squeezed = tf.squeeze(ica_a)
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
 
-            # normed_patches = tf.Print(normed_patches, [tf.reduce_max(normed_patches), tf.reduce_max(flat_patches),
-            #                                            tf.reduce_max(tensor), tf.reduce_max(ica_a_squeezed)])
-
+            normed_patches = tf.Print(normed_patches, [tf.reduce_mean(normed_patches),
+                                                       tf.reduce_max(normed_patches), tf.reduce_max(flat_patches),
+                                                       tf.reduce_max(tensor), tf.reduce_max(ica_a_squeezed)])
+            normed_patches = tf.Print(normed_patches, [tf.reduce_max(whitened_mixing)])
             xw = tf.matmul(normed_patches, whitened_mixing)
             neg_g_wx = tf.log(0.5 * (tf.exp(-xw) + tf.exp(xw))) * ica_a_squeezed
             neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
             naive_mean = tf.reduce_mean(neg_log_p_patches, name='loss')
-            # naive_mean = tf.Print(naive_mean, [tf.reduce_max(xw), tf.reduce_max(neg_log_p_patches),
-            #                                    tf.reduce_max(neg_g_wx), tf.reduce_max(naive_mean)])
+            naive_mean = tf.Print(naive_mean, [tf.reduce_max(xw), tf.reduce_max(neg_log_p_patches),
+                                               tf.reduce_max(neg_g_wx), tf.reduce_max(naive_mean)])
             self.loss = naive_mean
 
             self.var_list = [ica_a, ica_w, whitening_tensor]

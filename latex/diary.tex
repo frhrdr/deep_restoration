@@ -25,6 +25,7 @@
 \begin{enumerate}
 	\item integrate mean and sdev loading into the priors, adapt data-filenaming conventions
 	\item create image dataset with gc,gc normalization
+	\item enforce consistent feature map flattening - always flatten from [channels, height, width] - so each feature map lies on a continuous interval on the vector
 	\item train gc,gc image ica prior
 	\item train and test conv1lin feature map priors (1 ica, 1 cica)
 \end{enumerate}

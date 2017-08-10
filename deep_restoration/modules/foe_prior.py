@@ -20,15 +20,17 @@ class FoEPrior(ICAPrior):
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
             tensor = self.get_tensors()
-            dims = [s.value for s in tensor.get_shape()]
-            assert len(dims) == 4
-            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], dims[3]))
+            scaled_tensor = tensor * self.input_scaling
+
+            # filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], dims[3]))
+            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], 1))
+
             flat_filter = tf.constant(filter_mat, dtype=tf.float32)
             x_pad = ((self.filter_dims[0] - 1) // 2, int(np.ceil((self.filter_dims[0] - 1) / 2)))
             y_pad = ((self.filter_dims[1] - 1) // 2, int(np.ceil((self.filter_dims[1] - 1) / 2)))
-
-            conv_input = tf.pad(tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
+            conv_input = tf.pad(scaled_tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
             # flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
+
             feat_map_list = tf.split(conv_input, num_or_size_splits=conv_input.get_shape()[3].value, axis=3)
             flat_patches_list = [tf.nn.conv2d(k, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
                                  for k in feat_map_list]  # first, filter per channel
@@ -41,7 +43,7 @@ class FoEPrior(ICAPrior):
             flat_patches = tf.squeeze(flat_patches)
             print(1, flat_patches.get_shape())
 
-            normed_patches = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode, self.load_path)
+            normed_patches = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode)
             normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
 
             # scaled_patches = flat_patches  # * self.input_scaling

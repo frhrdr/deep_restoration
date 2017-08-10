@@ -4,6 +4,9 @@ from modules.channel_ica_prior import ChannelICAPrior
 from modules.ica_prior import ICAPrior
 from modules.foe_prior import FoEPrior
 import numpy as np
+from utils.preprocessing import make_flattened_patch_data
+
+
 # r = range(500, 17000, 500)
 # for i in r:
 #     mat_to_img('../logs/net_inversion/alexnet/c4_rec/mse4_pimg_pc2rich_1e-9/mats/rec_' + str(i) + '.npy', cols=1)
@@ -14,9 +17,6 @@ import numpy as np
 #                                     save_dir='../data/patches/alexnet/conv1_lin_8x8_63feats_channelwise/',
 #                                     whiten_mode='pca', batch_size=100)
 #
-dep_make_feat_map_mats(100000, map_name='rgb_scaled:0', classifier='alexnet', ph=8, pw=8,
-                       save_dir='../data/patches/alexnet/conv2_lin_5x5_6399feats_redo/',
-                       whiten_mode='pca', batch_size=100)
 #
 # make_feat_map_mats(100000, map_name='conv2/relu:0', classifier='alexnet', ph=5, pw=5,
 #                    save_dir='../data/patches/alexnet/conv2_relu_5x5_6399feats_redo/',
@@ -41,7 +41,11 @@ dep_make_feat_map_mats(100000, map_name='rgb_scaled:0', classifier='alexnet', ph
 
 
 
-
+make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='rgb_scaled:0',
+                          n_channels=3,
+                          save_dir='../data/patches/image/8x8_mean_lf_sdev_gc/',
+                          n_feats_white=191, whiten_mode='pca', batch_size=100,
+                          mean_mode='local_full', cov_mode='global_channel')
 
 
 

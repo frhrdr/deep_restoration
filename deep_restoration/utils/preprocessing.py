@@ -274,8 +274,9 @@ def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_chann
     norm_mat = normed_patch_data_mat(raw_mat, save_dir, mean_mode=mean_mode, sdev_mode=cov_mode)
     print('normed mat done')
 
-
-    flat_mat = np.transpose(norm_mat, axes=(0, 2, 1)).reshape([num_patches, -1])
+    flat_mat = norm_mat  # np.transpose(norm_mat, axes=(0, 2, 1))
+    print('mat dims pre flatten:', flat_mat.shape)
+    flat_mat = flat_mat.reshape([num_patches, -1])
 
     cov = flattened_cov_acc(flat_mat, save_dir)
     print('cov done')
@@ -283,7 +284,7 @@ def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_chann
     whiten, unwhiten = flattened_whitening_mats(cov, whiten_mode, save_dir, n_feats_white)
     print('whitening mats done')
 
-    data_mat = np.memmap(save_dir + 'white_mat_' + whiten_mode + '.npy', dtype=np.float32, mode='w+',
+    data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_whitened.npy', dtype=np.float32, mode='w+',
                          shape=(num_patches, n_feats_white))
 
     for idx in range(num_patches // batch_size):
