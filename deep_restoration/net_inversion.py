@@ -121,10 +121,14 @@ class NetInversion:
                 image = tf.constant(img_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])
 
                 if pre_img_init is None and scale_pre_img == 2.7098e+4:
-                    print('using special initializer')
+                    print('using special initializer')  # remnant from m&v settings
                     pre_img_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.0001))
                 elif pre_img_init is None:
-                    pre_img_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.27))
+                    # pre_img_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.27))
+                    pre_img_init = np.random.normal(loc=np.mean(self.imagenet_mean), scale=0.1,
+                                                    size=([1, self.img_hw, self.img_hw, 3])).astype(np.float32)
+                    pre_img_init = np.maximum(pre_img_init, 0.)
+                    pre_img_init = np.minimum(pre_img_init, 255.)
                 pre_img = tf.get_variable('pre_img', dtype=tf.float32, initializer=pre_img_init)
 
                 jitter_x_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_x_pl')

@@ -28,9 +28,9 @@ mse1.add_loss = False
 #                      n_features_white=1000)
 
 ica_img = ICAPrior(tensor_names='pre_img/read:0',
-                   weighting=1e-7, name='ImgPrior',
+                   weighting=1e-9, name='ImgPrior',
                    classifier='alexnet',
-                   filter_dims=[8, 8], input_scaling=1., n_components=512, n_channels=3,
+                   filter_dims=[8, 8], input_scaling=1.0, n_components=512, n_channels=3,
                    n_features_white=64*3-1,
                    mean_mode = 'gc', sdev_mode = 'gc')
 # c2_prior = FoEPrior(tensor_names='conv2/lin:0',
@@ -47,11 +47,11 @@ cica_img = ChannelICAPrior(tensor_names='pre_img/read:0',
                            mean_mode='gc', sdev_mode='gc')
 
 foe_img = FoEPrior(tensor_names='pre_img/read:0',
-                   weighting=1e-7, name='ImgPrior',
+                   weighting=1e-6, name='ImgPrior',
                    classifier='alexnet',
                    filter_dims=[8, 8], input_scaling=1., n_components=512, n_channels=3,
                    n_features_white=64*3-1,
-                   mean_mode = 'gc', sdev_mode = 'gc')
+                   mean_mode = 'lf', sdev_mode = 'gc')
 
 # cica_c1l = ChannelICAPrior(tensor_names='conv1_lin:0',
 #                            weighting=1e-5, name='Conv1LinCICAPrior',
@@ -59,10 +59,9 @@ foe_img = FoEPrior(tensor_names='pre_img/read:0',
 #                            filter_dims=[5, 5], input_scaling=1.0, n_components=50, n_channels=96,
 #                            n_features_white=24)
 
-
 # 2.7098e+4
 
-modules = [split2, mse2, foe_img]
+modules = [split2, mse2, ica_img]
 
 params = dict(classifier='alexnet',
               modules=modules,
@@ -79,10 +78,10 @@ copyfile('./ni_tests.py', params['log_path'] + 'script.py')
 
 ni = NetInversion(params)
 
-pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_3000.npy'), [1, 224, 224, 3])
-# pre_img_init = None
+# pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_10000.npy'), [1, 224, 224, 3])
+pre_img_init = None
 # 2.7098e+4
-ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
+ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='momentum',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
-                   lr_lower_points=((0, 6e-1),), grad_clip=10000.,
+                   lr_lower_points=((0, 1e-2),), grad_clip=10000.,
                    save_as_plot=True, pre_img_init=pre_img_init, tensor_names_to_save=())

@@ -259,24 +259,27 @@ def dep_make_channel_separate_feat_map_mats(num_patches, ph, pw, classifier, map
 
 def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_channels,
                               save_dir, n_feats_white, whiten_mode='pca', batch_size=100,
-                              mean_mode='local_full', cov_mode='global_feature'):
+                              mean_mode='local_full', cov_mode='global_feature', raw_mat_load_path=''):
     """
-        creates whitening, covariance, raw and whitened feature matrices for separate channels.
-        They are saved as 3d matrices where the first dimension is the channel index
-        """
+    creates whitening, covariance, raw and whitened feature matrices for separate channels.
+    all data is saved as [n_patches, n_channels, n_features_per_channel]
+    """
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir)
+    if raw_mat_load_path:
+        raw_mat = np.memmap(raw_mat_load_path, dtype=np.float32, mode='r',
+                            shape=(num_patches, n_channels, ph * pw))
+    else:
+        raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir)
     print('raw mat done')
 
     norm_mat = normed_patch_data_mat(raw_mat, save_dir, mean_mode=mean_mode, sdev_mode=cov_mode)
     print('normed mat done')
 
-    flat_mat = norm_mat  # np.transpose(norm_mat, axes=(0, 2, 1))
-    print('mat dims pre flatten:', flat_mat.shape)
-    flat_mat = flat_mat.reshape([num_patches, -1])
+    print('mat dims pre flatten:', norm_mat.shape)
+    flat_mat = norm_mat.reshape([num_patches, -1])
 
     cov = flattened_cov_acc(flat_mat, save_dir)
     print('cov done')
@@ -294,10 +297,10 @@ def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_chann
     print('whitened data done')
 
 
-
 def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, n_channels,
                                      save_dir, whiten_mode='pca', batch_size=100,
-                                     mean_mode='global_channel', sdev_mode='global_channel'):
+                                     mean_mode='global_channel', sdev_mode='global_channel',
+                                     raw_mat_load_path=''):
     """
     creates whitening, covariance, raw and whitened feature matrices for separate channels.
     They are saved as 3d matrices where the first dimension is the channel index
@@ -306,7 +309,11 @@ def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir)
+    if raw_mat_load_path:
+        raw_mat = np.memmap(raw_mat_load_path, dtype=np.float32, mode='r',
+                            shape=(num_patches, n_channels, ph * pw))
+    else:
+        raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir)
     print('raw mat done')
 
     norm_mat = normed_patch_data_mat(raw_mat, save_dir, mean_mode=mean_mode, sdev_mode=sdev_mode)
@@ -353,7 +360,7 @@ def raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_
             feat_map = graph.get_tensor_by_name(map_name)
             map_dims = [d.value for d in feat_map.get_shape()]
             n_feats_per_channel = ph * pw
-            n_features = n_feats_per_channel * map_dims[3]
+            # n_features = n_feats_per_channel * map_dims[3]
 
             data_path = '../data/imagenet2012-validationset/'
             img_file = 'train_48k_images.txt'
@@ -384,7 +391,7 @@ def raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_
                 for idx in range(batch_size):
                     h = np.random.randint(0, max_h)
                     w = np.random.randint(0, max_w)
-                    map_patch = np.rollaxis(map_mat[idx, h:h + ph, w:w + pw, :], axis=2)
+                    map_patch = np.transpose(map_mat[idx, h:h + ph, w:w + pw, :], axes=(2, 0, 1))
                     map_patch = map_patch.reshape([n_channels, -1]).astype(np.float32)
                     raw_mat[idx + (count * batch_size), :, :] = map_patch
 
@@ -397,12 +404,14 @@ def raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_
 
 def normed_patch_data_mat(raw_mat, save_dir,
                           mean_mode='global_channel', sdev_mode='global_channel',
-                          file_name='normed_mat.npy', batch_size=100):
+                          file_name='normed_mat.npy', batch_size=0):
 
-    modes =  ('global_channel', 'global_feature', 'local_channel', 'local_full', 'gc', 'gf', 'lc', 'lf')
+    modes =  ('global_channel', 'global_feature', 'local_channel', 'local_full',
+              'gc', 'gf', 'lc', 'lf', 'none')
     assert mean_mode in modes
     assert sdev_mode in modes
-    num_patches = raw_mat.shape[0]
+    num_patches, n_channels, n_feats_per_channel = raw_mat.shape
+    batch_size = batch_size if batch_size else num_patches
     assert num_patches % batch_size == 0
     data_mat = np.memmap(save_dir + file_name, dtype=np.float32, mode='w+',
                          shape=raw_mat.shape)
@@ -410,58 +419,75 @@ def normed_patch_data_mat(raw_mat, save_dir,
     ###### MEAN treatment ######
     if mean_mode in ('global_channel', 'gc'):
         channel_mean = np.mean(raw_mat, axis=(0, 2))
-
         for idx in range(num_patches // batch_size):
             batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
-            batch = np.rollaxis(np.rollaxis(batch, axis=2, start=1) - channel_mean, axis=2, start=1)
-            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch
+            batch_t = np.transpose(batch, axes=(0, 2, 1))
+            batch_t_centered = batch_t - channel_mean
+            batch_centered = np.transpose(batch_t_centered, axes=(0, 2, 1))
+            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch_centered
 
         np.save(save_dir + 'data_mean.npy', channel_mean)
 
     elif mean_mode in ('global_feature', 'gf'):
-        raise NotImplementedError
+        feature_mean= np.mean(raw_mat, axis=0)
+
+        for idx in range(num_patches // batch_size):
+            batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
+            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch - feature_mean
+
+        np.save(save_dir + 'data_sdev.npy', feature_mean)
 
     elif mean_mode in ('local_channel', 'lc'):
         for idx in range(num_patches // batch_size):
             batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
-            channel_mean = np.expand_dims(np.mean(batch, axis=2), axis=1)
-            batch = np.rollaxis(np.rollaxis(batch, axis=2, start=1) - channel_mean, axis=2, start=1)
-            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch
+            channel_mean = np.mean(batch, axis=2)  # shape=[n_patches, n_channels]
+            batch_t = np.transpose(batch, axes=(2, 0, 1))
+            batch_t_centered = batch_t - channel_mean
+            batch_centered = np.transpose(batch_t_centered, axes=(1, 2, 0))
+            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch_centered
 
-    else:  # mean_mode in ('local_full', 'lf')
+    elif mean_mode in ('local_full', 'lf'):
         for idx in range(num_patches // batch_size):
             batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
             sample_mean = np.mean(batch, axis=(1, 2))
-            batch = (batch.transpose() - sample_mean).transpose()
-            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch
+            batch_t = np.transpose(batch)
+            batch_t_centered = batch_t - sample_mean
+            batch_centered = np.transpose(batch_t_centered)
+            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch_centered
+
+    else:  # mean_mode is 'none'
+        pass
 
     ###### SDEV treatment ######
     if sdev_mode in ('global_channel', 'gc'):
-        channel_cov = np.mean(raw_mat, axis=(0, 2))
-
+        feat_sdev = np.std(raw_mat, axis=0)
+        channel_sdev = np.mean(feat_sdev, axis=1)
         for idx in range(num_patches // batch_size):
             batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
-            batch = np.rollaxis(np.rollaxis(batch, axis=2, start=1) / channel_cov, axis=2, start=1)
+            batch = np.rollaxis(np.rollaxis(batch, axis=2, start=1) / channel_sdev, axis=2, start=1)
             data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch
 
-        np.save(save_dir + 'data_sdev.npy', channel_cov)
+        np.save(save_dir + 'data_sdev.npy', channel_sdev)
 
     elif sdev_mode in ('global_feature', 'gf'):
-        feat_cov = np.mean(raw_mat, axis=0)
+        feat_sdev = np.std(raw_mat, axis=0)
 
         for idx in range(num_patches // batch_size):
             batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
-            batch = batch / feat_cov
+            batch = batch / feat_sdev
             data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch
 
-        np.save(save_dir + 'data_sdev.npy', feat_cov)
+        np.save(save_dir + 'data_sdev.npy', feat_sdev)
 
 
-    elif sdev_mode in ('local_channel', 'lc'):
+    elif sdev_mode in ('local_channel', 'lc'):  # seems like a bad idea anyway
         raise NotImplementedError
 
-    else:  # cov_mode in ('local_full, 'lf')'
+    elif sdev_mode in ('local_full', 'lf'):  # this too
         raise NotImplementedError
+
+    else:  # sdev_mode == 'none'
+        pass
 
     del data_mat
     data_mat = np.memmap(save_dir + file_name, dtype=np.float32, mode='r',
@@ -471,10 +497,9 @@ def normed_patch_data_mat(raw_mat, save_dir,
 
 def flattened_cov_acc(norm_mat, save_dir, batch_size=100, file_name='cov.npy'):
     num_patches, n_feats = norm_mat.shape
+    assert num_patches % batch_size == 0
 
     channel_covs = np.zeros(shape=[n_feats, n_feats])
-
-    assert num_patches % batch_size == 0
 
     for idx in range(num_patches // batch_size):
         batch = norm_mat[idx * batch_size:(idx + 1) * batch_size, :]  # batch has shape [bs, n_f]
@@ -483,7 +508,6 @@ def flattened_cov_acc(norm_mat, save_dir, batch_size=100, file_name='cov.npy'):
     channel_covs = channel_covs / (num_patches - 1)
 
     np.save(save_dir + file_name, channel_covs)
-
     return channel_covs
 
 
@@ -546,44 +570,51 @@ def channel_independent_whitening_mats(cov, whiten_mode, save_dir):
 
 def preprocess_tensor(patch_tensor, mean_mode, sdev_mode):
     """
-    to be called on a TensorFlow graph. takes patch tensor of
-    and loads means and sdevs. then applies the same preprocessing as used on the training set (whitening is done after)
+    to be called on a TensorFlow graph. takes patch tensor and loads means and sdevs.
+    then applies the same preprocessing as used on the training set (whitening is done after)
+    takes in tensor with n_channels as last dimension. outputs tensor with n_feats_per_channel as last dimension.
 
     :param patch_tensor: tensor of shape [n_patches, n_feats_per_channel, n_channels] to be processed
     :param mean_mode: mode for centering
     :param sdev_mode: mode for rescaling
     :param load_dir: if provided, npy mats are loaded from this directory.  # not needed!!
     otherwise, values must be loaded from checkpoints
-    :return: normalized tensor
+    :return: normalized tensor of shape [n_patches, n_channels, n_feats_per_channel]
     """
     modes = ('global_channel', 'global_feature', 'local_channel', 'local_full',
              'gc', 'gf', 'lc', 'lf',
              'none')
     assert mean_mode in modes
     assert sdev_mode in modes
-
+    init_list = []
     n_patches, n_feats_per_channel, n_channels = [k.value for k in patch_tensor.get_shape()]
+    print('seeing tensor shape as n_p={}, n_fpc={}, n_c={}'.format(n_patches, n_feats_per_channel, n_channels))
     n_feats_raw = n_feats_per_channel * n_channels
 
     ###### MEAN treatment ######
     if mean_mode in ('global_channel', 'gc'):
-        print(mean_mode)
-        mean_tensor = tf.get_variable('data_mean', shape=(n_channels,), trainable=False, dtype=tf.float32)
+        mean_tensor = tf.get_variable('centering_mean', shape=(n_channels,), trainable=False, dtype=tf.float32)
+        init_list.append(mean_tensor)
         patch_tensor = patch_tensor - mean_tensor
 
     elif mean_mode in ('global_feature', 'gf'):
-        mean_tensor = tf.get_variable('data_mean', shape=(n_feats_raw,), trainable=False, dtype=tf.float32)
+        mean_tensor = tf.get_variable('centering_mean', shape=(n_feats_raw,), trainable=False, dtype=tf.float32)
+        init_list.append(mean_tensor)
         patch_tensor = tf.reshape(patch_tensor, [n_patches, n_feats_raw]) - mean_tensor
         patch_tensor = tf.reshape(patch_tensor, shape=(n_patches, n_feats_per_channel, n_channels))
 
     elif mean_mode in ('local_channel', 'lc'):
-        means = tf.stack([tf.reduce_mean(patch_tensor, axis=1)] * n_feats_per_channel, axis=1)
-        patch_tensor = patch_tensor - means
+        channel_mean = tf.reduce_mean(patch_tensor, axis=1)
+        patch_tensor = tf.transpose(patch_tensor, perm=(1, 0, 2))
+        patch_tensor = patch_tensor - channel_mean
+        patch_tensor = tf.transpose(patch_tensor, perm=(1, 0, 2))
 
     elif mean_mode in ('local_full', 'lf'):
-        patch_tensor = tf.reshape(patch_tensor, shape=(n_patches, -1))
-        means = tf.stack([tf.reduce_mean(patch_tensor, axis=1)] * n_feats_raw, axis=1)
-        patch_tensor = patch_tensor - means
+        patch_tensor = tf.reshape(patch_tensor, shape=(n_patches, n_feats_raw))
+        sample_mean = tf.reduce_mean(patch_tensor, axis=1)
+        patch_tensor = tf.transpose(patch_tensor, perm=(1, 0))
+        patch_tensor = patch_tensor - sample_mean
+        patch_tensor = tf.transpose(patch_tensor, perm=(1, 0))
         patch_tensor = tf.reshape(patch_tensor, shape=(n_patches, n_feats_per_channel, n_channels))
 
     else:  # mean_mode == 'none'
@@ -591,12 +622,13 @@ def preprocess_tensor(patch_tensor, mean_mode, sdev_mode):
 
     ###### SDEV treatment ######
     if sdev_mode in ('global_channel', 'gc'):
-        print(mean_mode)
-        sdev_tensor = tf.get_variable('data_sdev', shape=(n_channels,), trainable=False, dtype=tf.float32)
+        sdev_tensor = tf.get_variable('rescaling_sdev', shape=(n_channels,), trainable=False, dtype=tf.float32)
+        init_list.append(sdev_tensor)
         patch_tensor = patch_tensor / sdev_tensor
 
     elif sdev_mode in ('global_feature', 'gf'):
-        sdev_tensor = tf.get_variable('data_sdev', shape=(n_feats_raw,), trainable=False, dtype=tf.float32)
+        sdev_tensor = tf.get_variable('rescaling_sdev', shape=(n_feats_raw,), trainable=False, dtype=tf.float32)
+        init_list.append(sdev_tensor)
         patch_tensor = tf.reshape(patch_tensor, [n_patches, n_feats_raw]) / sdev_tensor
         patch_tensor = tf.reshape(patch_tensor, shape=(n_patches, n_feats_per_channel, n_channels))
 
@@ -609,4 +641,5 @@ def preprocess_tensor(patch_tensor, mean_mode, sdev_mode):
     else:  # sdev_mode == 'none'
         pass
 
-    return patch_tensor
+    patch_tensor = tf.transpose(patch_tensor, perm=(0, 2, 1))
+    return patch_tensor, init_list

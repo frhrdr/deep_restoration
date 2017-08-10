@@ -44,6 +44,7 @@ class FoEPrior(ICAPrior):
             print(1, flat_patches.get_shape())
 
             normed_patches = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode)
+
             normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
 
             # scaled_patches = flat_patches  # * self.input_scaling
