@@ -76,18 +76,20 @@ class ICAPrior(LearnedPriorLoss):
             ica_a_squeezed = tf.squeeze(ica_a)
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
 
-            # normed_patches = tf.Print(normed_patches, [tf.reduce_mean(normed_patches),
-            #                                            tf.reduce_max(normed_patches), tf.reduce_max(flat_patches),
-            #                                            tf.reduce_max(tensor), tf.reduce_max(ica_a_squeezed)])
-            # normed_patches = tf.Print(normed_patches, [tf.reduce_max(whitened_mixing)])
+            # normed_patches = tf.Print(normed_patches, [tf.reduce_max(flat_patches)], message='flat ')
+            # normed_patches = tf.Print(normed_patches, [tf.reduce_max(normed_patches)], message='normed ')
+            # normed_patches = tf.Print(normed_patches, [tf.reduce_max(whitened_mixing)], message='white ')
+
             xw = tf.matmul(normed_patches, whitened_mixing)
             xw_mean = tf.reduce_mean(xw)
 
             neg_g_wx = (tf.log(0.5) + tf.log(tf.exp(-xw - xw_mean) + tf.exp(xw - xw_mean)) + xw_mean) * ica_a_squeezed
             neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
             naive_mean = tf.reduce_mean(neg_log_p_patches, name='loss')
+
             # naive_mean = tf.Print(naive_mean, [tf.reduce_max(xw), tf.reduce_max(neg_log_p_patches),
             #                                    tf.reduce_max(neg_g_wx), tf.reduce_max(naive_mean)])
+
             self.loss = naive_mean
 
             self.var_list = [ica_a, ica_w, whitening_tensor] + mean_sdev_list
@@ -209,7 +211,7 @@ class ICAPrior(LearnedPriorLoss):
                         if count % log_freq == 0:
                             saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=count)
 
-                    saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=num_iterations)
+                    saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=num_iterations + prev_ckpt)
 
                     if plot_filters:
                         unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
@@ -284,14 +286,21 @@ class ICAPrior(LearnedPriorLoss):
 
         cf_str = str(n_components) + 'comps_' + str(n_features_white) + 'feats'
         target_dir =  '_' + d_str + '_' + cf_str
-        mode_str = '_mean_' + mean_mode + '_sdev_' + sdev_mode
+        if isinstance(sdev_mode, float):
+            mode_str = '_mean_' + mean_mode + '_sdev_rescaled'
+        else:
+            mode_str = '_mean_' + mean_mode + '_sdev_' + sdev_mode
         load_path = '../logs/priors/' + dir_name + '/' + subdir + target_dir + mode_str + '/'
 
         return load_path
 
     def make_data_dir(self):
         d_str = str(self.filter_dims[0]) + 'x' + str(self.filter_dims[1])
-        mode_str = '_mean_{0}_sdev_{1}'.format(self.mean_mode, self.sdev_mode)
+        if isinstance(self.sdev_mode, float):
+            mode_str = '_mean_{0}_sdev_rescaled_{1}'.format(self.mean_mode, self.sdev_mode)
+        else:
+            mode_str = '_mean_{0}_sdev_{1}'.format(self.mean_mode, self.sdev_mode)
+
         if 'pre_img' in self.in_tensor_names:
             subdir = 'image/' + d_str
         else:

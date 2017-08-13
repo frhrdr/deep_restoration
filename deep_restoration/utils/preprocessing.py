@@ -259,7 +259,8 @@ def dep_make_channel_separate_feat_map_mats(num_patches, ph, pw, classifier, map
 
 def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_channels,
                               save_dir, n_feats_white, whiten_mode='pca', batch_size=100,
-                              mean_mode='local_full', cov_mode='global_feature', raw_mat_load_path=''):
+                              mean_mode='local_full', sdev_mode='global_feature',
+                              raw_mat_load_path=''):
     """
     creates whitening, covariance, raw and whitened feature matrices for separate channels.
     all data is saved as [n_patches, n_channels, n_features_per_channel]
@@ -275,7 +276,7 @@ def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_chann
         raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir)
     print('raw mat done')
 
-    norm_mat = normed_patch_data_mat(raw_mat, save_dir, mean_mode=mean_mode, sdev_mode=cov_mode)
+    norm_mat = normed_patch_data_mat(raw_mat, save_dir, mean_mode=mean_mode, sdev_mode=sdev_mode)
     print('normed mat done')
 
     print('mat dims pre flatten:', norm_mat.shape)
@@ -409,7 +410,7 @@ def normed_patch_data_mat(raw_mat, save_dir,
     modes =  ('global_channel', 'global_feature', 'local_channel', 'local_full',
               'gc', 'gf', 'lc', 'lf', 'none')
     assert mean_mode in modes
-    assert sdev_mode in modes
+    assert sdev_mode in modes or isinstance(sdev_mode, float)
     num_patches, n_channels, n_feats_per_channel = raw_mat.shape
     batch_size = batch_size if batch_size else num_patches
     assert num_patches % batch_size == 0
@@ -484,7 +485,16 @@ def normed_patch_data_mat(raw_mat, save_dir,
         raise NotImplementedError
 
     elif sdev_mode in ('local_full', 'lf'):  # this too
-        raise NotImplementedError
+        for idx in range(num_patches // batch_size):
+            batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
+            sample_sdev = np.std(batch, axis=(1, 2))
+            batch_t = np.transpose(batch)
+            batch_t_scaled = batch_t / sample_sdev
+            batch_scaled = np.transpose(batch_t_scaled)
+            data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch_scaled
+
+    elif isinstance(sdev_mode, float):
+        data_mat[:, :, :] = sdev_mode * raw_mat[:, :, :]
 
     else:  # sdev_mode == 'none'
         pass
@@ -585,7 +595,7 @@ def preprocess_tensor(patch_tensor, mean_mode, sdev_mode):
              'gc', 'gf', 'lc', 'lf',
              'none')
     assert mean_mode in modes
-    assert sdev_mode in modes
+    assert sdev_mode in modes or isinstance(sdev_mode, float)
     init_list = []
     n_patches, n_feats_per_channel, n_channels = [k.value for k in patch_tensor.get_shape()]
     print('seeing tensor shape as n_p={}, n_fpc={}, n_c={}'.format(n_patches, n_feats_per_channel, n_channels))
@@ -636,7 +646,15 @@ def preprocess_tensor(patch_tensor, mean_mode, sdev_mode):
         raise NotImplementedError
 
     elif sdev_mode in ('local_full', 'lf'):
-        raise NotImplementedError
+        patch_tensor = tf.reshape(patch_tensor, shape=(n_patches, n_feats_raw))
+        _, sample_sdev = tf.nn.moments(patch_tensor, axes=1)
+        patch_tensor = tf.transpose(patch_tensor, perm=(1, 0))
+        patch_tensor = patch_tensor / sample_sdev
+        patch_tensor = tf.transpose(patch_tensor, perm=(1, 0))
+        patch_tensor = tf.reshape(patch_tensor, shape=(n_patches, n_feats_per_channel, n_channels))
+
+    elif isinstance(sdev_mode, float):
+        patch_tensor *= tf.constant(sdev_mode, dtype=tf.float32, shape=[])
 
     else:  # sdev_mode == 'none'
         pass

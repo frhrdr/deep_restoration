@@ -118,6 +118,8 @@ class NetInversion:
         with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
                 img_mat = load_image(image_path, resize=False)
+                print(1, img_mat.max())
+                print(2, img_mat.min())
                 image = tf.constant(img_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])
 
                 if pre_img_init is None and scale_pre_img == 2.7098e+4:
@@ -125,10 +127,10 @@ class NetInversion:
                     pre_img_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.0001))
                 elif pre_img_init is None:
                     # pre_img_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.27))
-                    pre_img_init = np.random.normal(loc=np.mean(self.imagenet_mean), scale=0.1,
+                    pre_img_init = np.random.normal(loc=np.mean(self.imagenet_mean), scale=1.1,
                                                     size=([1, self.img_hw, self.img_hw, 3])).astype(np.float32)
-                    pre_img_init = np.maximum(pre_img_init, 0.)
-                    pre_img_init = np.minimum(pre_img_init, 255.)
+                    pre_img_init = np.maximum(pre_img_init, 100.)
+                    pre_img_init = np.minimum(pre_img_init, 155.)
                 pre_img = tf.get_variable('pre_img', dtype=tf.float32, initializer=pre_img_init)
 
                 jitter_x_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_x_pl')
@@ -144,7 +146,6 @@ class NetInversion:
                 self.load_classifier(net_input)
 
                 loss = self.build_model()
-
                 tensors_to_save = [graph.get_tensor_by_name(k) for k in tensor_names_to_save]
 
                 if optim_name.lower() == 'l-bfgs-b':

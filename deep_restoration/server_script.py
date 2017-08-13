@@ -9,7 +9,7 @@ from shutil import copyfile
 import os
 import numpy as np
 
-split2 = SplitModule(name_to_split='conv2/lin:0', img_slice_name='img_rep_c2l',
+split2 = SplitModule(name_to_split='conv2/relu:0', img_slice_name='img_rep_c2l',
                      rec_slice_name='rec_rep_c2l', name='Split2')
 mse2 = NormedMSELoss(target='img_rep_c2l:0', reconstruction='rec_rep_c2l:0',
                      weighting=1., name='MSE_conv2')
@@ -28,11 +28,11 @@ mse1.add_loss = False
 #                      n_features_white=1000)
 
 ica_img = ICAPrior(tensor_names='pre_img/read:0',
-                   weighting=1e-9, name='ImgPrior',
+                   weighting=1e-7, name='ImgPrior',
                    classifier='alexnet',
                    filter_dims=[8, 8], input_scaling=1.0, n_components=512, n_channels=3,
                    n_features_white=64*3-1,
-                   mean_mode = 'gc', sdev_mode = 'gc')
+                   mean_mode='lf', sdev_mode='gc')
 # c2_prior = FoEPrior(tensor_names='conv2/lin:0',
 #                     weighting=0, name='ICAPrior',
 #                     classifier='alexnet',
@@ -65,7 +65,7 @@ modules = [split2, mse2, ica_img]
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c2_rec/tests/',
+              log_path='../logs/net_inversion/alexnet/c2_rec/tests2/',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 10000
@@ -78,10 +78,10 @@ copyfile('./ni_tests.py', params['log_path'] + 'script.py')
 
 ni = NetInversion(params)
 
-# pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_10000.npy'), [1, 224, 224, 3])
-pre_img_init = None
+pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_500.npy'), [1, 224, 224, 3])
+# pre_img_init = None
 # 2.7098e+4
-ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='momentum',
+ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
-                   lr_lower_points=((0, 1e-2),), grad_clip=10000.,
+                   lr_lower_points=((0, 1e-0),), grad_clip=10000.,
                    save_as_plot=True, pre_img_init=pre_img_init, tensor_names_to_save=())
