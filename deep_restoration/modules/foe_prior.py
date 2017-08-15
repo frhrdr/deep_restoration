@@ -1,10 +1,5 @@
 import tensorflow as tf
-import numpy as np
 from modules.ica_prior import ICAPrior
-from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats
-from utils.preprocessing import preprocess_tensor
-import time
-import os
 
 
 class FoEPrior(ICAPrior):
@@ -19,55 +14,27 @@ class FoEPrior(ICAPrior):
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
-            tensor = self.get_tensors()
-            scaled_tensor = tensor * self.input_scaling
-
-            # filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], dims[3]))
-            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], 1))
-
-            flat_filter = tf.constant(filter_mat, dtype=tf.float32)
-            x_pad = ((self.filter_dims[0] - 1) // 2, int(np.ceil((self.filter_dims[0] - 1) / 2)))
-            y_pad = ((self.filter_dims[1] - 1) // 2, int(np.ceil((self.filter_dims[1] - 1) / 2)))
-            conv_input = tf.pad(scaled_tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
-            # flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
-
-            feat_map_list = tf.split(conv_input, num_or_size_splits=conv_input.get_shape()[3].value, axis=3)
-            flat_patches_list = [tf.nn.conv2d(k, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
-                                 for k in feat_map_list]  # first, filter per channel
-            flat_patches = tf.stack(flat_patches_list, axis=4)
-            fps = [k.value for k in flat_patches.get_shape()]  # shape=[bs, h, w, n_fpc, n_c]
-            n_patches = fps[1] * fps[2]
-            n_features_raw = fps[3] * fps[4]
-            flat_patches = tf.reshape(flat_patches, shape=[fps[0], n_patches, fps[3], fps[4]])  # flatten h,w
-            assert fps[0] == 1  # commit to singular batch size
-            flat_patches = tf.squeeze(flat_patches)
-            print(1, flat_patches.get_shape())
-
-            normed_patches = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode)
+            normed_patches = self.shape_and_norm_tensor()
+            n_patches, n_channels, n_feats_per_channel = normed_patches.get_shape()
+            n_features_raw = n_feats_per_channel * n_channels
 
             normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
 
-            # scaled_patches = flat_patches  # * self.input_scaling
-            # centered_patches = flat_patches - tf.stack([tf.reduce_mean(scaled_patches, axis=3)] * filter_mat.shape[3],
-            #                                            axis=3)
-            # n_features_raw = filter_mat.shape[3]
-            # centered_patches = tf.reshape(centered_patches, shape=[-1, n_features_raw])
-
             whitening_tensor = tf.get_variable('whiten_mat', shape=[self.n_features_white, n_features_raw],
-                                               dtype=tf.float32, trainable=self.trainable)
+                                               dtype=tf.float32, trainable=False)
+
             ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable, dtype=tf.float32)
             ica_w = tf.get_variable('ica_w', shape=[self.n_features_white, self.n_components],
                                     trainable=self.trainable, dtype=tf.float32)
             ica_a_squeezed = tf.squeeze(ica_a)
-
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
+
             xw = tf.matmul(normed_patches, whitened_mixing)
             neg_g_wx = tf.log(1.0 + 0.5 * tf.square(xw)) * ica_a_squeezed
             neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
-            naive_mean = tf.reduce_mean(neg_log_p_patches, name='loss')
-            self.loss = naive_mean
+            self.loss = tf.reduce_mean(neg_log_p_patches, name='loss')
 
-            self.var_list = [ica_a, ica_w, whitening_tensor]
+            self.var_list.extend([ica_a, ica_w, whitening_tensor])
 
     @staticmethod
     def score_matching_loss(x_mat, w_mat, alpha):

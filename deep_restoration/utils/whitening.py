@@ -4,14 +4,15 @@ import numpy as np
 def pca_whiten_mats(cov, n_to_drop=1):
     e_vals, e_vecs = np.linalg.eigh(cov)
     assert all(a <= b for a, b in zip(e_vals[:-1], e_vals[1:]))  # make sure vals are sorted ascending (they should be)
-    print(e_vals.sum())
-    print(e_vals)
+    print('sum of eigenvalues', e_vals.sum())
+    print('smallest eigenvalue', np.min(e_vals))
     full_eigv = sum(e_vals)
     keep_eigv = sum(e_vals[n_to_drop:])
 
     print('kept eigv fraction: ', keep_eigv / full_eigv)
     print('number of negative eigenvals', np.sum(e_vals < 0))
     e_vals = e_vals[n_to_drop:]  # dismiss first eigenvalue due to mean subtraction.
+    print('smallest kept eigenvalue:', e_vals[0])
     e_vecs = e_vecs[:, n_to_drop:]
     sqrt_vals = np.sqrt(np.maximum(e_vals, 0))
     whiten = np.diag(1. / sqrt_vals) @ e_vecs.T

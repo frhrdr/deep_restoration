@@ -20,11 +20,32 @@
 	\item at some point look into hybrid mc sampling
 \end{enumerate}
 
+\section{August 15.}
+
+\begin{enumerate}
+	\item train lc - gc 1800f prior to convergence (amlab)
+	\item train lc - rescale 1200f prior (laptop)
+	\item train channel prior (laptop)
+	\item write part on score matching, whitening
+\end{enumerate}
+
+
+
+\section{August 14.}
+
+\begin{enumerate}
+	\item train conv1 lin prior with local full mean (center each sample) and global channel standard deviation normalization 
+	\item filters don't look so good yet
+	\item changed log-sum-exp expression in ica prior to a more special case, which should be numerically stable no matter what.
+\end{enumerate}
+
 
 \section{August 13.}
 
 \begin{enumerate}
-	\item 
+	\item pre-image init was bad. could perhaps still be tweaked (right now, adam needs to be restarted after the initial 500 steps, because its parameters get much too conservative)
+	\item reproduced previous results on new pipeline (finally)
+	\item feature maps still have way more eigenvalues close to zero.
 \end{enumerate}
 
 

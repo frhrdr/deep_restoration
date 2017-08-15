@@ -33,11 +33,12 @@ ica_img = ICAPrior(tensor_names='pre_img/read:0',
                    filter_dims=[8, 8], input_scaling=1.0, n_components=512, n_channels=3,
                    n_features_white=64*3-1,
                    mean_mode='lf', sdev_mode='gc')
-# c2_prior = FoEPrior(tensor_names='conv2/lin:0',
-#                     weighting=0, name='ICAPrior',
-#                     classifier='alexnet',
-#                     filter_dims=[5, 5], input_scaling=1.0, n_components=6400, n_channels=256,
-#                     n_features_white=3200)
+
+c1l_prior = ICAPrior(tensor_names='conv1_lin:0',
+                     weighting=1e-15, name='C1LPrior',
+                     classifier='alexnet',
+                     filter_dims=[5, 5], input_scaling=1.0, n_components=3000, n_channels=96,
+                     n_features_white=1800, mean_mode='lc', sdev_mode='gc')
 
 cica_img = ChannelICAPrior(tensor_names='pre_img/read:0',
                            weighting=6e-7, name='ImgCICAPrior',
@@ -61,11 +62,11 @@ foe_img = FoEPrior(tensor_names='pre_img/read:0',
 
 # 2.7098e+4
 
-modules = [split2, mse2, ica_img]
+modules = [split2, mse2, split1, mse1, c1l_prior]
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c2_rec/tests2/',
+              log_path='../logs/net_inversion/alexnet/c2_rec/group1_cl1_1e-15/',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 10000
@@ -78,6 +79,7 @@ copyfile('./ni_tests.py', params['log_path'] + 'script.py')
 
 ni = NetInversion(params)
 
+# pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/init_helper.npy'), [1, 224, 224, 3])
 pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_500.npy'), [1, 224, 224, 3])
 # pre_img_init = None
 # 2.7098e+4

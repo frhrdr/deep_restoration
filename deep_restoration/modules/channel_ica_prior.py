@@ -24,32 +24,11 @@ class ChannelICAPrior(ICAPrior):
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
-            tensor = self.get_tensors()
-            scaled_tensor = tensor * self.input_scaling
-
-            feats_per_channel = self.filter_dims[0] * self.filter_dims[1]
-            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], 1))  # diff
-            flat_filter = tf.constant(filter_mat, dtype=tf.float32)
-
-            x_pad = ((self.filter_dims[0] - 1) // 2, int(np.ceil((self.filter_dims[0] - 1) / 2)))
-            y_pad = ((self.filter_dims[1] - 1) // 2, int(np.ceil((self.filter_dims[1] - 1) / 2)))
-            conv_input = tf.pad(scaled_tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
-
-            feat_map_list = tf.split(conv_input, num_or_size_splits=conv_input.get_shape()[3].value, axis=3)
-            flat_patches_list = [tf.nn.conv2d(k, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
-                                 for k in feat_map_list]
-            flat_patches = tf.stack(flat_patches_list, axis=4)
-            fps = [k.value for k in flat_patches.get_shape()]  # shape=[bs, h, w, n_fpc, n_c]
-            flat_patches = tf.reshape(flat_patches, shape=[fps[0], fps[1] * fps[2], fps[3], fps[4]])  # flatten h,w
-            assert fps[0] == 1  # commit to singular batch size
-            flat_patches = tf.squeeze(flat_patches)
-            print(0, flat_patches.get_shape())  # shape=[h*w, n_fpc, n_c]
-
-            # prep goes here: out shape=[h*w, n_fpc, n_c]
-            normed_patches = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode)
+            normed_patches = self.shape_and_norm_tensor()
+            n_patches, n_channels, n_feats_per_channel = normed_patches.get_shape()
 
             whitening_tensor = tf.get_variable('whiten_mat',
-                                               shape=[self.n_channels, self.n_features_white, feats_per_channel],
+                                               shape=[self.n_channels, self.n_features_white, n_feats_per_channel],
                                                dtype=tf.float32, trainable=False)
             ica_a = tf.get_variable('ica_a', shape=[self.n_channels, self.n_components, 1], trainable=self.trainable, dtype=tf.float32)
             ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_white, self.n_components],
@@ -72,7 +51,7 @@ class ChannelICAPrior(ICAPrior):
             print(7, naive_mean.get_shape())
             self.loss = naive_mean
 
-            self.var_list = [ica_a, ica_w, whitening_tensor]
+            self.var_list.extend([ica_a, ica_w, whitening_tensor])
 
     @staticmethod
     def score_matching_loss(x_mat, w_mat, alpha):
@@ -108,26 +87,13 @@ class ChannelICAPrior(ICAPrior):
         log_path = self.load_path
         ph, pw = self.filter_dims
 
-        # d_str = str(self.filter_dims[0]) + 'x' + str(self.filter_dims[1])
-        # if 'pre_img' in self.in_tensor_names:
-        #     subdir = 'image/' + d_str
-        # else:
-        #     t_str = self.in_tensor_names[:-len(':0')].replace('/', '_')
-        #     subdir = self.classifier + '/' + t_str + '_' + d_str + '_' + str(self.n_features_white) + 'feats'
-        # data_dir = '../data/patches/' + subdir + '_channelwise/'
         data_dir = self.make_data_dir()
 
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
                                    data_shape=(num_data_samples, self.n_channels, self.n_features_white))
-        # unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '_channelwise.npy').astype(np.float32)
-        # whiten_mat = np.load(data_dir + 'whiten_' + whiten_mode + '_channelwise.npy').astype(np.float32)
-
 
         with tf.Graph().as_default() as graph:
             with tf.variable_scope(self.name):
-                # add whitening mats to the save-files for later retrieval
-                # tf.get_variable(name='whiten_mat', initializer=whiten_mat, trainable=False, dtype=tf.float32)
-                # tf.get_variable(name='unwhiten_mat', initializer=unwhiten_mat, trainable=False, dtype=tf.float32)
                 self.add_preprocessing_to_graph(data_dir, whiten_mode)
 
                 x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_channels, self.n_features_white],
@@ -138,8 +104,8 @@ class ChannelICAPrior(ICAPrior):
                 w_mat = tf.get_variable(shape=[self.n_channels, self.n_features_white, self.n_components],
                                         dtype=tf.float32, name='ica_w',
                                         initializer=tf.random_normal_initializer(stddev=0.00001))
-                alpha = tf.get_variable(shape=[self.n_channels, self.n_components, 1], dtype=tf.float32, name='ica_a',
-                                        initializer=tf.random_normal_initializer())
+                alpha = tf.get_variable(shape=[self.n_channels, self.n_components, 1], dtype=tf.float32,
+                                        name='ica_a', initializer=tf.random_normal_initializer())
 
                 loss, term_1, term_2 = self.score_matching_loss(x_mat=x_mat, w_mat=w_mat, alpha=alpha)
 

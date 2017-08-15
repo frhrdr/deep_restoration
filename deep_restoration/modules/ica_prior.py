@@ -36,36 +36,11 @@ class ICAPrior(LearnedPriorLoss):
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
-            tensor = self.get_tensors()
-            scaled_tensor = tensor * self.input_scaling
+            normed_patches = self.shape_and_norm_tensor()
+            n_patches, n_channels, n_feats_per_channel = [k.value for k in normed_patches.get_shape()]
+            n_features_raw = n_feats_per_channel * n_channels
 
-            # filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], dims[3]))
-            filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], 1))
-
-            flat_filter = tf.constant(filter_mat, dtype=tf.float32)
-            x_pad = ((self.filter_dims[0] - 1) // 2, int(np.ceil((self.filter_dims[0] - 1) / 2)))
-            y_pad = ((self.filter_dims[1] - 1) // 2, int(np.ceil((self.filter_dims[1] - 1) / 2)))
-            conv_input = tf.pad(scaled_tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
-            # flat_patches = tf.nn.conv2d(conv_input, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
-
-            feat_map_list = tf.split(conv_input, num_or_size_splits=conv_input.get_shape()[3].value, axis=3)
-            print(2, feat_map_list[0].get_shape())
-            flat_patches_list = [tf.nn.conv2d(k, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
-                                 for k in feat_map_list]  # first, filter per channel
-            flat_patches = tf.stack(flat_patches_list, axis=4)
-            fps = [k.value for k in flat_patches.get_shape()]  # shape = [bs, h, w, n_fpc, n_c]
-            print(3, fps)
-            n_patches = fps[1] * fps[2]
-            n_features_raw = fps[3] * fps[4]
-            flat_patches = tf.reshape(flat_patches, shape=[fps[0], n_patches, fps[3], fps[4]])  # flatten h,w
-            assert fps[0] == 1  # commit to singular batch size
-            flat_patches = tf.squeeze(flat_patches)
-
-            normed_patches, mean_sdev_list = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode)
             normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
-            # flat_patches = tf.reshape(flat_patches, shape=[n_patches, n_features_raw])
-            # means = tf.stack([tf.reduce_mean(flat_patches, axis=1)] * n_features_raw, axis=1)
-            # centered_patches = flat_patches - means
 
             whitening_tensor = tf.get_variable('whiten_mat', shape=[self.n_features_white, n_features_raw],
                                                dtype=tf.float32, trainable=False)
@@ -76,23 +51,17 @@ class ICAPrior(LearnedPriorLoss):
             ica_a_squeezed = tf.squeeze(ica_a)
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
 
-            # normed_patches = tf.Print(normed_patches, [tf.reduce_max(flat_patches)], message='flat ')
-            # normed_patches = tf.Print(normed_patches, [tf.reduce_max(normed_patches)], message='normed ')
-            # normed_patches = tf.Print(normed_patches, [tf.reduce_max(whitened_mixing)], message='white ')
-
             xw = tf.matmul(normed_patches, whitened_mixing)
-            xw_mean = tf.reduce_mean(xw)
+            xw_mean = tf.reduce_mean(xw)  # log sum exp trick in hopes of some added numerical stability
+            # log_sum_exp = tf.log(tf.exp(-xw - xw_mean) + tf.exp(xw - xw_mean)) + xw_mean
+            xw_abs = tf.abs(xw)
+            log_sum_exp = tf.log(1 + tf.exp(-2 * xw_abs)) + xw_abs
 
-            neg_g_wx = (tf.log(0.5) + tf.log(tf.exp(-xw - xw_mean) + tf.exp(xw - xw_mean)) + xw_mean) * ica_a_squeezed
+            neg_g_wx = (tf.log(0.5) + log_sum_exp) * ica_a_squeezed
             neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
-            naive_mean = tf.reduce_mean(neg_log_p_patches, name='loss')
+            self.loss = tf.reduce_mean(neg_log_p_patches, name='loss')
 
-            # naive_mean = tf.Print(naive_mean, [tf.reduce_max(xw), tf.reduce_max(neg_log_p_patches),
-            #                                    tf.reduce_max(neg_g_wx), tf.reduce_max(naive_mean)])
-
-            self.loss = naive_mean
-
-            self.var_list = [ica_a, ica_w, whitening_tensor] + mean_sdev_list
+            self.var_list.extend([ica_a, ica_w, whitening_tensor])
 
     @staticmethod
     def score_matching_loss(x_mat, w_mat, alpha):
@@ -129,8 +98,8 @@ class ICAPrior(LearnedPriorLoss):
                 x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_features_white], name='x_pl')
                 lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
 
-                w_mat = tf.get_variable(shape=[self.n_features_white, self.n_components], dtype=tf.float32, name='ica_w',
-                                        initializer=tf.random_normal_initializer(stddev=0.001))
+                w_mat = tf.get_variable(shape=[self.n_features_white, self.n_components], dtype=tf.float32,
+                                        name='ica_w', initializer=tf.random_normal_initializer(stddev=0.001))
                 alpha = tf.get_variable(shape=[self.n_components, 1], dtype=tf.float32, name='ica_a',
                                         initializer=tf.random_normal_initializer())
 
@@ -266,6 +235,8 @@ class ICAPrior(LearnedPriorLoss):
                 alpha = a_mat[filter_id]
                 chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.filter_dims[1], self.n_channels])
                 plottable_filters = np.rollaxis(chan_filter, 2)
+                # chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.n_channels, self.filter_dims[1]])
+                # plottable_filters = np.rollaxis(chan_filter, 1)
 
                 if save_as_mat:
                     file_name = 'filter_{}_alpha_{:.3e}.npy'.format(filter_id, float(alpha))
@@ -324,3 +295,31 @@ class ICAPrior(LearnedPriorLoss):
         if self.sdev_mode in retrieve_modes:
             sdev_mat = np.load(data_dir + 'data_sdev.npy').astype(np.float32)
             tf.get_variable('rescaling_sdev', initializer=sdev_mat, trainable=False, dtype=tf.float32)
+
+    def shape_and_norm_tensor(self):
+        tensor = self.get_tensors()
+        scaled_tensor = tensor * self.input_scaling
+
+        filter_mat = flattening_filter((self.filter_dims[0], self.filter_dims[1], 1))
+
+        flat_filter = tf.constant(filter_mat, dtype=tf.float32)
+        x_pad = ((self.filter_dims[0] - 1) // 2, int(np.ceil((self.filter_dims[0] - 1) / 2)))
+        y_pad = ((self.filter_dims[1] - 1) // 2, int(np.ceil((self.filter_dims[1] - 1) / 2)))
+        conv_input = tf.pad(scaled_tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
+
+        feat_map_list = tf.split(conv_input, num_or_size_splits=conv_input.get_shape()[3].value, axis=3)
+
+        flat_patches_list = [tf.nn.conv2d(k, flat_filter, strides=[1, 1, 1, 1], padding='VALID')
+                             for k in feat_map_list]  # first, filter per channel
+        flat_patches = tf.stack(flat_patches_list, axis=4)
+        fps = [k.value for k in flat_patches.get_shape()]  # shape = [bs, h, w, n_fpc, n_c]
+
+        n_patches = fps[1] * fps[2]
+        n_features_raw = fps[3] * fps[4]
+        flat_patches = tf.reshape(flat_patches, shape=[fps[0], n_patches, fps[3], fps[4]])  # flatten h,w
+        assert fps[0] == 1  # commit to singular batch size
+        flat_patches = tf.squeeze(flat_patches)
+
+        normed_patches, mean_sdev_list = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode)
+        self.var_list.extend(mean_sdev_list)
+        return normed_patches

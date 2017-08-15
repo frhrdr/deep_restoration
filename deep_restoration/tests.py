@@ -1,20 +1,21 @@
 from utils.preprocessing import make_channel_separate_patch_data, make_flattened_patch_data
 
 # 5x5 flat mean: global channel, sdev: global channel 2400f
-make_flattened_patch_data(num_patches=1000000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',
+make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',
                           n_channels=96,
-                          save_dir='../data/patches/alexnet/new/conv1_lin_5x5_2399feats_mean_gc_sdev_gc/',
-                          n_feats_white=2399, whiten_mode='pca', batch_size=100,
-                          mean_mode='global_channel', sdev_mode='global_channel')
+                          save_dir='../data/patches/alexnet/conv1_lin_5x5_1200feats_mean_lc_sdev_gc/',
+                          n_feats_white=1200, whiten_mode='pca', batch_size=100,
+                          mean_mode='lc', sdev_mode='gc',
+                          raw_mat_load_path='../data/patches/alexnet/new/conv1_lin_5x5_2399feats_mean_gc_sdev_gc/raw_mat.npy')
 
 
 # 5x5 flat mean: local full, sdev: global channel 2400f
-make_flattened_patch_data(num_patches=1000000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',
-                          n_channels=96,
-                          save_dir='../data/patches/alexnet/new/conv1_lin_5x5_2399feats_mean_lf_sdev_lf/',
-                          n_feats_white=2399, whiten_mode='pca', batch_size=100,
-                          mean_mode='local_full', sdev_mode='local_full',
-                          raw_mat_load_path='../data/patches/alexnet/new/conv1_lin_5x5_2399feats_mean_gc_sdev_gc/raw_mat.npy')
+# make_flattened_patch_data(num_patches=1000000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',
+#                           n_channels=96,
+#                           save_dir='../data/patches/alexnet/new/conv1_lin_5x5_2399feats_mean_lf_sdev_lf/',
+#                           n_feats_white=2399, whiten_mode='pca', batch_size=100,
+#                           mean_mode='local_full', sdev_mode='local_full',
+#                           raw_mat_load_path='../data/patches/alexnet/new/conv1_lin_5x5_2399feats_mean_gc_sdev_gc/raw_mat.npy')
 
 # # 5x5 flat mean: global channel, sdev: global channel 1200f
 # make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',

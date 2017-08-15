@@ -267,3 +267,19 @@ def patch_data_vis(patch_file, mat_shape, patch_hw, n_vis=100):
     mat = mat[:n_vis, :, :].reshape([n_vis, patch_hw, patch_hw, 3])
 
     plot_img_mats(mat, color=True, rescale=True)
+
+
+def analyze_eigenvals(cov_file):
+    cov = np.load(cov_file)
+    e_vals, e_vecs = np.linalg.eigh(cov)
+    assert all(a <= b for a, b in zip(e_vals[:-1], e_vals[1:]))  # make sure vals are sorted ascending (they should be)
+    print('sum of eigenvalues', e_vals.sum())
+    print('smallest eigenvalue', np.min(e_vals))
+
+    print('number of negative eigenvals', np.sum(e_vals < 0))
+    print('number of 1e-2', np.sum(e_vals < 1e-2))
+    print('number of 1e-3', np.sum(e_vals < 1e-3))
+    print('number of 1e-4', np.sum(e_vals < 1e-4))
+    print('number of 1e-5', np.sum(e_vals < 1e-5))
+    print('number of 1e-6', np.sum(e_vals < 1e-6))
+    print('number of 1e-7', np.sum(e_vals < 1e-7))
