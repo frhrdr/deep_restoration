@@ -131,7 +131,7 @@ class ICAPrior(LearnedPriorLoss):
                 summary_writer = tf.summary.FileWriter(log_path + '/summaries')
 
                 with tf.Session() as sess:
-                    print(tf.trainable_variables())
+                    # print(tf.trainable_variables())
                     sess.run(tf.global_variables_initializer())
 
                     if prev_ckpt:
@@ -186,7 +186,7 @@ class ICAPrior(LearnedPriorLoss):
                         unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
                         w_res, alp = sess.run([w_mat, alpha])
                         comps = np.dot(w_res.T, unwhiten_mat)
-                        print(comps.shape)
+                        # print(comps.shape)
                         comps -= np.min(comps)
                         comps /= np.max(comps)
                         # co = np.reshape(comps[:n_vis, :], [n_vis, ph, pw, 3])
@@ -233,10 +233,10 @@ class ICAPrior(LearnedPriorLoss):
             for idx, filter_id in enumerate(filter_ids):
                 flat_filter = rotated_w_mat[idx, :]
                 alpha = a_mat[filter_id]
-                chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.filter_dims[1], self.n_channels])
-                plottable_filters = np.rollaxis(chan_filter, 2)
-                # chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.n_channels, self.filter_dims[1]])
-                # plottable_filters = np.rollaxis(chan_filter, 1)
+                # chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.filter_dims[1], self.n_channels])
+                # plottable_filters = np.rollaxis(chan_filter, 2)
+                chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.n_channels, self.filter_dims[1]])
+                plottable_filters = np.rollaxis(chan_filter, 1)
 
                 if save_as_mat:
                     file_name = 'filter_{}_alpha_{:.3e}.npy'.format(filter_id, float(alpha))
@@ -253,7 +253,10 @@ class ICAPrior(LearnedPriorLoss):
         if 'pre_img' in tensor_name:
             subdir = 'image/color'
         else:
-            subdir = classifier + '/' + tensor_name[:-len(':0')].replace('/', '_')
+            if tensor_name.lower().startswith('split'):
+                tensor_name = ''.join(tensor_name.split('/')[1:])
+            tensor_name = tensor_name[:-len(':0')].replace('/', '_')
+            subdir = classifier + '/' + tensor_name
 
         cf_str = str(n_components) + 'comps_' + str(n_features_white) + 'feats'
         target_dir =  '_' + d_str + '_' + cf_str
@@ -313,11 +316,13 @@ class ICAPrior(LearnedPriorLoss):
                              for k in feat_map_list]  # first, filter per channel
         flat_patches = tf.stack(flat_patches_list, axis=4)
         fps = [k.value for k in flat_patches.get_shape()]  # shape = [bs, h, w, n_fpc, n_c]
+        assert fps[0] == 1  # commit to singular batch size
 
+        print(fps)
         n_patches = fps[1] * fps[2]
         n_features_raw = fps[3] * fps[4]
         flat_patches = tf.reshape(flat_patches, shape=[fps[0], n_patches, fps[3], fps[4]])  # flatten h,w
-        assert fps[0] == 1  # commit to singular batch size
+
         flat_patches = tf.squeeze(flat_patches)
 
         normed_patches, mean_sdev_list = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode)

@@ -29,15 +29,15 @@ ica_prior = ICAPrior(tensor_names='lrn1:0',
                      filter_dims=[5, 5], input_scaling=1.0, n_components=2000, n_channels=96,
                      n_features_white=1000, mean_mode='lc', sdev_mode='gc')
 
-ica_prior.train_prior(batch_size=500, num_iterations=10000, lr=3e-5,
-                      lr_lower_points=((0, 1e-0), (3000, 1e-1), (5000, 1e-2), (10000, 3e-3), (15000, 1e-3),),
-                      grad_clip=100.0, n_vis=144,
-                      whiten_mode='pca', num_data_samples=100000,
-                      log_freq=1000, summary_freq=10, print_freq=100,
-                      prev_ckpt=000, optimizer_name='adam',
-                      plot_filters=False, do_clip=True)
+# ica_prior.train_prior(batch_size=500, num_iterations=10000, lr=3e-5,
+#                       lr_lower_points=((0000, 1e-5),),
+#                       grad_clip=100.0, n_vis=144,
+#                       whiten_mode='pca', num_data_samples=100000,
+#                       log_freq=1000, summary_freq=10, print_freq=100,
+#                       prev_ckpt=25000, optimizer_name='adam',
+#                       plot_filters=False, do_clip=True)
 
-# ica_prior.plot_filters(range(1), ica_prior.load_path + 'filter_vis/')
+ica_prior.plot_filters(range(1), ica_prior.load_path + 'filter_vis/')
 
 # cica_prior = ChannelICAPrior(tensor_names='pre_img:0',
 #                              weighting=1e-9, name='ChannelICAPrior',

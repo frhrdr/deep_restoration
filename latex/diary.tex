@@ -27,6 +27,8 @@
 	\item train lc - rescale 1200f prior (laptop)
 	\item train channel prior (laptop)
 	\item write part on score matching, whitening
+	\item note: conv1/lin is a weird layer. way more near 0 eigenvalues than e.g. lrn1 or conv2/lin (both have basically none), so way more redundancy in the filters, I suppose. Trained ICA priors do not seem to learn any useful filters.
+	\item moving to lrn1 and conv2/lin for future tests instead.
 \end{enumerate}
 
 
