@@ -23,18 +23,18 @@ import numpy as np
 # data_mat = np.memmap(path, dtype=np.float32, mode='r',
 #                      shape=(100000, 96, 25))
 
-ica_prior = ICAPrior(tensor_names='conv2/lin:0',
+ica_prior = ICAPrior(tensor_names='lrn1:0',
                      weighting=1e-9, name='ICAPrior',
                      classifier='alexnet',
-                     filter_dims=[5, 5], input_scaling=1.0, n_components=2400, n_channels=96,
-                     n_features_white=1200, mean_mode='lf', sdev_mode=1/255)
+                     filter_dims=[5, 5], input_scaling=1.0, n_components=2000, n_channels=96,
+                     n_features_white=1000, mean_mode='lc', sdev_mode='gc')
 
 ica_prior.train_prior(batch_size=500, num_iterations=10000, lr=3e-5,
-                      lr_lower_points=((0000, 3e-1),(55000, 1e-4),),
+                      lr_lower_points=((0, 1e-0), (3000, 1e-1), (5000, 1e-2), (10000, 3e-3), (15000, 1e-3),),
                       grad_clip=100.0, n_vis=144,
                       whiten_mode='pca', num_data_samples=100000,
                       log_freq=1000, summary_freq=10, print_freq=100,
-                      prev_ckpt=1000, optimizer_name='adam',
+                      prev_ckpt=000, optimizer_name='adam',
                       plot_filters=False, do_clip=True)
 
 # ica_prior.plot_filters(range(1), ica_prior.load_path + 'filter_vis/')
