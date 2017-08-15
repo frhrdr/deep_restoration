@@ -8,7 +8,6 @@ make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', 
                           mean_mode='lc', sdev_mode='gc',
                           raw_mat_load_path='../data/patches/alexnet/new/conv1_lin_5x5_2399feats_mean_gc_sdev_gc/raw_mat.npy')
 
-
 # 5x5 flat mean: local full, sdev: global channel 2400f
 # make_flattened_patch_data(num_patches=1000000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',
 #                           n_channels=96,

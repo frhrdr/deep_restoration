@@ -269,17 +269,20 @@ def patch_data_vis(patch_file, mat_shape, patch_hw, n_vis=100):
     plot_img_mats(mat, color=True, rescale=True)
 
 
-def analyze_eigenvals(cov_file):
+def analyze_eigenvals(cov_file, n_to_drop=1):
     cov = np.load(cov_file)
     e_vals, e_vecs = np.linalg.eigh(cov)
     assert all(a <= b for a, b in zip(e_vals[:-1], e_vals[1:]))  # make sure vals are sorted ascending (they should be)
     print('sum of eigenvalues', e_vals.sum())
     print('smallest eigenvalue', np.min(e_vals))
 
-    print('number of negative eigenvals', np.sum(e_vals < 0))
-    print('number of 1e-2', np.sum(e_vals < 1e-2))
-    print('number of 1e-3', np.sum(e_vals < 1e-3))
-    print('number of 1e-4', np.sum(e_vals < 1e-4))
-    print('number of 1e-5', np.sum(e_vals < 1e-5))
-    print('number of 1e-6', np.sum(e_vals < 1e-6))
-    print('number of 1e-7', np.sum(e_vals < 1e-7))
+    print('number < 1e-2', np.sum(e_vals < 1e-2))
+    print('number < 1e-3', np.sum(e_vals < 1e-3))
+    print('number < 1e-4', np.sum(e_vals < 1e-4))
+    print('number < 1e-5', np.sum(e_vals < 1e-5))
+    print('number < 1e-6', np.sum(e_vals < 1e-6))
+    print('number < 1e-7', np.sum(e_vals < 1e-7))
+    print('number < 0   ', np.sum(e_vals < 0))
+
+    keep = e_vals[n_to_drop:].sum() / e_vals.sum()
+    print('dropping {} vals retains {}% of the total variance'.format(n_to_drop, keep))
