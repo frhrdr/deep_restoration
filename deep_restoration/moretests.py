@@ -23,21 +23,28 @@ import numpy as np
 # data_mat = np.memmap(path, dtype=np.float32, mode='r',
 #                      shape=(100000, 96, 25))
 
-ica_prior = ICAPrior(tensor_names='lrn1:0',
+ica_prior = ICAPrior(tensor_names='conv1/lin:0',
                      weighting=1e-9, name='ICAPrior',
                      classifier='alexnet',
-                     filter_dims=[5, 5], input_scaling=1.0, n_components=2000, n_channels=96,
-                     n_features_white=1000, mean_mode='lc', sdev_mode='gc')
+                     filter_dims=[5, 5], input_scaling=1.0, n_components=2400, n_channels=96,
+                     n_features_white=1200, mean_mode='lf', sdev_mode=1/255)
 
-# ica_prior.train_prior(batch_size=500, num_iterations=10000, lr=3e-5,
+# ica_prior = ICAPrior(tensor_names='pre_img/read:0',
+#                      weighting=1e-7, name='ICAPrior',
+#                      classifier='alexnet',
+#                      filter_dims=[8, 8], input_scaling=1.0, n_components=512, n_channels=3,
+#                      n_features_white=64*3-1,
+#                      mean_mode='gc', sdev_mode='gc')
+#
+# ica_prior.train_prior(batch_size=500, num_iterations=1, lr=3e-5,
 #                       lr_lower_points=((0000, 1e-5),),
 #                       grad_clip=100.0, n_vis=144,
 #                       whiten_mode='pca', num_data_samples=100000,
 #                       log_freq=1000, summary_freq=10, print_freq=100,
-#                       prev_ckpt=25000, optimizer_name='adam',
-#                       plot_filters=False, do_clip=True)
+#                       prev_ckpt=35000, optimizer_name='adam',
+#                       plot_filters=True, do_clip=True)
 
-ica_prior.plot_filters(range(1), ica_prior.load_path + 'filter_vis/')
+ica_prior.plot_filters(range(3), ica_prior.load_path + 'filter_vis/')
 
 # cica_prior = ChannelICAPrior(tensor_names='pre_img:0',
 #                              weighting=1e-9, name='ChannelICAPrior',

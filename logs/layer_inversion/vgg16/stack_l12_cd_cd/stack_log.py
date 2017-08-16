@@ -11,8 +11,8 @@ params1 = Parameters(classifier='vgg16', inv_input_name='conv1_2/relu:0', inv_ta
                      data_path='./data/imagenet2012-validationset/',
                      train_images_file='train_48k_images.txt',
                      validation_images_file='validate_2k_images.txt',
-                     log_path='./logs/layer_inversion/vgg16/l2_cd/run1/',
-                     load_path='./logs/layer_inversion/vgg16/l2_cd/run1/ckpt-3000',
+                     log_path='./logs/layer_inversion/vgg16/l2_cd/1e-13/',
+                     load_path='./logs/layer_inversion/vgg16/l2_cd/1e-13/ckpt-3000',
                      print_freq=100, log_freq=1000, test_freq=100, test_set_size=200)
 
 params2 = Parameters(classifier='vgg16', inv_input_name='conv1_1/relu:0', inv_target_name='bgr_normed:0',

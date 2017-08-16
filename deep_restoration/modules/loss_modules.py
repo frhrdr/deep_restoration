@@ -56,7 +56,7 @@ class LossModule(Module):
 
 class MSELoss(LossModule):
 
-    def __init__(self, target, reconstruction, weighting, name=None):
+    def __init__(self, target, reconstruction, weighting=1.0, name=None):
         super().__init__((target, reconstruction), weighting, name=name)
 
     def build(self, scope_suffix=''):

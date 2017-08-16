@@ -2,7 +2,7 @@ import tensorflow as tf
 from tf_vgg import vgg16
 from tf_alexnet import alexnet
 from utils.filehandling import save_dict, load_image
-from utils.temp_utils import get_optimizer
+from utils.temp_utils import get_optimizer, plot_feat_map_diffs
 from modules.inv_modules import TrainedModule
 from modules.loss_modules import LossModule, LearnedPriorLoss
 import os
@@ -103,7 +103,8 @@ class NetInversion:
     def train_pre_image(self, image_path, grad_clip=100.0, lr_lower_points=(),
                         range_b=80, jitter_t=0, optim_name='momentum',
                         range_clip=False, save_as_plot=False, jitter_stop_point=-1, scale_pre_img=2.7098e+4,
-                        pre_img_init=None, tensor_names_to_save=()):
+                        pre_img_init=None, ckpt_offset=0,
+                        tensor_names_to_save=(), featmap_names_to_plot=(), max_n_featmaps_to_plot=5):
         """
         like mahendran & vedaldi, optimizes pre-image based on a single other image
         """
@@ -147,6 +148,7 @@ class NetInversion:
 
                 loss = self.build_model()
                 tensors_to_save = [graph.get_tensor_by_name(k) for k in tensor_names_to_save]
+                featmaps_to_plot = [graph.get_tensor_by_name(k) for k in featmap_names_to_plot]
 
                 if optim_name.lower() == 'l-bfgs-b':
                     options = {'maxiter': self.params['num_iterations']}
@@ -188,7 +190,7 @@ class NetInversion:
                     use_jitter = False if jitter_t == 0 else True
                     lr = self.params['learning_rate']
                     start_time = time.time()
-                    for count in range(1, self.params['num_iterations'] + 1):
+                    for count in range(ckpt_offset + 1, ckpt_offset + self.params['num_iterations'] + 1):
                         jitter = np.random.randint(low=0, high=jitter_t + 1, dtype=int, size=(2,))
 
                         feed = {lr_pl: lr,
@@ -232,9 +234,20 @@ class NetInversion:
                             if tensors_to_save:
                                 mats_to_save = sess.run(tensors_to_save, feed_dict=feed)
 
-                                for idx, mat in enumerate(mats_to_save):
+                                for idx, fmap in enumerate(mats_to_save):
                                     file_name = tensor_names_to_save[idx] + '-' + str(count) + '.npy'
-                                    np.save(self.params['log_path'] + 'mats/' + file_name, mat)
+                                    np.save(self.params['log_path'] + 'mats/' + file_name, fmap)
+
+                            if featmaps_to_plot:
+                                fmaps_to_plot = sess.run(featmaps_to_plot, feed_dict=feed)
+
+                                for fmap, name in zip(fmaps_to_plot, featmap_names_to_plot):
+                                    name = name.replace('/', '_').rstrip(':0')
+                                    file_path = '{}mats/{}-{}.npy'.format(self.params['log_path'], name, count)
+                                    np.save(file_path, fmap)
+                                    if save_as_plot:
+                                        file_path = '{}imgs/{}-{}.png'.format(self.params['log_path'], name, count)
+                                        plot_feat_map_diffs(fmap, file_path, max_n_featmaps_to_plot)
 
                         if jitter_stop_point == count:
                             print('Jittering stopped at ', count)

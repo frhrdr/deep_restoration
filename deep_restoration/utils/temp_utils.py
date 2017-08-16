@@ -286,3 +286,26 @@ def analyze_eigenvals(cov_file, n_to_drop=1):
 
     keep = e_vals[n_to_drop:].sum() / e_vals.sum()
     print('dropping {} vals retains {}% of the total variance'.format(n_to_drop, keep))
+
+
+def plot_feat_map_diffs(mat, save_path, max_n_featmaps_to_plot):
+    assert mat.shape[0] == 2  # commit to img/pre-img case for now
+    assert mat.shape[1] == mat.shape[2]  # ensure h == w
+    n_cols, height, width, n_channels = mat.shape
+    n_featmaps_to_plot = min([max_n_featmaps_to_plot, n_channels])
+
+    plot_mat = np.zeros(shape=(n_cols * width, n_featmaps_to_plot * height))
+
+    for idx in range(n_cols):
+        for idy in range(n_featmaps_to_plot):
+            pic = mat[idx, :, :, idy]
+            plot_mat[idx * width:(idx + 1) * width, idy * height:(idy + 1) * height] = pic
+    plt.style.use('grayscale')
+    fig = plt.figure(frameon=False)
+    fig.set_size_inches(n_featmaps_to_plot, n_cols)
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+    ax.imshow(plot_mat, aspect='equal')
+    plt.savefig(save_path, format='png', dpi=height)
+    plt.close()

@@ -235,8 +235,9 @@ class ICAPrior(LearnedPriorLoss):
                 alpha = a_mat[filter_id]
                 # chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.filter_dims[1], self.n_channels])
                 # plottable_filters = np.rollaxis(chan_filter, 2)
-                chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.n_channels, self.filter_dims[1]])
-                plottable_filters = np.rollaxis(chan_filter, 1)
+                # chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.n_channels, self.filter_dims[1]])
+                # plottable_filters = np.rollaxis(chan_filter, 1)
+                plottable_filters = np.reshape(flat_filter, [self.n_channels, self.filter_dims[0], self.filter_dims[1]])
 
                 if save_as_mat:
                     file_name = 'filter_{}_alpha_{:.3e}.npy'.format(filter_id, float(alpha))
@@ -245,6 +246,7 @@ class ICAPrior(LearnedPriorLoss):
                     file_name = 'filter_{}_alpha_{:.3e}.png'.format(filter_id, float(alpha))
                     plot_img_mats(plottable_filters, rescale=True, show=False, save_path=save_path + file_name)
                     print('filter {} done'.format(filter_id))
+
 
     @staticmethod
     def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,

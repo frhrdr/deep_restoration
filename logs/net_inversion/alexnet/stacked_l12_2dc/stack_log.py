@@ -11,7 +11,7 @@ spec1 = dict(inv_model_type='deconv_conv',
 param1 = dict(classifier='alexnet',
               inv_model_type='deconv_conv',
               inv_model_specs=[spec1],
-              log_path='./logs/net_inversion/alexnet/l2_dc/run1/',
+              log_path='./logs/net_inversion/alexnet/l2_dc/1e-13/',
               load_path='')
 
 spec2 = dict(inv_model_type='deconv_conv',
@@ -24,7 +24,7 @@ spec2 = dict(inv_model_type='deconv_conv',
 param2 = dict(classifier='alexnet',
               inv_model_type='deconv_conv',
               inv_model_specs=[spec2],
-              log_path='./logs/net_inversion/alexnet/l1_dc/run1/',
+              log_path='./logs/net_inversion/alexnet/l1_dc/1e-13/',
               ckpt_num=500,
               load_path='')
 

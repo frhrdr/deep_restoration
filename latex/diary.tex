@@ -20,6 +20,28 @@
 	\item at some point look into hybrid mc sampling
 \end{enumerate}
 
+
+\section{August 16.}
+
+\begin{enumerate}
+	\item fixed filter vis
+	\item test prior again on later layer reconstruction, so the prior actually has something to improve
+	\item build function for feature map vis and direct comparison
+	\item verify correctness of ica build, especially the lsexp trick
+	\item experiment setup: look at mse and actual feature maps compared to ground truth for conv1/lin under different setups.
+	This should provide an intuition of (1) whether the conv1/lin prior does anything useful, (2) whether this effect increases if the MSE is further away and (3) whether the image prior, i.e. a good prior of the previous feature map, has a comparable effect on the conv1/lin layer.
+	\begin{enumerate}
+		\item just MSE in conv2/lin
+		\item just MSE in conv4/lin
+		\item conv1/lin prior + MSE in conv2/lin
+		\item conv1/lin prior + MSE in conv4/lin
+		\item image prior + MSE in conv2/lin
+		\item image prior + MSE in conv4/lin		
+	\end{enumerate}
+	
+\end{enumerate}
+
+
 \section{August 15.}
 
 \begin{enumerate}
