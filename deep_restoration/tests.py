@@ -4,17 +4,18 @@ from utils.preprocessing import make_channel_separate_patch_data, make_flattened
 from modules.channel_ica_prior import ChannelICAPrior
 
 # make_channel_separate_patch_data(100000, 5, 5, 'alexnet', 'conv1/lin:0', 96,
-#                                  save_dir='../data/patches/alexnet/conv1_lin_5x5_24feats_mean_gc_sdev_gc_channelwise/',
+#                                  save_dir='../data/patches/alexnet/conv1_lin_5x5_24feats_mean_lc_sdev_rescaled_'
+#                                           + str(1/255) + '_channelwise/',
 #                                  whiten_mode='pca', batch_size=100,
-#                                  mean_mode='gc', sdev_mode='gc',
-#                                  raw_mat_load_path='')
+#                                  mean_mode='lc', sdev_mode=1/255,
+#                                  raw_mat_load_path='../data/patches/alexnet/conv1_lin_5x5_24feats_mean_gc_sdev_gc_channelwise/raw_mat.npy')
 
 c1l_prior = ChannelICAPrior('conv1/lin:0', 1e-10, 'alexnet', [5, 5], input_scaling=1.0,
                             n_components=150, n_channels=96,
                             n_features_white=24,
-                            trainable=False, name='ChannelICAPrior', mean_mode='gc', sdev_mode='gc')
+                            trainable=False, name='ChannelICAPrior', mean_mode='lc', sdev_mode=1/255)
 
-# c2l_prior.train_prior(batch_size=500, num_iterations=20000,
+# c1l_prior.train_prior(batch_size=500, num_iterations=20000,
 #                       lr_lower_points=((0, 1e-1), (1000, 3e-2), (3000, 1e-2),
 #                                        (5000, 3e-3), (10000, 1e-3), (15000, 3e-4)),
 #                       log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0,
