@@ -15,7 +15,7 @@ class FoEPrior(ICAPrior):
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
             normed_patches = self.shape_and_norm_tensor()
-            n_patches, n_channels, n_feats_per_channel = normed_patches.get_shape()
+            n_patches, n_channels, n_feats_per_channel = [k.value for k in normed_patches.get_shape()]
             n_features_raw = n_feats_per_channel * n_channels
 
             normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
