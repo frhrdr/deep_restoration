@@ -22,12 +22,12 @@ c1l_prior = FoEPrior(tensor_names='conv1/lin:0',
                      n_features_white=1800, mean_mode='lc', sdev_mode='gc')
 
 c1l_prior.train_prior(batch_size=500, num_iterations=30000, lr=3e-5,
-                      lr_lower_points=((5000, 1e-0), (8000, 1e-1), (12000, 3e-2), (16000, 1e-2),
-                                       (21000, 3e-3), (26000, 1e-3), (31000, 3e-4), (36000, 1e-4)),
+                      lr_lower_points=((12000, 3e-2), (14000, 1e-2),
+                                       (15000, 3e-3), (16000, 1e-3), (17000, 3e-4), (18000, 1e-4)),
                       grad_clip=100.0,
                       whiten_mode='pca', num_data_samples=100000,
                       log_freq=1000, summary_freq=10, print_freq=100,
-                      prev_ckpt=8000, optimizer_name='adam',
+                      prev_ckpt=13000, optimizer_name='adam',
                       plot_filters=False, do_clip=True)
 
 # foe_prior = FoEPrior(tensor_names='conv2/lin:0',
