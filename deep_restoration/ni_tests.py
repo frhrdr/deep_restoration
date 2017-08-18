@@ -64,7 +64,7 @@ copyfile('./ni_tests.py', params['log_path'] + 'script.py')
 
 ni = NetInversion(params)
 
-pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_10000.npy'), [1, 224, 224, 3])
+pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_9000.npy'), [1, 224, 224, 3])
 # pre_img_init = np.load('../logs/net_inversion/alexnet/c1l_tests_16_08/init_helper.npy')
 
 ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
