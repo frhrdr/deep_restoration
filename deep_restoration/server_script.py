@@ -27,7 +27,7 @@ c1l_prior.train_prior(batch_size=500, num_iterations=30000, lr=3e-5,
                       grad_clip=100.0,
                       whiten_mode='pca', num_data_samples=100000,
                       log_freq=1000, summary_freq=10, print_freq=100,
-                      prev_ckpt=50000, optimizer_name='adam',
+                      prev_ckpt=5000, optimizer_name='adam',
                       plot_filters=False, do_clip=True)
 
 # foe_prior = FoEPrior(tensor_names='conv2/lin:0',
