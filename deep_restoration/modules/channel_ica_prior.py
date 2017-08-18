@@ -39,11 +39,16 @@ class ChannelICAPrior(ICAPrior):
             print(1, normed_patches.get_shape())
             print(2, whitened_mixing.get_shape())
             print(3, whitening_tensor.get_shape())
-            xw = tf.matmul(tf.transpose(normed_patches, perm=[2, 0, 1]), whitened_mixing)
+            xw = tf.matmul(tf.transpose(normed_patches, perm=[1, 0, 2]), whitened_mixing)
             print(4, xw.get_shape())
 
-            neg_g_wx = tf.log(0.5 * (tf.exp(-xw) + tf.exp(xw))) * tf.stack([ica_a_squeezed] * xw.get_shape()[1].value,
-                                                                           axis=1)
+            xw_abs = tf.abs(xw)
+            log_sum_exp = tf.log(1 + tf.exp(-2 * xw_abs)) + xw_abs
+
+            neg_g_wx = (tf.log(0.5) + log_sum_exp) * tf.stack([ica_a_squeezed] * xw.get_shape()[1].value, axis=1)
+            # neg_g_wx = tf.transpose(neg_g_wx, perm=(1, 0, 2)) * ica_a_squeezed
+            # neg_g_wx = tf.transpose(neg_g_wx, perm=(1, 0, 2))
+
             print(5, neg_g_wx.get_shape())
             neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
             print(6, neg_log_p_patches.get_shape())
@@ -196,7 +201,7 @@ class ChannelICAPrior(ICAPrior):
                         co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
                         plot_img_mats(co, color=False)
 
-    def plot_filters(self, filter_ids, save_path, save_as_mat=False, save_as_plot=True):
+    def plot_filters(self, channel_ids, save_path, save_as_mat=False, save_as_plot=True):
         """
         visualizes the patch for each channel of a trained filter and saves this as one plot.
         does so for the filter of each given index
@@ -213,12 +218,12 @@ class ChannelICAPrior(ICAPrior):
         with tf.Graph().as_default():
 
             with tf.variable_scope(self.name):
-                n_features_raw = self.filter_dims[0] * self.filter_dims[1] * self.n_channels
-                unwhitening_tensor = tf.get_variable('unwhiten_mat', shape=[self.n_features_total, n_features_raw],
+                n_features_raw = self.filter_dims[0] * self.filter_dims[1]
+                unwhitening_tensor = tf.get_variable('unwhiten_mat', shape=[self.n_channels, self.n_features_white, n_features_raw],
                                                      dtype=tf.float32, trainable=False)
-                ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable,
+                ica_a = tf.get_variable('ica_a', shape=[self.n_channels, self.n_components, 1], trainable=self.trainable,
                                         dtype=tf.float32)
-                ica_w = tf.get_variable('ica_w', shape=[self.n_features_total, self.n_components],
+                ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_white, self.n_components],
                                         trainable=self.trainable, dtype=tf.float32)
             self.var_list = [unwhitening_tensor, ica_a, ica_w]
 
@@ -227,24 +232,23 @@ class ChannelICAPrior(ICAPrior):
                 unwhitening_mat, a_mat, w_mat = sess.run(self.var_list)
 
             print('matrices loaded')
-
-            rotated_w_mat = np.dot(w_mat[:, filter_ids].T, unwhitening_mat)
+            # w_mat [n_chan, n_fw, n_comp], unwhiten_mat [n_chan, n_fw, n_f] -> [n_chan_select, n_comps, n_f]
+            w_mat_select = w_mat[channel_ids, :, :].transpose((0, 2, 1))
+            rotated_w_mat = w_mat_select @ unwhitening_mat[channel_ids, :, :]
 
             print('whitening reversed')
 
-            for idx, filter_id in enumerate(filter_ids):
-                flat_filter = rotated_w_mat[idx, :]
-                alpha = a_mat[filter_id]
-                chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.filter_dims[1], self.n_channels])
-                plottable_filters = np.rollaxis(chan_filter, 2)
+            for idx, channel_id in enumerate(channel_ids):
+                chan_filters = rotated_w_mat[idx, :, :]
+                plottable_filters = np.reshape(chan_filters, [self.n_components, self.filter_dims[0], self.filter_dims[1]])
 
                 if save_as_mat:
-                    file_name = 'filter_{}_alpha_{:.3e}.npy'.format(filter_id, float(alpha))
+                    file_name = 'channel_{}_filters.npy'.format(channel_id)
                     np.save(save_path + file_name, plottable_filters)
                 if save_as_plot:
-                    file_name = 'filter_{}_alpha_{:.3e}.png'.format(filter_id, float(alpha))
+                    file_name = 'channel_{}_filters.png'.format(channel_id)
                     plot_img_mats(plottable_filters, rescale=True, show=False, save_path=save_path + file_name)
-                    print('filter {} done'.format(filter_id))
+                    print('channel {} done'.format(channel_id))
 
     def make_data_dir(self):
         return super().make_data_dir().rstrip('/') + '_channelwise/'

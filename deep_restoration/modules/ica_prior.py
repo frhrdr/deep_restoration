@@ -52,7 +52,7 @@ class ICAPrior(LearnedPriorLoss):
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
 
             xw = tf.matmul(normed_patches, whitened_mixing)
-            xw_mean = tf.reduce_mean(xw)  # log sum exp trick in hopes of some added numerical stability
+            # xw_mean = tf.reduce_mean(xw)  # log sum exp trick in hopes of some added numerical stability
             # log_sum_exp = tf.log(tf.exp(-xw - xw_mean) + tf.exp(xw - xw_mean)) + xw_mean
             xw_abs = tf.abs(xw)
             log_sum_exp = tf.log(1 + tf.exp(-2 * xw_abs)) + xw_abs
@@ -233,10 +233,6 @@ class ICAPrior(LearnedPriorLoss):
             for idx, filter_id in enumerate(filter_ids):
                 flat_filter = rotated_w_mat[idx, :]
                 alpha = a_mat[filter_id]
-                # chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.filter_dims[1], self.n_channels])
-                # plottable_filters = np.rollaxis(chan_filter, 2)
-                # chan_filter = np.reshape(flat_filter, [self.filter_dims[0], self.n_channels, self.filter_dims[1]])
-                # plottable_filters = np.rollaxis(chan_filter, 1)
                 plottable_filters = np.reshape(flat_filter, [self.n_channels, self.filter_dims[0], self.filter_dims[1]])
 
                 if save_as_mat:

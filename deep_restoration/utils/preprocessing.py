@@ -329,11 +329,11 @@ def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, 
     data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_whitened_channelwise.npy', dtype=np.float32, mode='w+',
                          shape=(num_patches, n_channels, channel_whiten.shape[1]))
 
-    for idx in range(num_patches):
-        image = norm_mat[idx, :, :]  # [n_c, n_fpc]
-        # channel_whiten is [n_c, n_fpcw, n_fpc], target [n_c, n_fpcw]
-        image = np.expand_dims(image, axis=2)  # [n_c, n_fpc, 1]
-        data_mat[idx, :] = np.squeeze(channel_whiten @ image)  # [n_c, n_fpcw, n_fpc] x [n_c, n_fpc, 1] = [n_c, n_fpcw]
+    for idx in range(num_patches // batch_size):
+        image = norm_mat[idx * batch_size:(idx + 1) * batch_size, :, :]  # [bs, n_c, n_fpc]
+        # channel_whiten is [n_c, n_fpcw, n_fpc], target [bs, n_c, n_fpcw]
+        image = np.expand_dims(image, axis=3)  # [bs, n_c, n_fpc, 1]
+        data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = np.squeeze(channel_whiten @ image)  # [n_c, n_fpcw, n_fpc] x [n_c, n_fpc, 1] = [n_c, n_fpcw]
     print('whitened data done')
 
 

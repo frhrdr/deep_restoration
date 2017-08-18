@@ -37,17 +37,22 @@ img_prior = ICAPrior(tensor_names='pre_img/read:0',
 #                      filter_dims=[5, 5], input_scaling=1.0, n_components=3000, n_channels=96,
 #                      n_features_white=1800, mean_mode='lc', sdev_mode='gc')
 
-c1l_prior = FoEPrior(tensor_names='conv1_lin:0',
-                     weighting=1e-12, name='FoEC1LPrior',
-                     classifier='alexnet',
-                     filter_dims=[5, 5], input_scaling=1.0, n_components=3000, n_channels=96,
-                     n_features_white=1800, mean_mode='lc', sdev_mode='gc')
+# c1l_prior = FoEPrior(tensor_names='conv1_lin:0',
+#                      weighting=1e-12, name='FoEC1LPrior',
+#                      classifier='alexnet',
+#                      filter_dims=[5, 5], input_scaling=1.0, n_components=3000, n_channels=96,
+#                      n_features_white=1800, mean_mode='lc', sdev_mode='gc')
+
+c1l_prior = ChannelICAPrior('conv1_lin:0', 1e-10, 'alexnet', [5, 5], input_scaling=1.0,
+                            n_components=150, n_channels=96,
+                            n_features_white=24,
+                            trainable=False, name='ChannelICAPrior', mean_mode='gc', sdev_mode='gc')
 
 modules = [split4, mse4, split1, mse1, c1l_prior]
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c1l_tests_16_08/6_MSE_c4l_FoE_c1l/1e-12/',
+              log_path='../logs/net_inversion/alexnet/c1l_tests_16_08/6_MSE_c4l_CICA_c1l/1e-10/',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 10000
@@ -65,5 +70,5 @@ pre_img_init = np.load('../logs/net_inversion/alexnet/c1l_tests_16_08/init_helpe
 ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
                    lr_lower_points=((0, 1e-0),), grad_clip=10000.,
-                   save_as_plot=True, pre_img_init=pre_img_init, ckpt_offset=0,
+                   save_as_plot=False, pre_img_init=pre_img_init, ckpt_offset=0,
                    featmap_names_to_plot=('conv2/lin:0',), max_n_featmaps_to_plot=10)
