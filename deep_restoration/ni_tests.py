@@ -69,6 +69,6 @@ pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_10000.npy'), [1
 
 ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
-                   lr_lower_points=((0, 1e-2),), grad_clip=10000.,
+                   lr_lower_points=((0, 1e-1),), grad_clip=10000.,
                    save_as_plot=False, pre_img_init=pre_img_init, ckpt_offset=10000,
                    featmap_names_to_plot=('conv2/lin:0',), max_n_featmaps_to_plot=10)
