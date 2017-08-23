@@ -54,17 +54,18 @@ c1l_prior = FoEPrior(tensor_names='conv1_lin:0',
                      filter_dims=[5, 5], input_scaling=1.0, n_components=6000, n_channels=96,
                      n_features_white=1800, mean_mode='lc', sdev_mode='gc')
 
-modules = [split4, mse4, split1, mse1, c1l_prior]
-
+# modules = [split4, mse4, split1, mse1, c1l_prior]
+modules = [split4, mse4, split1, mse1]
 # path = '../logs/net_inversion/alexnet/c1l_tests_16_08/6_MSE_c4l_CICA_c1l/1e-6/'
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/2308_c1l/',
+              log_path='../logs/net_inversion/alexnet/c1l_comp/No-Prior/',
               load_path='')
 params.update(mv_default_params())
-params['num_iterations'] = 10000
+params['num_iterations'] = 3
 params['learning_rate'] = 1e-10
+params['log_freq'] = 2
 
 if not os.path.exists(params['log_path']):
     os.makedirs(params['log_path'])
@@ -78,6 +79,6 @@ pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_10000.npy'), [1
 
 ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
-                   lr_lower_points=((0, 3e-1),), grad_clip=10000.,
+                   lr_lower_points=((1e+10, 3e-1),), grad_clip=10000.,
                    save_as_plot=True, pre_img_init=pre_img_init, ckpt_offset=10000,
-                   featmap_names_to_plot=('conv2/lin:0',), max_n_featmaps_to_plot=10)
+                   featmap_names_to_plot=('conv1/lin:0',), max_n_featmaps_to_plot=10)
