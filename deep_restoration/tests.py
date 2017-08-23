@@ -27,8 +27,8 @@ c1l_prior = FoEPrior(tensor_names='conv1/lin:0',
 #                       log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0,
 #                       optimizer_name='adam', plot_filters=False)
 
-#  c1l_prior.plot_filters_all_channels(range(3), c1l_prior.load_path + 'filter_vis/')
-c1l_prior.plot_channels_all_filters(range(3), c1l_prior.load_path + 'filter_vis/', save_as_mat=False, save_as_plot=True)
+c1l_prior.plot_filters_all_channels(range(3), c1l_prior.load_path + 'filter_vis/new')
+c1l_prior.plot_channels_all_filters(range(3), c1l_prior.load_path + 'filter_vis/new/')
 # 5x5 flat mean: global channel, sdev: global channel 2400f
 # make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',
 #                           n_channels=96,
