@@ -23,7 +23,7 @@ c1l_prior = FoEPrior(tensor_names='conv1/lin:0',
 
 c1l_prior.train_prior(batch_size=500, num_iterations=30000, lr=3e-5,
                       lr_lower_points=(  #(12000, 3e-2), (14000, 1e-2),
-                                       (20000, 3e-3), (21000, 1e-3), (22000, 3e-4), (23000, 1e-4)),
+                                       (20000, 1e-3), (21000, 3e-4), (23000, 1e-4)),
                       grad_clip=100.0,
                       whiten_mode='pca', num_data_samples=100000,
                       log_freq=1000, summary_freq=10, print_freq=100,
