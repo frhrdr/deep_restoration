@@ -44,7 +44,7 @@ ica_prior = ICAPrior(tensor_names='conv1/lin:0',
 #                       prev_ckpt=35000, optimizer_name='adam',
 #                       plot_filters=True, do_clip=True)
 
-ica_prior.plot_filters(range(3), ica_prior.load_path + 'filter_vis/')
+ica_prior.plot_filters_all_channels(range(3), ica_prior.load_path + 'filter_vis/')
 
 # cica_prior = ChannelICAPrior(tensor_names='pre_img:0',
 #                              weighting=1e-9, name='ChannelICAPrior',

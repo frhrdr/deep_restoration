@@ -201,7 +201,7 @@ class ChannelICAPrior(ICAPrior):
                         co = np.reshape(comps[:n_vis, :], [-1, ph, pw])
                         plot_img_mats(co, color=False)
 
-    def plot_filters(self, channel_ids, save_path, save_as_mat=False, save_as_plot=True):
+    def plot_filters_all_channels(self, channel_ids, save_path, save_as_mat=False, save_as_plot=True):
         """
         visualizes the patch for each channel of a trained filter and saves this as one plot.
         does so for the filter of each given index

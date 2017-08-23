@@ -20,10 +20,32 @@
 	\item at some point look into hybrid mc sampling
 \end{enumerate}
 
+\section{August 23.}
+
+\begin{enumerate}
+	\item train 3x overcomplete lcgc foe prior to convergence on low lr.
+	\item channel visualization
+	\item report for meeting tomorrow
+	\item adapt alexnet to take inputs at arbitrary points
+\end{enumerate}
+
+\section{August 19. - 22.}
+
+\begin{enumerate}
+	\item Bosch interview + preparation + one day off
+\end{enumerate}
+
+
 \section{August 18.}
 
 \begin{enumerate}
 	\item c-independent prior. see if they learn better filters
+	\begin{enumerate}
+		\item filters for 150 comp c1l cica prior look great
+		\item prior weighted at 1e-6 does actually reduce MSE, but not nearly as much as the Image prior.
+		\item thesis why regular ICA prior doesn't work: some channels of a given filter are crap. others are fine. the whole filter is weighted equally however, and so the prior hurts ore than it helps.
+		\item higher over-completeness factors may help with that.
+	\end{enumerate}
 	\item untried FoE weightings
 	\item reproduce conv2/lin finding
 \end{enumerate}

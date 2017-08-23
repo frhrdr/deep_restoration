@@ -194,7 +194,7 @@ class ICAPrior(LearnedPriorLoss):
                         co = np.transpose(co, axes=[0, 2, 3, 1])
                         plot_img_mats(co, color=True, rescale=True)
 
-    def plot_filters(self, filter_ids, save_path, save_as_mat=False, save_as_plot=True):
+    def plot_filters_all_channels(self, filter_ids, save_path, save_as_mat=False, save_as_plot=True):
         """
         visualizes the patch for each channel of a trained filter and saves this as one plot.
         does so for the filter of each given index
@@ -242,6 +242,60 @@ class ICAPrior(LearnedPriorLoss):
                     file_name = 'filter_{}_alpha_{:.3e}.png'.format(filter_id, float(alpha))
                     plot_img_mats(plottable_filters, rescale=True, show=False, save_path=save_path + file_name)
                     print('filter {} done'.format(filter_id))
+
+    def plot_channels_all_filters(self, channel_ids, save_path, save_as_mat=False, save_as_plot=True, n_vis=144):
+        """
+        visualizes all filters of selected channels and saves these as one plot per channel.
+
+        :param filter_ids: collection of filter indices
+        :param save_path: location to save plots
+        :param save_as_mat: if true, saves each filter as channel x height x width matrix
+        :param save_as_plot:  if true, saves each filter as image
+        :return: None
+        """
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+        with tf.Graph().as_default():
+
+            with tf.variable_scope(self.name):
+                n_features_raw = self.filter_dims[0] * self.filter_dims[1] * self.n_channels
+                unwhitening_tensor = tf.get_variable('unwhiten_mat', shape=[self.n_features_white, n_features_raw],
+                                                     dtype=tf.float32, trainable=False)
+                ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable,
+                                        dtype=tf.float32)
+                ica_w = tf.get_variable('ica_w', shape=[self.n_features_white, self.n_components],
+                                        trainable=self.trainable, dtype=tf.float32)
+            self.var_list = [unwhitening_tensor, ica_a, ica_w]
+
+            with tf.Session() as sess:
+                self.load_weights(sess)
+                unwhitening_mat, a_mat, w_mat = sess.run(self.var_list)
+
+            print('matrices loaded')
+            print(w_mat.shape)
+            print(unwhitening_mat.shape)
+            rotated_w_mat = np.dot(w_mat[:,:n_vis].T, unwhitening_mat)
+            print(rotated_w_mat.shape)
+
+            print('whitening reversed')
+
+            ph = self.filter_dims[0]
+            pw = self.filter_dims[1]
+
+            for channel_id in channel_ids:
+                chan_start = ph * pw * channel_id
+                chan_end = ph * pw * (channel_id + 1)
+                flat_channel = rotated_w_mat[:, chan_start:chan_end]
+                plottable_channels = np.reshape(flat_channel, [flat_channel.shape[0], ph, pw])
+
+                if save_as_mat:
+                    file_name = 'channel_{}.npy'.format(channel_id)
+                    np.save(save_path + file_name, plottable_channels)
+                if save_as_plot:
+                    file_name = 'channel_{}.png'.format(channel_id)
+                    plot_img_mats(plottable_channels, rescale=True, show=False, save_path=save_path + file_name)
+                    print('filter {} done'.format(channel_id))
 
 
     @staticmethod
