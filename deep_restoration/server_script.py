@@ -8,12 +8,12 @@ from modules.foe_prior import FoEPrior
 #                           n_feats_white=2400, whiten_mode='pca', batch_size=100,
 #                           mean_mode='gc', sdev_mode='gc')
 # #
-make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='conv2/lin:0',
-                          n_channels=256,
-                          save_dir='../data/patches/alexnet/conv1_lin_5x5_3200feats_mean_gc_sdev_gc/',
-                          n_feats_white=3200, whiten_mode='pca', batch_size=100,
-                          mean_mode='gc', sdev_mode='gc',
-                          raw_mat_load_path='')
+# make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='conv2/lin:0',
+#                           n_channels=256,
+#                           save_dir='../data/patches/alexnet/conv2_lin_5x5_3200feats_mean_gc_sdev_gc/',
+#                           n_feats_white=3200, whiten_mode='pca', batch_size=100,
+#                           mean_mode='gc', sdev_mode='gc',
+#                           raw_mat_load_path='')
 
 c1l_prior = FoEPrior(tensor_names='conv2/lin',
                      weighting=1e-12, name='FoEPrior',
