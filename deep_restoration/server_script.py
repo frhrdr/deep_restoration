@@ -2,18 +2,18 @@ from utils.preprocessing import make_flattened_patch_data
 from modules.ica_prior import ICAPrior
 from modules.foe_prior import FoEPrior
 
-make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='pool1:0',
-                          n_channels=96,
-                          save_dir='../data/patches/alexnet/pool1_5x5_2400feats_mean_gc_sdev_gc/',
-                          n_feats_white=2400, whiten_mode='pca', batch_size=100,
-                          mean_mode='gc', sdev_mode='gc')
-#
-make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',
-                          n_channels=96,
-                          save_dir='../data/patches/alexnet/conv1_lin_5x5_1800feats_mean_gc_sdev_gc/',
-                          n_feats_white=1800, whiten_mode='pca', batch_size=100,
-                          mean_mode='gc', sdev_mode='gc',
-                          raw_mat_load_path='')
+# make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='pool1:0',
+#                           n_channels=96,
+#                           save_dir='../data/patches/alexnet/pool1_5x5_2400feats_mean_gc_sdev_gc/',
+#                           n_feats_white=2400, whiten_mode='pca', batch_size=100,
+#                           mean_mode='gc', sdev_mode='gc')
+# #
+# make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',
+#                           n_channels=96,
+#                           save_dir='../data/patches/alexnet/conv1_lin_5x5_1800feats_mean_gc_sdev_gc/',
+#                           n_feats_white=1800, whiten_mode='pca', batch_size=100,
+#                           mean_mode='gc', sdev_mode='gc',
+#                           raw_mat_load_path='')
 
 c1l_prior = FoEPrior(tensor_names='pool1:0',
                      weighting=1e-12, name='FoEPrior',
@@ -23,7 +23,8 @@ c1l_prior = FoEPrior(tensor_names='pool1:0',
 
 c1l_prior.train_prior(batch_size=500, num_iterations=30000, lr=3e-5,
                       lr_lower_points=((0, 1e-0), (7000, 1e-1), (9000, 3e-2),
-                                       (10000, 1e-2), (12000, 3e-3), (14000, 1e-3)),
+                                       (10000, 1e-2), (12000, 3e-3), (14000, 1e-3),
+                                       (17000, 3e-4), (18000, 1e-4), (20000, 1e-5),),
                       grad_clip=100.0,
                       whiten_mode='pca', num_data_samples=100000,
                       log_freq=1000, summary_freq=10, print_freq=100,
