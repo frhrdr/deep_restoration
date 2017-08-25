@@ -15,7 +15,7 @@ from modules.foe_prior import FoEPrior
 #                           mean_mode='gc', sdev_mode='gc',
 #                           raw_mat_load_path='')
 
-c1l_prior = FoEPrior(tensor_names='conv2/lin',
+c1l_prior = FoEPrior(tensor_names='conv2/lin:0',
                      weighting=1e-12, name='FoEPrior',
                      classifier='alexnet',
                      filter_dims=[5, 5], input_scaling=1.0, n_components=6000, n_channels=256,
