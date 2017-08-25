@@ -1,5 +1,4 @@
 import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 import skimage
@@ -7,7 +6,7 @@ import tensorflow as tf
 from sklearn.decomposition import FastICA
 from utils.filehandling import load_image
 from utils.whitening import pca_whiten_mats, zca_whiten_mats
-
+from tf_alexnet.alexnet import AlexNet
 
 def flattening_filter(dims):
     assert len(dims) == 3
@@ -181,9 +180,9 @@ def plot_img_mats(mat, color=False, rescale=False, show=True, save_path=''):
             ax.axis('off')
         else:
             if color:
-                ax.imshow(mat[idx, :, :, :], interpolation='none')
+                ax.imshow(mat[idx, :, :, :], interpolation='none', vmin=0., vmax=1.)
             else:
-                ax.imshow(mat[idx, :, :], interpolation='none')
+                ax.imshow(mat[idx, :, :], interpolation='none', vmin=0., vmax=1.)
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
     if save_path:
@@ -309,3 +308,15 @@ def plot_feat_map_diffs(mat, save_path, max_n_featmaps_to_plot):
     ax.imshow(plot_mat, aspect='equal')
     plt.savefig(save_path, format='png', dpi=height)
     plt.close()
+
+
+def plot_alexnet_filters(save_dir, filter_name='conv1', filter_ids=(1,2,3)):
+    net = AlexNet()
+    filter_mat = net.data_dict[filter_name][0]
+    print(filter_mat.shape)
+    filter_mat = np.transpose(filter_mat[:, :, :, filter_ids], axes=[3, 0, 1, 2])
+    print(filter_mat.shape)
+    filter_mat -= np.min(filter_mat)
+    filter_mat /= np.max(filter_mat)
+    file_name = 'AlexNet_{}_filters.png'.format(filter_name)
+    plot_img_mats(filter_mat, rescale=False, show=False, save_path=save_dir + file_name)
