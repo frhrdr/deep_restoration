@@ -52,8 +52,14 @@ from utils.temp_utils import plot_alexnet_filters
 #                      filter_dims=[5, 5], input_scaling=1.0, n_components=6000, n_channels=96,
 #                      n_features_white=1800, mean_mode='gc', sdev_mode='gc')
 
-# c2l_prior.plot_filters_all_channels(range(5), c2l_prior.load_path + 'filter_vis/')
-# c2l_prior.plot_channels_top_filters(range(5), c2l_prior.load_path + 'filter_vis/top/')
+c1l_prior = FoEPrior(tensor_names='pool1:0',
+                     weighting=1e-12, name='FoEPrior',
+                     classifier='alexnet',
+                     filter_dims=[5, 5], input_scaling=1.0, n_components=4800, n_channels=96,
+                     n_features_white=2400, mean_mode='gc', sdev_mode='gc')
+
+c1l_prior.plot_filters_all_channels(range(5), c1l_prior.load_path + 'filter_vis/')
+c1l_prior.plot_channels_top_filters(range(5), c1l_prior.load_path + 'filter_vis/top/')
 
 
 # 5x5 flat mean: global channel, sdev: global channel 2400f

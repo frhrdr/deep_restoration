@@ -8,27 +8,27 @@ from modules.foe_prior import FoEPrior
 #                           n_feats_white=2400, whiten_mode='pca', batch_size=100,
 #                           mean_mode='gc', sdev_mode='gc')
 # #
-# make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',
-#                           n_channels=96,
-#                           save_dir='../data/patches/alexnet/conv1_lin_5x5_1800feats_mean_gc_sdev_gc/',
-#                           n_feats_white=1800, whiten_mode='pca', batch_size=100,
-#                           mean_mode='gc', sdev_mode='gc',
-#                           raw_mat_load_path='')
+make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='conv2/lin:0',
+                          n_channels=256,
+                          save_dir='../data/patches/alexnet/conv1_lin_5x5_3200feats_mean_gc_sdev_gc/',
+                          n_feats_white=3200, whiten_mode='pca', batch_size=100,
+                          mean_mode='gc', sdev_mode='gc',
+                          raw_mat_load_path='')
 
-c1l_prior = FoEPrior(tensor_names='pool1:0',
+c1l_prior = FoEPrior(tensor_names='conv2/lin',
                      weighting=1e-12, name='FoEPrior',
                      classifier='alexnet',
-                     filter_dims=[5, 5], input_scaling=1.0, n_components=4800, n_channels=96,
-                     n_features_white=2400, mean_mode='gc', sdev_mode='gc')
+                     filter_dims=[5, 5], input_scaling=1.0, n_components=6000, n_channels=256,
+                     n_features_white=3200, mean_mode='gc', sdev_mode='gc')
 
 c1l_prior.train_prior(batch_size=500, num_iterations=30000, lr=3e-5,
-                      lr_lower_points=( # (0, 1e-0), (7000, 1e-1), (9000, 3e-2),
-                                        # (10000, 1e-2), (12000, 3e-3), (14000, 1e-3),
-                                       (17000, 3e-4), (18000, 1e-4), (20000, 1e-5),),
+                      lr_lower_points=((0, 1e-0), (7000, 1e-1), (9000, 3e-2),
+                                       (10000, 1e-2), (12000, 3e-3), (14000, 1e-3),
+                                       (17000, 3e-4), (18000, 1e-4), (20000, 1e-5)),
                       grad_clip=100.0,
                       whiten_mode='pca', num_data_samples=100000,
                       log_freq=1000, summary_freq=10, print_freq=100,
-                      prev_ckpt=17000,
+                      prev_ckpt=0,
                       optimizer_name='adam',
                       plot_filters=False, do_clip=True)
 
