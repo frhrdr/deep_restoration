@@ -258,13 +258,15 @@ def dep_make_channel_separate_feat_map_mats(num_patches, ph, pw, classifier, map
 
 
 def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_channels,
-                              save_dir, n_feats_white, whiten_mode='pca', batch_size=100,
+                              n_feats_white, whiten_mode='pca', batch_size=100,
                               mean_mode='local_full', sdev_mode='global_feature',
                               raw_mat_load_path=''):
     """
     creates whitening, covariance, raw and whitened feature matrices for separate channels.
     all data is saved as [n_patches, n_channels, n_features_per_channel]
     """
+
+    save_dir = make_data_dir(map_name, ph, pw, mean_mode, sdev_mode, n_feats_white, classifier=classifier)
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -299,13 +301,17 @@ def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_chann
 
 
 def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, n_channels,
-                                     save_dir, whiten_mode='pca', batch_size=100,
+                                     whiten_mode='pca', batch_size=100,
                                      mean_mode='global_channel', sdev_mode='global_channel',
                                      raw_mat_load_path=''):
     """
     creates whitening, covariance, raw and whitened feature matrices for separate channels.
     They are saved as 3d matrices where the first dimension is the channel index
     """
+
+    save_dir = make_data_dir(map_name, ph, pw, mean_mode, sdev_mode,
+                             n_features_white=ph * pw - 1, classifier=classifier)
+    save_dir = save_dir.rstrip('/') + '_channelwise/'
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -661,3 +667,26 @@ def preprocess_tensor(patch_tensor, mean_mode, sdev_mode):
 
     patch_tensor = tf.transpose(patch_tensor, perm=(0, 2, 1))
     return patch_tensor, init_list
+
+
+def add_flattened_validation_set(num_patches, ph, pw, classifier, map_name, n_channels,
+                                 save_dir, whiten_mode='pca', batch_size=100,
+                                 mean_mode='global_channel', sdev_mode='global_channel',
+                                raw_mat_load_path=''):
+    data_dir = make_data_dir(map_name, ph, pw, mean_mode, sdev_mode, n_feats_white, classifier='alexnet')
+
+
+def make_data_dir(in_tensor_name, ph, pw, mean_mode, sdev_mode, n_features_white, classifier='alexnet'):
+    d_str = str(ph) + 'x' + str(pw)
+    if isinstance(sdev_mode, float):
+        mode_str = '_mean_{0}_sdev_rescaled_{1}'.format(mean_mode, sdev_mode)
+    else:
+        mode_str = '_mean_{0}_sdev_{1}'.format(mean_mode, sdev_mode)
+
+    if 'pre_img' in in_tensor_name:
+        subdir = 'image/' + d_str
+    else:
+        t_str = in_tensor_name[:-len(':0')].replace('/', '_')
+        subdir = classifier + '/' + t_str + '_' + d_str + '_' + str(n_features_white) + 'feats'
+    data_dir = '../data/patches/' + subdir + mode_str + '/'
+    return data_dir

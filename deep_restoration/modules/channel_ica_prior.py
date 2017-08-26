@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from modules.ica_prior import ICAPrior
 from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
-from utils.preprocessing import preprocess_tensor
+from utils.preprocessing import make_data_dir
 import time
 import os
 #  _mean_lc_sdev_none
@@ -92,7 +92,10 @@ class ChannelICAPrior(ICAPrior):
         log_path = self.load_path
         ph, pw = self.filter_dims
 
-        data_dir = self.make_data_dir()
+        data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=ph, pw=pw,
+                                 mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
+                                 n_features_white=self.n_features_white,
+                                 classifier=self.classifier).rstrip('/') + '_channelwise/'
 
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
                                    data_shape=(num_data_samples, self.n_channels, self.n_features_white))
@@ -249,6 +252,3 @@ class ChannelICAPrior(ICAPrior):
                     file_name = 'channel_{}_filters.png'.format(channel_id)
                     plot_img_mats(plottable_filters, rescale=True, show=False, save_path=save_path + file_name)
                     print('channel {} done'.format(channel_id))
-
-    def make_data_dir(self):
-        return super().make_data_dir().rstrip('/') + '_channelwise/'

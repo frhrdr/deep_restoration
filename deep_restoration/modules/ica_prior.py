@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from modules.loss_modules import LearnedPriorLoss
 from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
-from utils.preprocessing import preprocess_tensor
+from utils.preprocessing import preprocess_tensor, make_data_dir
 import time
 import os
 # _mean_lf_sdev_none
@@ -86,7 +86,9 @@ class ICAPrior(LearnedPriorLoss):
         log_path = self.load_path
         ph, pw = self.filter_dims
 
-        data_dir = self.make_data_dir()
+        data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=ph, pw=pw,
+                                 mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
+                                 n_features_white=self.n_features_white, classifier=self.classifier)
 
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
                                    data_shape=(num_data_samples, self.n_features_white))
@@ -390,21 +392,6 @@ class ICAPrior(LearnedPriorLoss):
         load_path = '../logs/priors/' + dir_name + '/' + subdir + target_dir + mode_str + '/'
 
         return load_path
-
-    def make_data_dir(self):
-        d_str = str(self.filter_dims[0]) + 'x' + str(self.filter_dims[1])
-        if isinstance(self.sdev_mode, float):
-            mode_str = '_mean_{0}_sdev_rescaled_{1}'.format(self.mean_mode, self.sdev_mode)
-        else:
-            mode_str = '_mean_{0}_sdev_{1}'.format(self.mean_mode, self.sdev_mode)
-
-        if 'pre_img' in self.in_tensor_names:
-            subdir = 'image/' + d_str
-        else:
-            t_str = self.in_tensor_names[:-len(':0')].replace('/', '_')
-            subdir = self.classifier + '/' + t_str + '_' + d_str + '_' + str(self.n_features_white) + 'feats'
-        data_dir = '../data/patches/' + subdir + mode_str + '/'
-        return data_dir
 
     def add_preprocessing_to_graph(self, data_dir, whiten_mode):
         unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
