@@ -442,7 +442,7 @@ def normed_patch_data_mat(raw_mat, save_dir,
             batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
             data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch - feature_mean
 
-        np.save(save_dir + 'data_sdev.npy', feature_mean)
+        np.save(save_dir + 'data_mean.npy', feature_mean)
 
     elif mean_mode in ('local_channel', 'lc'):
         for idx in range(num_patches // batch_size):
@@ -670,20 +670,86 @@ def preprocess_tensor(patch_tensor, mean_mode, sdev_mode):
 
 
 def add_flattened_validation_set(num_patches, ph, pw, classifier, map_name, n_channels,
-                                 save_dir, whiten_mode='pca', batch_size=100,
-                                 mean_mode='global_channel', sdev_mode='global_channel',
-                                raw_mat_load_path=''):
-    data_dir = make_data_dir(map_name, ph, pw, mean_mode, sdev_mode, n_feats_white, classifier='alexnet')
+                                 n_feats_white, whiten_mode='pca', batch_size=100,
+                                 mean_mode='global_channel', sdev_mode='global_channel'):
+
+    save_dir = make_data_dir(map_name, ph, pw, mean_mode, sdev_mode, n_feats_white, classifier='alexnet')
+    raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir,
+                                 file_name='raw_val_mat.npy')
+    print(1, raw_mat.shape)
+    ###### MEAN treatment ######
+    if mean_mode in ('global_channel', 'gc'):
+        channel_mean = np.load(save_dir + 'data_mean.npy')
+        raw_t = np.transpose(raw_mat, axes=(0, 2, 1))
+        raw_t_centered = raw_t - channel_mean
+        raw_centered = np.transpose(raw_t_centered, axes=(0, 2, 1))
+
+    elif mean_mode in ('global_feature', 'gf'):
+        feature_mean = np.load(save_dir + 'data_mean.npy')
+        raw_centered = raw_mat - feature_mean
+
+    elif mean_mode in ('local_channel', 'lc'):
+        channel_mean = np.mean(raw_mat, axis=2)  # shape=[n_patches, n_channels]
+        raw_t = np.transpose(raw_mat, axes=(2, 0, 1))
+        raw_t_centered = raw_t - channel_mean
+        raw_centered = np.transpose(raw_t_centered, axes=(1, 2, 0))
+
+    elif mean_mode in ('local_full', 'lf'):
+        sample_mean = np.mean(raw_mat, axis=(1, 2))
+        raw_t = np.transpose(raw_mat)
+        raw_t_centered = raw_t - sample_mean
+        raw_centered = np.transpose(raw_t_centered)
+
+    else:  # mean_mode is 'none'
+        raw_centered = raw_mat
+
+    ###### SDEV treatment ######
+    if sdev_mode in ('global_channel', 'gc'):
+        channel_sdev = np.load(save_dir + 'data_sdev.npy')
+        raw_t_centered = np.transpose(raw_centered, axes=(0, 2, 1))
+        normed_t = raw_t_centered / channel_sdev
+        normed = np.transpose(normed_t, axes=(0, 2, 1))
+
+    elif sdev_mode in ('global_feature', 'gf'):
+        feat_sdev = np.load(save_dir + 'data_sdev.npy')
+        normed = raw_centered / feat_sdev
+
+    elif sdev_mode in ('local_channel', 'lc'):  # seems like a bad idea anyway
+        raise NotImplementedError
+
+    elif sdev_mode in ('local_full', 'lf'):  # this too
+        sample_sdev = np.std(raw_centered, axis=(1, 2))
+        raw_t_centered = np.transpose(raw_centered)
+        normed_t = raw_t_centered / sample_sdev
+        normed = np.transpose(normed_t)
+
+    elif isinstance(sdev_mode, float):
+        normed = sdev_mode * raw_centered
+
+    flat_mat = normed.reshape([num_patches, -1])
+
+    whiten_mat = np.load(save_dir + 'whiten_{}.npy'.format(whiten_mode))
+
+    val_mat = flat_mat @ whiten_mat.T
+    print(val_mat.shape)
+    np.save(save_dir + 'val_mat.npy', val_mat)
+
 
 
 def make_data_dir(in_tensor_name, ph, pw, mean_mode, sdev_mode, n_features_white, classifier='alexnet'):
+    mode_abbreviatons = {'global_channel': 'gc', 'global_feature': 'gf', 'local_channel': 'lc', 'local_full': 'lf'}
+    if mean_mode in mode_abbreviatons:
+        mean_mode = mode_abbreviatons[mean_mode]
+    if sdev_mode in mode_abbreviatons:
+        sdev_mode = mode_abbreviatons[sdev_mode]
+
     d_str = str(ph) + 'x' + str(pw)
     if isinstance(sdev_mode, float):
         mode_str = '_mean_{0}_sdev_rescaled_{1}'.format(mean_mode, sdev_mode)
     else:
         mode_str = '_mean_{0}_sdev_{1}'.format(mean_mode, sdev_mode)
 
-    if 'pre_img' in in_tensor_name:
+    if 'pre_img' in in_tensor_name or 'rgb_scaled' in in_tensor_name:
         subdir = 'image/' + d_str
     else:
         t_str = in_tensor_name[:-len(':0')].replace('/', '_')

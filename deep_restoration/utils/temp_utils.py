@@ -123,8 +123,8 @@ def dep_make_img_data_mats(num_patches, ph=8, pw=8, color=False, save_dir='./dat
 
 
 def patch_batch_gen(batch_size, data_dir, whiten_mode='pca',
-                    data_shape=(100000, 63)):
-    if len(data_shape) == 2:
+                    data_shape=(100000, 63), data_mode='train'):
+    if len(data_shape) == 2 and data_mode == 'train':
         data_mat = np.memmap(data_dir + 'data_mat_' + whiten_mode + '_whitened.npy',
                              dtype=np.float32, mode='r', shape=data_shape)
         n_samples, n_features = data_shape
@@ -139,7 +139,7 @@ def patch_batch_gen(batch_size, data_dir, whiten_mode='pca',
                 first_bit = data_mat[:idx, :]
                 batch = np.concatenate((last_bit, first_bit), axis=0)
             yield batch
-    elif len(data_shape) == 3:
+    elif len(data_shape) == 3 and data_mode == 'train':
         data_mat = np.memmap(data_dir + 'data_mat_' + whiten_mode + '_whitened_channelwise.npy',
                              dtype=np.float32, mode='r', shape=data_shape)
         n_samples, n_channels, n_features = data_shape
@@ -154,8 +154,24 @@ def patch_batch_gen(batch_size, data_dir, whiten_mode='pca',
                 first_bit = data_mat[:idx, :, :]
                 batch = np.concatenate((last_bit, first_bit), axis=0)
             yield batch
+    elif len(data_shape) == 2 and data_mode == 'validate':
+        data_mat = np.load(data_dir + 'val_mat.npy')
+        n_samples, n_features = data_shape
+        assert data_mat.shape[1] == n_features
+        assert data_mat.shape[0] == n_samples
+        assert n_samples % batch_size == 0
+
+        idx = 0
+        while True:
+            batch = data_mat[idx:(idx + batch_size), :]
+            idx += batch_size
+            idx = idx % n_samples
+            yield batch
+    elif len(data_shape) == 3 and data_mode == 'validate':
+        raise NotImplementedError
     else:
         raise NotImplementedError
+
 
 
 def plot_img_mats(mat, color=False, rescale=False, show=True, save_path=''):

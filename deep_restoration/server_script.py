@@ -1,4 +1,4 @@
-from utils.preprocessing import make_flattened_patch_data
+from utils.preprocessing import make_flattened_patch_data, add_flattened_validation_set
 from modules.ica_prior import ICAPrior
 from modules.foe_prior import FoEPrior
 
@@ -15,6 +15,10 @@ from modules.foe_prior import FoEPrior
 #                           mean_mode='gc', sdev_mode='gc',
 #                           raw_mat_load_path='')
 
+add_flattened_validation_set(num_patches=1000, ph=5, pw=5, classifier='alexnet', map_name='conv2/lin:0',
+                             n_channels=256, n_feats_white=3200, whiten_mode='pca', batch_size=100,
+                             mean_mode='global_channel', sdev_mode='global_channel')
+
 c1l_prior = FoEPrior(tensor_names='conv2/lin:0',
                      weighting=1e-12, name='FoEPrior',
                      classifier='alexnet',
@@ -30,7 +34,8 @@ c1l_prior.train_prior(batch_size=500, num_iterations=10000, lr=3e-5,
                       grad_clip=100.0,
                       whiten_mode='pca', num_data_samples=100000,
                       log_freq=1000, summary_freq=10, print_freq=100,
-                      prev_ckpt=40000,
+                      test_freq=100, n_val_samples=1000,
+                      prev_ckpt=45000,
                       optimizer_name='adam',
                       plot_filters=False, do_clip=True)
 

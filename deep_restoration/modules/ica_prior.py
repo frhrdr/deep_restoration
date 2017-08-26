@@ -80,8 +80,9 @@ class ICAPrior(LearnedPriorLoss):
         return term_1 + term_2, term_1, term_2
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
-                    whiten_mode='pca', num_data_samples=100000,
-                    log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0, optimizer_name='momentum',
+                    whiten_mode='pca', num_data_samples=100000, n_val_samples=500,
+                    log_freq=5000, summary_freq=10, print_freq=100, test_freq=100,
+                    prev_ckpt=0, optimizer_name='adam',
                     plot_filters=False, do_clip=True):
         log_path = self.load_path
         ph, pw = self.filter_dims
@@ -91,7 +92,10 @@ class ICAPrior(LearnedPriorLoss):
                                  n_features_white=self.n_features_white, classifier=self.classifier)
 
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
-                                   data_shape=(num_data_samples, self.n_features_white))
+                                   data_shape=(num_data_samples, self.n_features_white), data_mode='train')
+
+        val_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
+                                  data_shape=(n_val_samples, self.n_features_white), data_mode='validate')
 
         with tf.Graph().as_default() as graph:
             with tf.variable_scope(self.name):
@@ -131,6 +135,9 @@ class ICAPrior(LearnedPriorLoss):
                 tf.summary.scalar('term_2', term_2)
                 train_summary_op = tf.summary.merge_all()
                 summary_writer = tf.summary.FileWriter(log_path + '/summaries')
+
+                val_loss = tf.placeholder(dtype=tf.float32, shape=[], name='val_loss')
+                val_summary_op = tf.summary.scalar('validation_loss', val_loss)
 
                 with tf.Session() as sess:
                     # print(tf.trainable_variables())
@@ -178,6 +185,20 @@ class ICAPrior(LearnedPriorLoss):
 
                             train_ratio = 100.0 * train_time / (time.time() - start_time)
                             print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
+
+                        if test_freq > 0 and count % test_freq == 0:
+                            val_loss_acc = 0.0
+                            num_runs = n_val_samples // batch_size  # + 1 (don't get why)
+                            for val_count in range(num_runs):
+                                val_feed_dict = {x_pl: next(val_gen)}
+                                val_batch_loss = sess.run(loss, feed_dict=val_feed_dict)
+                                val_loss_acc += val_batch_loss
+                            val_loss_acc /= num_runs
+                            val_summary_string = sess.run(val_summary_op, feed_dict={val_loss: val_loss_acc})
+                            summary_writer.add_summary(val_summary_string, count)
+                            print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
+                                   'Time: {2:5.1f} min').format(count, val_loss_acc,
+                                                                (time.time() - start_time) / 60))
 
                         if count % log_freq == 0:
                             saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=count)
