@@ -188,7 +188,7 @@ class ICAPrior(LearnedPriorLoss):
 
                         if test_freq > 0 and count % test_freq == 0:
                             val_loss_acc = 0.0
-                            num_runs = n_val_samples // batch_size  # + 1 (don't get why)
+                            num_runs = n_val_samples // batch_size
                             for val_count in range(num_runs):
                                 val_feed_dict = {x_pl: next(val_gen)}
                                 val_batch_loss = sess.run(loss, feed_dict=val_feed_dict)
@@ -361,9 +361,9 @@ class ICAPrior(LearnedPriorLoss):
             print(unwhitening_mat.shape)
             rotated_w_mat = np.dot(w_mat.T, unwhitening_mat)
             print(rotated_w_mat.shape)
-            w_min = np.min(rotated_w_mat)
-            w_max = np.max(rotated_w_mat)
-            print(w_min, w_max)
+            # w_min = np.min(rotated_w_mat)  use channel min/max instead
+            # w_max = np.max(rotated_w_mat)
+            # print(w_min, w_max)
 
             print('whitening reversed')
             ph = self.filter_dims[0]
@@ -373,6 +373,9 @@ class ICAPrior(LearnedPriorLoss):
                 chan_start = ph * pw * channel_id
                 chan_end = ph * pw * (channel_id + 1)
                 flat_channel = rotated_w_mat[:, chan_start:chan_end]
+
+                w_min = np.min(flat_channel)
+                w_max = np.max(flat_channel)
 
                 w_norms = np.linalg.norm(flat_channel, axis=1)
                 norm_ids = np.argsort(w_norms)[-n_vis:][::-1]

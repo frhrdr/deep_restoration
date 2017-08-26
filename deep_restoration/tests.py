@@ -31,17 +31,20 @@ from utils.temp_utils import plot_alexnet_filters
 img_prior = FoEPrior(tensor_names='pre_img:0',
                      weighting=1e-12, name='FoEPrior',
                      classifier='alexnet',
-                     filter_dims=[8, 8], input_scaling=1.0, n_components=500, n_channels=3,
+                     filter_dims=[8, 8], input_scaling=1.0, n_components=50, n_channels=3,
                      n_features_white=64*3-1, mean_mode='gc', sdev_mode='gc')
 
-img_prior.train_prior(batch_size=100, num_iterations=20000,
-                      lr_lower_points=((0, 1e-0), (4000, 1e-1), (6000, 3e-2), (8000, 1e-2),
-                                       (10000, 3e-3), (13000, 1e-3), (15000, 3e-4)),
-                      log_freq=1000, summary_freq=10, print_freq=100,
-                      test_freq=100, n_val_samples=500,
-                      prev_ckpt=0,
-                      optimizer_name='adam')
+# img_prior.train_prior(batch_size=100, num_iterations=20000,
+#                       lr_lower_points=((0, 1e-0), (4000, 1e-1), (6000, 3e-2), (8000, 1e-2),
+#                                        (10000, 3e-3), (13000, 1e-3), (15000, 3e-4)),
+#                       log_freq=1000, summary_freq=10, print_freq=100,
+#                       test_freq=100, n_val_samples=500,
+#                       prev_ckpt=0,
+#                       optimizer_name='adam')
 
+c1l_prior = img_prior
+c1l_prior.plot_filters_all_channels(range(5), c1l_prior.load_path + 'filter_vis/')
+c1l_prior.plot_channels_top_filters(range(5), c1l_prior.load_path + 'filter_vis/top/')
 
 # c1l_prior = ChannelICAPrior('conv1_lin:0', 1e-6, 'alexnet', [5, 5], input_scaling=1.0,
 #                             n_components=150, n_channels=96,
@@ -60,8 +63,7 @@ img_prior.train_prior(batch_size=100, num_iterations=20000,
 #                      filter_dims=[5, 5], input_scaling=1.0, n_components=4800, n_channels=96,
 #                      n_features_white=2400, mean_mode='gc', sdev_mode='gc')
 #
-# c1l_prior.plot_filters_all_channels(range(5), c1l_prior.load_path + 'filter_vis/')
-# c1l_prior.plot_channels_top_filters(range(5), c1l_prior.load_path + 'filter_vis/top/')
+
 
 
 # 5x5 flat mean: global channel, sdev: global channel 2400f
