@@ -8,15 +8,15 @@ from modules.foe_prior import FoEPrior
 #                           n_feats_white=2400, whiten_mode='pca', batch_size=100,
 #                           mean_mode='gc', sdev_mode='gc')
 # #
-make_flattened_patch_data(num_patches=100000, ph=3, pw=3, classifier='alexnet', map_name='conv1/relu:0',
-                          n_channels=96,
-                          n_feats_white=864, whiten_mode='pca', batch_size=100,
-                          mean_mode='gc', sdev_mode='gc',
-                          raw_mat_load_path='')
+# make_flattened_patch_data(num_patches=100000, ph=3, pw=3, classifier='alexnet', map_name='conv1/relu:0',
+#                           n_channels=96,
+#                           n_feats_white=864, whiten_mode='pca', batch_size=100,
+#                           mean_mode='gc', sdev_mode='gc',
+#                           raw_mat_load_path='')
 
-# add_flattened_validation_set(num_patches=1000, ph=5, pw=5, classifier='alexnet', map_name='conv2/lin:0',
-#                              n_channels=256, n_feats_white=3200, whiten_mode='pca', batch_size=100,
-#                              mean_mode='global_channel', sdev_mode='global_channel')
+add_flattened_validation_set(num_patches=1000, ph=3, pw=3, classifier='alexnet', map_name='conv1/relu:0',
+                             n_channels=96, n_feats_white=864, whiten_mode='pca', batch_size=100,
+                             mean_mode='global_channel', sdev_mode='global_channel')
 
 prior = FoEPrior(tensor_names='conv1/relu:0',
                  weighting=1e-12, name='FoEPrior',
