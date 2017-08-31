@@ -1,16 +1,30 @@
-from utils.preprocessing import raw_patch_data_mat, make_flattened_patch_data
+from utils.preprocessing import raw_patch_data_mat, make_channel_separate_patch_data
 # from utils.temp_utils import plot_feat_map_diffs
 # import numpy as np
 from modules.channel_ica_prior import ChannelICAPrior
 from modules.foe_prior import FoEPrior
 from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
 
+# make_channel_separate_patch_data(100000, 8, 8, 'alexnet', 'conv1/relu:0', 96,
+#                                  whiten_mode='pca', batch_size=100,
+#                                  mean_mode='gc', sdev_mode='gc',
+#                                  raw_mat_load_path='../data/patches/alexnet/conv1_relu_8x8_6144feats_mean_gc_sdev_gc/raw_mat.npy')
 
-make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv1/relu:0',
-                          n_channels=96,
-                          n_feats_white=6144, whiten_mode='pca', batch_size=100,
-                          mean_mode='gc', sdev_mode='gc',
-                          raw_mat_load_path='../data/patches/alexnet/conv1_relu_8x8_6144feats_mean_gc_sdev_gc/raw_mat.npy')
+c1r_prior = ChannelICAPrior('conv1/relu:0', 1e-10, 'alexnet', [8, 8], input_scaling=1.0,
+                            n_components=150, n_channels=96,
+                            n_features_white=63,
+                            mean_mode='gc', sdev_mode='gc')
+
+c1r_prior.train_prior(batch_size=500, num_iterations=30000, lr=3e-5,
+                      lr_lower_points=((0, 1e-0), (5000, 1e-1), (3000, 3e-2),
+                                       (5000, 1e-2), (6000, 3e-3), (7000, 1e-3),
+                                       (8000, 1e-4), (9000, 3e-5), (10000, 1e-5),),
+                      grad_clip=100.0,
+                      whiten_mode='pca', num_data_samples=100000,
+                      log_freq=1000, summary_freq=10, print_freq=100,
+                      prev_ckpt=1000,
+                      optimizer_name='adam')
+
 
 # raw_patch_data_mat('conv1/lin:0', 'alexnet', 100, 8, 8, 10, 96,
 #                    '../data/patches/alexnet/conv1_lin_8x8_raw/',
