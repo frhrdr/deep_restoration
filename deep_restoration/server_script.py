@@ -3,7 +3,7 @@ from modules.ica_prior import ICAPrior
 from modules.foe_prior import FoEPrior
 
 
-# #
+
 
 make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv1/lin:0',
                           n_channels=96,
