@@ -60,7 +60,7 @@ c1l_prior = FoEPrior(tensor_names='conv1_lin:0',
                      n_features_white=1800, mean_mode='lc', sdev_mode='gc')
 
 c1r_prior = FoEPrior(tensor_names='conv1_relu:0',
-                     weighting=1e-10, name='FoEPrior',
+                     weighting=1e-8, name='FoEPrior',
                      classifier='alexnet',
                      filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
                      n_features_white=3000, mean_mode='gc', sdev_mode='gc')
@@ -71,7 +71,7 @@ modules = [split4, mse4, split1, mse1, c1r_prior]
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c1r_comp/88/1e-10',
+              log_path='../logs/net_inversion/alexnet/c1r_comp/88/1e-8',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 500
