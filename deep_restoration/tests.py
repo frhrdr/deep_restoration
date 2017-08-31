@@ -1,4 +1,4 @@
-from utils.preprocessing import raw_patch_data_mat
+from utils.preprocessing import raw_patch_data_mat, make_flattened_patch_data
 # from utils.temp_utils import plot_feat_map_diffs
 # import numpy as np
 from modules.channel_ica_prior import ChannelICAPrior
@@ -6,13 +6,19 @@ from modules.foe_prior import FoEPrior
 from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
 
 
+make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv1/relu:0',
+                          n_channels=96,
+                          n_feats_white=6144, whiten_mode='pca', batch_size=100,
+                          mean_mode='gc', sdev_mode='gc',
+                          raw_mat_load_path='../data/patches/alexnet/conv1_relu_8x8_6144feats_mean_gc_sdev_gc/raw_mat.npy')
 
-raw_patch_data_mat('conv1/lin:0', 'alexnet', 100, 8, 8, 10, 96,
-                   '../data/patches/alexnet/conv1_lin_8x8_raw/',
-                   file_name='raw_mat.npy')
+# raw_patch_data_mat('conv1/lin:0', 'alexnet', 100, 8, 8, 10, 96,
+#                    '../data/patches/alexnet/conv1_lin_8x8_raw/',
+#                    file_name='raw_mat.npy')
 
-raw_mat_path = '../data/patches/alexnet/conv1_lin_8x8_raw/raw_mat.npy'
-show_patches_by_channel(raw_mat_path, 100, 8, 8, 96, plot_patches=range(10))
+# raw_mat_dir = '../data/patches/alexnet/conv1_lin_5x5_raw/'
+# raw_mat_name = 'raw_mat.npy'
+# show_patches_by_channel(raw_mat_dir, raw_mat_name, 100, 5, 5, 96, plot_patches=range(5))
 
 # raw_mat_path = '../data/patches/image/8x8_mean_gc_sdev_gc/raw_mat.npy'
 # show_patches_by_channel(raw_mat_path, 100000, 8, 8, 3, plot_patches=range(100, 105))

@@ -2,11 +2,7 @@ from utils.preprocessing import make_flattened_patch_data, add_flattened_validat
 from modules.ica_prior import ICAPrior
 from modules.foe_prior import FoEPrior
 
-# make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='pool1:0',
-#                           n_channels=96,
-#                           save_dir='../data/patches/alexnet/pool1_5x5_2400feats_mean_gc_sdev_gc/',
-#                           n_feats_white=2400, whiten_mode='pca', batch_size=100,
-#                           mean_mode='gc', sdev_mode='gc')
+
 # #
 
 # make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv1/relu:0',
@@ -26,14 +22,14 @@ prior = FoEPrior(tensor_names='conv1/relu:0',
                  n_features_white=3000, mean_mode='gc', sdev_mode='gc')
 
 prior.train_prior(batch_size=500, num_iterations=24000, lr=3e-5,
-                  lr_lower_points=((0, 1e-0), (4000, 1e-1), (5000, 3e-2),
-                                       (6000, 1e-2), (7000, 3e-3), (8000, 1e-3),
+                  lr_lower_points=((0, 1e-0), (7000, 1e-1), (8000, 3e-2),
+                                       (9000, 1e-2), (10000, 3e-3), (11000, 1e-3),
                                        (9000, 3e-4), (10000, 1e-4), (11000, 1e-5)),
                   grad_clip=100.0,
                   whiten_mode='pca', num_data_samples=100000,
                   log_freq=1000, summary_freq=10, print_freq=100,
                   test_freq=100, n_val_samples=1000,
-                  prev_ckpt=0,
+                  prev_ckpt=4000,
                   optimizer_name='adam',
                   plot_filters=False, do_clip=True)
 

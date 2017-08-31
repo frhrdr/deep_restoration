@@ -338,12 +338,13 @@ def plot_alexnet_filters(save_dir, filter_name='conv1', filter_ids=(1,2,3)):
     plot_img_mats(filter_mat, rescale=False, show=False, save_path=save_dir + file_name)
 
 
-def show_patches_by_channel(raw_mat_path, n_patches, ph, pw, n_channels, plot_patches=(1, 2, 3)):
-    raw_mat = np.memmap(raw_mat_path, dtype=np.float32, mode='r',
+def show_patches_by_channel(raw_mat_dir, raw_mat_name, n_patches, ph, pw, n_channels, plot_patches=(1, 2, 3)):
+    raw_mat = np.memmap(raw_mat_dir + raw_mat_name, dtype=np.float32, mode='r',
                         shape=(n_patches, n_channels, ph * pw))
 
     to_plot = raw_mat[plot_patches, :, :].reshape((len(plot_patches), n_channels, ph, pw))
-    for mat_idx, pat_idx in enumerate(to_plot):
+    for mat_idx, pat_idx in enumerate(plot_patches):
 
-        plot_img_mats(to_plot[mat_idx, :, :, :], color=False, rescale=True, show=True, save_path='')
+        plot_img_mats(to_plot[mat_idx, :, :, :], color=False, rescale=True, show=False,
+                      save_path=raw_mat_dir + 'patch{}.png'.format(pat_idx))
 

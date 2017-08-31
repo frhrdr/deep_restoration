@@ -66,12 +66,12 @@ c1r_prior = FoEPrior(tensor_names='conv1_relu:0',
                      n_features_white=864, mean_mode='gc', sdev_mode='gc')
 
 # modules = [split4, mse4, split1, mse1, c1l_prior]
-modules = [split4, mse4, split1, mse1, img_prior]
+modules = [split4, mse4, split1, mse1]
 # path = '../logs/net_inversion/alexnet/c1l_tests_16_08/6_MSE_c4l_CICA_c1l/1e-6/'
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c1r_comp/img/',
+              log_path='../logs/net_inversion/alexnet/c1r_comp/no_prior/',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 10000
