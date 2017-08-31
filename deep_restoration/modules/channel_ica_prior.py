@@ -1,11 +1,12 @@
 import tensorflow as tf
 import numpy as np
 from modules.ica_prior import ICAPrior
-from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
+from utils.temp_utils import patch_batch_gen, plot_img_mats, get_optimizer
 from utils.preprocessing import make_data_dir
 import time
 import os
 #  _mean_lc_sdev_none
+
 
 class ChannelICAPrior(ICAPrior):
     """
@@ -30,7 +31,8 @@ class ChannelICAPrior(ICAPrior):
             whitening_tensor = tf.get_variable('whiten_mat',
                                                shape=[self.n_channels, self.n_features_white, n_feats_per_channel],
                                                dtype=tf.float32, trainable=False)
-            ica_a = tf.get_variable('ica_a', shape=[self.n_channels, self.n_components, 1], trainable=self.trainable, dtype=tf.float32)
+            ica_a = tf.get_variable('ica_a', shape=[self.n_channels, self.n_components, 1],
+                                    trainable=self.trainable, dtype=tf.float32)
             ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_white, self.n_components],
                                     trainable=self.trainable, dtype=tf.float32)
             ica_a_squeezed = tf.squeeze(tf.nn.softplus(ica_a))
@@ -66,14 +68,14 @@ class ChannelICAPrior(ICAPrior):
         :param alpha: scaling -- n_channels x n_components_per_channel
         :return: full loss, and two partial loss terms
         """
-        alpha = tf.nn.softplus(alpha)
+        alpha_pos = tf.nn.softplus(alpha)
         const_t = x_mat.get_shape()[0].value
         xw_mat = tf.matmul(x_mat, w_mat)
         g_mat = -tf.tanh(xw_mat)
         gp_mat = -4.0 / tf.square(tf.exp(xw_mat) + tf.exp(-xw_mat))  # d/dx tanh(x) = 4 / (exp(x) + exp(-x))^2
         gp_vec = tf.reduce_sum(gp_mat, axis=1) / const_t
         gg_mat = tf.matmul(g_mat, g_mat, transpose_a=True) / const_t
-        aa_mat = tf.matmul(alpha, alpha, transpose_b=True)
+        aa_mat = tf.matmul(alpha_pos, alpha_pos, transpose_b=True)
         ww_mat = tf.matmul(w_mat, w_mat, transpose_a=True)
 
         ww_list = tf.split(ww_mat, num_or_size_splits=ww_mat.get_shape()[0].value, axis=0)
@@ -81,14 +83,18 @@ class ChannelICAPrior(ICAPrior):
         w_norm = tf.stack(w_norm_list, axis=0, name='w_norm')
 
         # w_norm = tf.Print(w_norm, [g_mat, gp_mat, xw_mat, x_mat])
-        term_1 = tf.reduce_sum(tf.squeeze(alpha) * w_norm * gp_vec, name='t1')
+        term_1 = tf.reduce_sum(tf.squeeze(alpha_pos) * w_norm * gp_vec, name='t1')
         term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
+        term_2 = tf.Print(term_2, [term_2, x_mat])
         return term_1 + term_2, term_1, term_2
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
                     whiten_mode='pca', num_data_samples=100000,
-                    log_freq=5000, summary_freq=10, print_freq=100, prev_ckpt=0, optimizer_name='momentum',
+                    n_val_samples=0,
+                    log_freq=5000, summary_freq=10, print_freq=100, test_freq=0, prev_ckpt=0,
+                    optimizer_name='adam',
                     plot_filters=False, do_clip=True):
+
         log_path = self.load_path
         ph, pw = self.filter_dims
 
@@ -250,5 +256,7 @@ class ChannelICAPrior(ICAPrior):
                     np.save(save_path + file_name, plottable_filters)
                 if save_as_plot:
                     file_name = 'channel_{}_filters.png'.format(channel_id)
-                    plot_img_mats(plottable_filters, rescale=True, show=False, save_path=save_path + file_name)
+                    plottable_filters -= np.min(plottable_filters)
+                    plottable_filters /= np.max(plottable_filters)
+                    plot_img_mats(plottable_filters, rescale=False, show=False, save_path=save_path + file_name)
                     print('channel {} done'.format(channel_id))

@@ -60,21 +60,21 @@ c1l_prior = FoEPrior(tensor_names='conv1_lin:0',
                      n_features_white=1800, mean_mode='lc', sdev_mode='gc')
 
 c1r_prior = FoEPrior(tensor_names='conv1_relu:0',
-                     weighting=9e-10, name='FoEPrior',
+                     weighting=1e-10, name='FoEPrior',
                      classifier='alexnet',
-                     filter_dims=[3, 3], input_scaling=1.0, n_components=2000, n_channels=96,
-                     n_features_white=864, mean_mode='gc', sdev_mode='gc')
+                     filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
+                     n_features_white=3000, mean_mode='gc', sdev_mode='gc')
 
 # modules = [split4, mse4, split1, mse1, c1l_prior]
-modules = [split4, mse4, split1, mse1]
+modules = [split4, mse4, split1, mse1, c1r_prior]
 # path = '../logs/net_inversion/alexnet/c1l_tests_16_08/6_MSE_c4l_CICA_c1l/1e-6/'
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c1r_comp/no_prior/',
+              log_path='../logs/net_inversion/alexnet/c1r_comp/88/1e-10',
               load_path='')
 params.update(mv_default_params())
-params['num_iterations'] = 10000
+params['num_iterations'] = 500
 params['learning_rate'] = 1e-10
 params['log_freq'] = 500
 
@@ -86,13 +86,21 @@ ni = NetInversion(params)
 
 # pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_10500.npy'), [1, 224, 224, 3])
 
-pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_500.npy'), [1, 224, 224, 3])
-# pre_img_init = None
+# pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_500.npy'), [1, 224, 224, 3])
 
 # pre_img_init = np.load('../logs/net_inversion/alexnet/c1l_tests_16_08/init_helper.npy')
 
+pre_img_init = None
 ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
                    lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
-                   save_as_plot=True, pre_img_init=pre_img_init, ckpt_offset=500,
-                   featmap_names_to_plot=('conv1/lin:0',), max_n_featmaps_to_plot=10)
+                   save_as_plot=False, pre_img_init=pre_img_init, ckpt_offset=0,
+                   featmap_names_to_plot=(), max_n_featmaps_to_plot=10)
+
+pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_500.npy'), [1, 224, 224, 3])
+ni.params['num_iterations'] = 10000
+ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
+                   jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
+                   lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
+                   save_as_plot=False, pre_img_init=pre_img_init, ckpt_offset=500,
+                   featmap_names_to_plot=(), max_n_featmaps_to_plot=10)

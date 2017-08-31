@@ -21,20 +21,20 @@ prior = FoEPrior(tensor_names='conv1/relu:0',
                  filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
                  n_features_white=3000, mean_mode='gc', sdev_mode='gc')
 
-prior.train_prior(batch_size=500, num_iterations=24000, lr=3e-5,
-                  lr_lower_points=((0, 1e-0), (6000, 1e-1), (6500, 3e-2),
-                                       (7000, 1e-2), (8000, 3e-3), (9000, 1e-3),
-                                       (11000, 3e-4), (12000, 1e-4), (13000, 1e-5)),
-                  grad_clip=100.0,
-                  whiten_mode='pca', num_data_samples=100000,
-                  log_freq=1000, summary_freq=10, print_freq=100,
-                  test_freq=100, n_val_samples=1000,
-                  prev_ckpt=6000,
-                  optimizer_name='adam',
-                  plot_filters=False, do_clip=True)
+# prior.train_prior(batch_size=500, num_iterations=24000, lr=3e-5,
+#                   lr_lower_points=((0, 1e-0), (6000, 1e-1), (6500, 3e-2),
+#                                    (7000, 1e-2), (7500, 3e-3), (8000, 1e-3),
+#                                    (85000, 1e-4), (12000, 1e-4), (13000, 1e-5)),
+#                   grad_clip=100.0,
+#                   whiten_mode='pca', num_data_samples=100000,
+#                   log_freq=1000, summary_freq=10, print_freq=100,
+#                   test_freq=100, n_val_samples=1000,
+#                   prev_ckpt=6000,
+#                   optimizer_name='adam',
+#                   plot_filters=False, do_clip=True)
 
-# prior.plot_filters_all_channels(range(5), prior.load_path + 'filter_vis/')
-# prior.plot_channels_top_filters(range(5), prior.load_path + 'filter_vis/top/')
+prior.plot_filters_all_channels(range(7), prior.load_path + 'filter_vis/')
+prior.plot_channels_top_filters(range(7), prior.load_path + 'filter_vis/top/')
 
 # foe_prior = FoEPrior(tensor_names='conv2/lin:0',
 #                      weighting=1e-9, name='FoEPrior',

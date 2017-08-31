@@ -10,21 +10,22 @@ from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
 #                                  mean_mode='gc', sdev_mode='gc',
 #                                  raw_mat_load_path='../data/patches/alexnet/conv1_relu_8x8_6144feats_mean_gc_sdev_gc/raw_mat.npy')
 
-c1r_prior = ChannelICAPrior('conv1/relu:0', 1e-10, 'alexnet', [8, 8], input_scaling=1.0,
-                            n_components=150, n_channels=96,
-                            n_features_white=63,
-                            mean_mode='gc', sdev_mode='gc')
-
-c1r_prior.train_prior(batch_size=500, num_iterations=30000, lr=3e-5,
-                      lr_lower_points=((0, 1e-0), (5000, 1e-1), (3000, 3e-2),
-                                       (5000, 1e-2), (6000, 3e-3), (7000, 1e-3),
-                                       (8000, 1e-4), (9000, 3e-5), (10000, 1e-5),),
-                      grad_clip=100.0,
-                      whiten_mode='pca', num_data_samples=100000,
-                      log_freq=1000, summary_freq=10, print_freq=100,
-                      prev_ckpt=1000,
-                      optimizer_name='adam')
-
+# c1r_prior = ChannelICAPrior('conv1/relu:0', 1e-10, 'alexnet', [8, 8], input_scaling=1.0,
+#                             n_components=250, n_channels=96,
+#                             n_features_white=63,
+#                             mean_mode='gc', sdev_mode='gc')
+#
+# c1r_prior.train_prior(batch_size=500, num_iterations=30000, lr=3e-5,
+#                       lr_lower_points=((0, 1e-0), (5000, 1e-1), (5500, 3e-2),
+#                                        (6000, 1e-2), (6500, 3e-3), (7000, 1e-3),
+#                                        (8000, 1e-4), (9000, 3e-5), (10000, 1e-5),),
+#                       grad_clip=1e-3,
+#                       whiten_mode='pca', num_data_samples=100000,
+#                       log_freq=1000, summary_freq=10, print_freq=100,
+#                       prev_ckpt=0,
+#                       optimizer_name='adam')
+#
+# c1r_prior.plot_filters_all_channels(range(3), c1r_prior.load_path + 'filter_vis/')
 
 # raw_patch_data_mat('conv1/lin:0', 'alexnet', 100, 8, 8, 10, 96,
 #                    '../data/patches/alexnet/conv1_lin_8x8_raw/',
@@ -34,8 +35,9 @@ c1r_prior.train_prior(batch_size=500, num_iterations=30000, lr=3e-5,
 # raw_mat_name = 'raw_mat.npy'
 # show_patches_by_channel(raw_mat_dir, raw_mat_name, 100, 5, 5, 96, plot_patches=range(5))
 
-# raw_mat_path = '../data/patches/image/8x8_mean_gc_sdev_gc/raw_mat.npy'
-# show_patches_by_channel(raw_mat_path, 100000, 8, 8, 3, plot_patches=range(100, 105))
+raw_mat_dir = '../data/patches/alexnet/conv1_relu_8x8_6144feats_mean_gc_sdev_gc/'
+raw_mat_name = 'raw_mat.npy'
+show_patches_by_channel(raw_mat_dir, raw_mat_name, 100000, 8, 8, 96, plot_patches=range(10, 15))
 
 
 # plot_alexnet_filters('./', filter_name='conv1', filter_ids=range(10))
