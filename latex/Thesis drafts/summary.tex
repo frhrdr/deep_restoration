@@ -23,7 +23,7 @@
 \section{Introduction \& Motivation}
 
 
-Hierarchical feature learning has been a driving force behind recent advances in machine learning. Since the success of the model by Krizhevsky et al. \cite{alexnet}, now commonly referred to as AlexNet, at the 2012 ImageNet visual recognition challenge, deep neural networks have begun dominating computer vision and several other areas in machine learning, such as reinforcement learning and speech recognition, with more applications in active exploration. Along with this growing popularity of deep learning methods, there has been an increasing interest in visualizing these learned representations, and elucidating, what information these deep models base their decisions on. 
+Hierarchical feature learning has been a driving force behind recent advances in machine learning. Since the success of the model by Krizhevsky et al. \cite{alexnet}, now commonly referred to as AlexNet, at the 2012 ImageNet visual recognition challenge, deep neural networks have started to dominate computer vision and are widely used in several other areas of machine learning, such as reinforcement learning and natural language processing, with more applications in active exploration. Along with this growing popularity of deep learning methods, there has been an increasing interest in visualizing these learned representations, and elucidating, what information these deep models base their decisions on. 
 
 Especially in the field of computer vision, where learned visual representations can be easy to interpret, a number of different approaches have been published on this matter and will be discussed in some detail below. A common theme is that, in order to visualize representations at a certain layer in the network, (sometimes a subset of) the network's activations in that layer are, in some way or another, related back to the image space at the network input. This is not a trivial task, as the processing steps that transform the input up to that layer are highly non-linear and generally non-invertible. Going through a deep neural network, information from the input is compressed and details that are deemed irrelevant can be omitted. As a result, the task of reconstructing an input from the activation of a single layer is usually under-constrained and there is a class of inputs, which cause the same or nearly identical activations in the layer.
 
@@ -446,7 +446,7 @@ An ICA-based image prior with 512 filters, shown in figure \ref{fig:first_ica_fi
 
 \begin{figure}
 	\centering
-	\includegraphics[width=0.9\textwidth]{"temp/ica-mv15-alex-conv4"}
+	\includegraphics[width=0.9\textwidth]{"temp/ica-mv16-alex-conv4"}
 	\caption{Comparison of reconstructions from the fourth convolutional layer of AlexNet in detail. Left to right: original image, ICA image prior, reproduction of \cite{mv15}}
 	\label{fig:ica_mv_l4}
 \end{figure}

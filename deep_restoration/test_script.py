@@ -40,17 +40,6 @@ from utils.preprocessing import make_flattened_patch_data
 #                     plot_filters=False, do_clip=True)
 
 
-
-make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='rgb_scaled:0',
-                          n_channels=3,
-                          save_dir='../data/patches/image/8x8_mean_lf_sdev_gc/',
-                          n_feats_white=191, whiten_mode='pca', batch_size=100,
-                          mean_mode='local_full', cov_mode='global_channel')
-
-
-
-
-
 # from mahendran_vedaldi_2016 import invert_layer
 #
 # params = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',

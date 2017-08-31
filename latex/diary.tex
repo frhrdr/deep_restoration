@@ -21,7 +21,51 @@
 	\item (maybe later) adapt alexnet to take inputs at arbitrary points
 \end{enumerate}
 
+\begin{enumerate}
+	\item 
+\end{enumerate}
+
+
+
+\section{August 28.}
+
+\begin{enumerate}
+	\item Writing thesis outline
+	\item trained 3x3 1k comps full c1r prior.
+\end{enumerate}
+
+
+
+\section{August 27.}
+
+\begin{enumerate}
+	\item Day off
+\end{enumerate}
+
+\section{August 26.}
+
+\begin{enumerate}
+	\item trained undercomplete full prior. 1k components to 3200 features. filters exhibit little to no discernible structure
+	\item trained pool1 prior to make sure, problems are not exclusive to the lin layers.
+\end{enumerate}
+
+
+\section{August 25.}
+
+\begin{enumerate}
+	\item channelwise and full prior on conv2/lin - filters are smoother than in conv1, again, full priors don't look very informative
+	\item once more, ensured actual convergence of trained full prior by testing learning rates between 1e-3 and 1e-9. there seems to be no more improvement to be gained
+	\item added validation set to prior training. last few improvements of the training error when reducing learning rate are not shared, but the validation error does not go up either. so over-fitting does not seem to be an issue
+\end{enumerate}
+
+
 \section{August 24.}
+
+\begin{enumerate}
+	\item meeting
+	\item fixed filter vis scaling
+	\item made conv1 filters plottable
+\end{enumerate}
 
 
 \section{August 23.}

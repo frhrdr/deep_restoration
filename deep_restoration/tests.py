@@ -1,9 +1,22 @@
-from utils.preprocessing import make_channel_separate_patch_data, make_flattened_patch_data, add_flattened_validation_set
+from utils.preprocessing import raw_patch_data_mat
 # from utils.temp_utils import plot_feat_map_diffs
 # import numpy as np
 from modules.channel_ica_prior import ChannelICAPrior
 from modules.foe_prior import FoEPrior
-from utils.temp_utils import plot_alexnet_filters
+from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
+
+
+
+raw_patch_data_mat('conv1/lin:0', 'alexnet', 100, 8, 8, 10, 96,
+                   '../data/patches/alexnet/conv1_lin_8x8_raw/',
+                   file_name='raw_mat.npy')
+
+raw_mat_path = '../data/patches/alexnet/conv1_lin_8x8_raw/raw_mat.npy'
+show_patches_by_channel(raw_mat_path, 100, 8, 8, 96, plot_patches=range(10))
+
+# raw_mat_path = '../data/patches/image/8x8_mean_gc_sdev_gc/raw_mat.npy'
+# show_patches_by_channel(raw_mat_path, 100000, 8, 8, 3, plot_patches=range(100, 105))
+
 
 # plot_alexnet_filters('./', filter_name='conv1', filter_ids=range(10))
 
@@ -28,11 +41,11 @@ from utils.temp_utils import plot_alexnet_filters
 #                       prev_ckpt=8000,
 #                       optimizer_name='adam')
 
-img_prior = FoEPrior(tensor_names='pre_img:0',
-                     weighting=1e-12, name='FoEPrior',
-                     classifier='alexnet',
-                     filter_dims=[8, 8], input_scaling=1.0, n_components=50, n_channels=3,
-                     n_features_white=64*3-1, mean_mode='gc', sdev_mode='gc')
+# img_prior = FoEPrior(tensor_names='pre_img:0',
+#                      weighting=1e-12, name='FoEPrior',
+#                      classifier='alexnet',
+#                      filter_dims=[8, 8], input_scaling=1.0, n_components=50, n_channels=3,
+#                      n_features_white=64*3-1, mean_mode='gc', sdev_mode='gc')
 
 # img_prior.train_prior(batch_size=100, num_iterations=20000,
 #                       lr_lower_points=((0, 1e-0), (4000, 1e-1), (6000, 3e-2), (8000, 1e-2),
@@ -42,9 +55,9 @@ img_prior = FoEPrior(tensor_names='pre_img:0',
 #                       prev_ckpt=0,
 #                       optimizer_name='adam')
 
-c1l_prior = img_prior
-c1l_prior.plot_filters_all_channels(range(5), c1l_prior.load_path + 'filter_vis/')
-c1l_prior.plot_channels_top_filters(range(5), c1l_prior.load_path + 'filter_vis/top/')
+# c1l_prior = img_prior
+# c1l_prior.plot_filters_all_channels(range(5), c1l_prior.load_path + 'filter_vis/')
+# c1l_prior.plot_channels_top_filters(range(5), c1l_prior.load_path + 'filter_vis/top/')
 
 # c1l_prior = ChannelICAPrior('conv1_lin:0', 1e-6, 'alexnet', [5, 5], input_scaling=1.0,
 #                             n_components=150, n_channels=96,
