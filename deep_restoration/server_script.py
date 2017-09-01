@@ -25,7 +25,7 @@ prior.train_prior(batch_size=500, num_iterations=24000, lr=3e-5,
                   lr_lower_points=(# (0, 1e-0), (6000, 1e-1), (6500, 3e-2),
                                    # (7000, 1e-2), (7500, 3e-3), (8000, 1e-3),
                                    # (8500, 1e-4), (12000, 1e-4), (13000, 1e-5)
-                                   (21000, 1e-0), (25000, 1e-4), (30000, 1e-5)),
+                                   (21000, 1e-4), (25000, 3e-5), (30000, 1e-5)),
                   grad_clip=100.0,
                   whiten_mode='pca', num_data_samples=100000,
                   log_freq=1000, summary_freq=10, print_freq=100,
