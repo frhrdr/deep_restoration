@@ -54,7 +54,7 @@ img_prior = ICAPrior(tensor_names='pre_img/read:0',
 #                             trainable=False, name='ChannelICAPrior', mean_mode='gc', sdev_mode='gc')
 
 c1l_prior = FoEPrior(tensor_names='conv1_lin:0',
-                     weighting=1e-11, name='FoEPrior',
+                     weighting=1e-12, name='FoEPrior',
                      classifier='alexnet',
                      filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
                      n_features_white=3000, mean_mode='gc', sdev_mode='gc')
@@ -65,7 +65,7 @@ modules = [split4, mse4, split1, mse1, c1l_prior]
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c1l_comp/88/1e-11',
+              log_path='../logs/net_inversion/alexnet/c1l_comp/88/1e-12',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 500
@@ -88,7 +88,7 @@ pre_img_init = None
 ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
                    lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
-                   save_as_plot=False, pre_img_init=pre_img_init, ckpt_offset=0,
+                   save_as_plot=False, pre_featmap_init=pre_img_init, ckpt_offset=0,
                    featmap_names_to_plot=(), max_n_featmaps_to_plot=10)
 
 pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_500.npy'), [1, 224, 224, 3])
@@ -96,5 +96,5 @@ ni.params['num_iterations'] = 10000
 ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
                    jitter_t=0, jitter_stop_point=0, range_clip=False, scale_pre_img=1.0,
                    lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
-                   save_as_plot=False, pre_img_init=pre_img_init, ckpt_offset=500,
+                   save_as_plot=False, pre_featmap_init=pre_img_init, ckpt_offset=500,
                    featmap_names_to_plot=(), max_n_featmaps_to_plot=10)

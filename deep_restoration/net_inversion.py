@@ -114,8 +114,8 @@ class NetInversion:
 
     def train_pre_image(self, image_path, grad_clip=100.0, lr_lower_points=(),
                         range_b=80, jitter_t=0, optim_name='momentum',
-                        range_clip=False, save_as_plot=False, jitter_stop_point=-1, scale_pre_img=2.7098e+4,
-                        pre_img_init=None, ckpt_offset=0,
+                        range_clip=False, save_as_plot=False, jitter_stop_point=-1, scale_pre_img=1.0,
+                        pre_featmap_init=None, ckpt_offset=0,
                         pre_featmap_name = 'input',
                         tensor_names_to_save=(), featmap_names_to_plot=(), max_n_featmaps_to_plot=5):
         """
@@ -129,36 +129,41 @@ class NetInversion:
 
         save_dict(self.params, self.params['log_path'] + 'params.txt')
 
-        img_mat = load_image(image_path, resize=False)
+        img_mat = np.expand_dims(load_image(image_path, resize=False), axis=0)
 
-        # self.get_target_featmap(img_mat, pre_featmap_name)
+        target_featmap_mat = self.get_target_featmap(img_mat, pre_featmap_name)
+        print('target_shape:', target_featmap_mat.shape)
 
         with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
-                image = tf.constant(img_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])
+                target_featmap = tf.constant(img_mat, dtype=tf.float32)
+                print(target_featmap)
 
-                if pre_img_init is None and scale_pre_img == 2.7098e+4:
+                if pre_featmap_init is None and scale_pre_img == 2.7098e+4:
                     print('using special initializer')  # remnant from m&v settings
-                    pre_img_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.0001))
-                elif pre_img_init is None:
-                    # pre_img_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.27))
-                    pre_img_init = np.random.normal(loc=np.mean(self.imagenet_mean), scale=1.1,
-                                                    size=([1, self.img_hw, self.img_hw, 3])).astype(np.float32)
-                    pre_img_init = np.maximum(pre_img_init, 100.)
-                    pre_img_init = np.minimum(pre_img_init, 155.)
-                pre_img = tf.get_variable('pre_img', dtype=tf.float32, initializer=pre_img_init)
+                    pre_featmap_init = tf.abs(tf.random_normal([1, self.img_hw, self.img_hw, 3], mean=0, stddev=0.0001))
+                elif pre_featmap_init is None and pre_featmap_name == 'input':
+                    pre_featmap_init = np.random.normal(loc=np.mean(self.imagenet_mean), scale=1.1,
+                                                        size=([1, self.img_hw, self.img_hw, 3])).astype(np.float32)
+                    pre_featmap_init = np.maximum(pre_featmap_init, 100.)
+                    pre_featmap_init = np.minimum(pre_featmap_init, 155.)
+                elif pre_featmap_init is None:
+                    pre_featmap_init = np.random.normal(loc=0, scale=0.1,
+                                                        size=target_featmap_mat.shape).astype(np.float32)
+                    # think about taking mean and sdev from target feature map layers
+                pre_featmap = tf.get_variable('pre_featmap', dtype=tf.float32, initializer=pre_featmap_init)
 
                 jitter_x_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_x_pl')
                 jitter_y_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_y_pl')
 
-                rec_part = tf.slice(pre_img, [0, jitter_x_pl, jitter_y_pl, 0], [-1, -1, -1, -1])
+                rec_part = tf.slice(pre_featmap, [0, jitter_x_pl, jitter_y_pl, 0], [-1, -1, -1, -1])
                 rec_padded = tf.pad(rec_part, paddings=[[0, 0], [jitter_x_pl, 0], [jitter_y_pl, 0], [0, 0]])
 
                 use_jitter_pl = tf.placeholder(dtype=tf.bool, shape=[], name='use_jitter')
-                rec_input = tf.cond(use_jitter_pl, lambda: rec_padded, lambda: pre_img, name='jitter_cond')
-                net_input = tf.concat([image, rec_input * scale_pre_img], axis=0)
+                rec_input = tf.cond(use_jitter_pl, lambda: rec_padded, lambda: pre_featmap, name='jitter_cond')
+                net_input = tf.concat([target_featmap, rec_input * scale_pre_img], axis=0)
 
-                self.load_classifier(net_input)
+                self.load_partial_classifier(net_input, pre_featmap_name)
 
                 loss = self.build_model()
                 tensors_to_save = [graph.get_tensor_by_name(k) for k in tensor_names_to_save]
@@ -175,7 +180,7 @@ class NetInversion:
                     sess.run(tf.global_variables_initializer())
                     scipy_opt.minimize(session=sess, feed_dict={jitter_x_pl: 0, jitter_y_pl: 0, use_jitter_pl: False},
                                        loss_callback=loss_cb)
-                    rec_mat = sess.run(pre_img)
+                    rec_mat = sess.run(pre_featmap)
                     np.save(self.params['log_path'] + 'mats/rec_{}.npy'.format(self.params['num_iterations']), rec_mat)
                 else:
                     lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
@@ -188,10 +193,10 @@ class NetInversion:
                                   for k in tg_pairs]
                     train_op = optimizer.apply_gradients(tg_clipped)
 
-                    position_norm = tf.sqrt(tf.reduce_sum((pre_img - self.imagenet_mean) ** 2, axis=3))
+                    position_norm = tf.sqrt(tf.reduce_sum((pre_featmap - self.imagenet_mean) ** 2, axis=3))
                     box_rescale = tf.minimum(2 * range_b / position_norm, 1.)
                     box_rescale = tf.stack([box_rescale] * 3, axis=3)
-                    clip_op = tf.assign(pre_img, (pre_img - self.imagenet_mean) * box_rescale + self.imagenet_mean)
+                    clip_op = tf.assign(pre_featmap, (pre_featmap - self.imagenet_mean) * box_rescale + self.imagenet_mean)
 
                     train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
 
@@ -225,7 +230,7 @@ class NetInversion:
                                    'Time: {2:5.1f} min').format(count, batch_loss, (time.time() - start_time) / 60))
 
                         if count % self.params['log_freq'] == 0:
-                            rec_mat = sess.run(pre_img)
+                            rec_mat = sess.run(pre_featmap)
                             np.save(self.params['log_path'] + 'mats/rec_' + str(count) + '.npy', rec_mat)
 
                             plot_mat = np.zeros(shape=(self.img_hw, 2 * self.img_hw, 3))
