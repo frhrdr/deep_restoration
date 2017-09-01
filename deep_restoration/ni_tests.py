@@ -54,7 +54,7 @@ img_prior = ICAPrior(tensor_names='pre_img/read:0',
 #                             trainable=False, name='ChannelICAPrior', mean_mode='gc', sdev_mode='gc')
 
 c1l_prior = FoEPrior(tensor_names='conv1_lin:0',
-                     weighting=1e-9, name='FoEPrior',
+                     weighting=1e-10, name='FoEPrior',
                      classifier='alexnet',
                      filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
                      n_features_white=3000, mean_mode='gc', sdev_mode='gc')
@@ -65,7 +65,7 @@ modules = [split4, mse4, split1, mse1, c1l_prior]
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c1l_comp/88/1e-9',
+              log_path='../logs/net_inversion/alexnet/c1l_comp/88/1e-10',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 500
