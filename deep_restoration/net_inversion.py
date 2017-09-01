@@ -33,6 +33,18 @@ class NetInversion:
 
         classifier.build(img_pl, rescale=1.0)
 
+    def load_partial_classifier(self, in_tensor, in_tensor_name):
+        if self.params['classifier'].lower() == 'vgg16':
+            raise NotImplementedError
+            # classifier = vgg16.Vgg16()
+        elif self.params['classifier'].lower() == 'alexnet':
+            classifier = alexnet.AlexNet()
+        else:
+            raise NotImplementedError
+
+        classifier.build_partial(in_tensor, in_tensor_name, rescale=1.0)
+
+
     def build_model(self):
 
         if not isinstance(self.params['modules'], list):
@@ -104,6 +116,7 @@ class NetInversion:
                         range_b=80, jitter_t=0, optim_name='momentum',
                         range_clip=False, save_as_plot=False, jitter_stop_point=-1, scale_pre_img=2.7098e+4,
                         pre_img_init=None, ckpt_offset=0,
+                        pre_featmap_name = 'input',
                         tensor_names_to_save=(), featmap_names_to_plot=(), max_n_featmaps_to_plot=5):
         """
         like mahendran & vedaldi, optimizes pre-image based on a single other image
@@ -116,11 +129,12 @@ class NetInversion:
 
         save_dict(self.params, self.params['log_path'] + 'params.txt')
 
+        img_mat = load_image(image_path, resize=False)
+
+        # self.get_target_featmap(img_mat, pre_featmap_name)
+
         with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
-                img_mat = load_image(image_path, resize=False)
-                print(1, img_mat.max())
-                print(2, img_mat.min())
                 image = tf.constant(img_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])
 
                 if pre_img_init is None and scale_pre_img == 2.7098e+4:
@@ -455,3 +469,16 @@ class NetInversion:
         fig.add_axes(ax)
         ax.imshow(plot_mat, aspect='auto')
         plt.savefig(self.params['log_path'] + file_name + '.png', format='png', dpi=224)
+
+    def get_target_featmap(self, target_image_mat, target_map_name):
+        if target_map_name == 'input':
+            return target_image_mat
+        else:
+            with tf.Graph().as_default() as graph:
+                image = tf.constant(target_image_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])
+                self.load_classifier(image)
+                feat_map = graph.get_tensor_by_name(target_map_name + ':0')
+                with tf.Session() as sess:
+                    feat_map_mat = sess.run(feat_map)
+
+            return feat_map_mat
