@@ -19,15 +19,15 @@ split4 = SplitModule(name_to_split='conv4/lin:0', img_slice_name='img_rep_c4l',
 mse4 = NormedMSELoss(target='img_rep_c4l:0', reconstruction='rec_rep_c4l:0', name='MSE_c4l')
 mse4.add_loss = True
 
-# split1 = SplitModule(name_to_split='conv1/lin:0', img_slice_name='img_rep_c1l',
-#                      rec_slice_name='conv1_lin', name='Split1')
-# mse1 = NormedMSELoss(target='img_rep_c1l:0', reconstruction='conv1_lin:0', name='MSE_conv1_tracker')
-# mse1.add_loss = False
-
-split1 = SplitModule(name_to_split='conv1/relu:0', img_slice_name='img_rep_c1r',
-                     rec_slice_name='conv1_relu', name='Split1')
-mse1 = NormedMSELoss(target='img_rep_c1r:0', reconstruction='conv1_relu:0', name='MSE_conv1_tracker')
+split1 = SplitModule(name_to_split='conv1/lin:0', img_slice_name='img_rep_c1l',
+                     rec_slice_name='conv1_lin', name='Split1')
+mse1 = NormedMSELoss(target='img_rep_c1l:0', reconstruction='conv1_lin:0', name='MSE_conv1_tracker')
 mse1.add_loss = False
+
+# split1 = SplitModule(name_to_split='conv1/relu:0', img_slice_name='img_rep_c1r',
+#                      rec_slice_name='conv1_relu', name='Split1')
+# mse1 = NormedMSELoss(target='img_rep_c1r:0', reconstruction='conv1_relu:0', name='MSE_conv1_tracker')
+# mse1.add_loss = False
 
 img_prior = ICAPrior(tensor_names='pre_img/read:0',
                      weighting=1e-7, name='ICAPrior',
@@ -54,24 +54,18 @@ img_prior = ICAPrior(tensor_names='pre_img/read:0',
 #                             trainable=False, name='ChannelICAPrior', mean_mode='gc', sdev_mode='gc')
 
 c1l_prior = FoEPrior(tensor_names='conv1_lin:0',
-                     weighting=1e-10, name='FoEPrior',
-                     classifier='alexnet',
-                     filter_dims=[5, 5], input_scaling=1.0, n_components=6000, n_channels=96,
-                     n_features_white=1800, mean_mode='lc', sdev_mode='gc')
-
-c1r_prior = FoEPrior(tensor_names='conv1_relu:0',
-                     weighting=1e-8, name='FoEPrior',
+                     weighting=1e-9, name='FoEPrior',
                      classifier='alexnet',
                      filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
                      n_features_white=3000, mean_mode='gc', sdev_mode='gc')
 
 # modules = [split4, mse4, split1, mse1, c1l_prior]
-modules = [split4, mse4, split1, mse1, c1r_prior]
+modules = [split4, mse4, split1, mse1, c1l_prior]
 # path = '../logs/net_inversion/alexnet/c1l_tests_16_08/6_MSE_c4l_CICA_c1l/1e-6/'
 
 params = dict(classifier='alexnet',
               modules=modules,
-              log_path='../logs/net_inversion/alexnet/c1r_comp/88/1e-8',
+              log_path='../logs/net_inversion/alexnet/c1l_comp/88/1e-9',
               load_path='')
 params.update(mv_default_params())
 params['num_iterations'] = 500
