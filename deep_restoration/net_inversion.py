@@ -51,10 +51,6 @@ class NetInversion:
 
 
     def build_model(self):
-
-        if not isinstance(self.modules, list):
-            self.modules = [self.modules]
-
         loss = 0
         for idx, mod in enumerate(self.modules):
             mod.build(scope_suffix=str(idx))
@@ -78,7 +74,7 @@ class NetInversion:
 
         return train_summary_op, summary_writer, saver, val_loss, val_summary_op
 
-    def get_batch_generator(self, mode='train', resize=False,
+    def get_batch_generator(self, batch_size, mode, resize=False,
                             data_path='../data/imagenet2012-validationset/',
                             train_images_file='train_48k_images.txt',
                             validation_images_file='validate_2k_images.txt'):
@@ -94,7 +90,7 @@ class NetInversion:
 
         begin = 0
         while True:
-            end = begin + self.batch_size
+            end = begin + batch_size
             if end < len(image_files):
                 batch_files = image_files[begin:end]
             else:
@@ -296,11 +292,11 @@ class NetInversion:
         if not os.path.exists(self.log_path):
             os.makedirs(self.log_path)
 
-        batch_gen = self.get_batch_generator(mode='train')
+        batch_gen = self.get_batch_generator(batch_size, mode='train')
 
         with tf.Graph().as_default():
             with tf.Session() as sess:
-                img_pl = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.img_hw,
+                img_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.img_hw,
                                                                  self.img_hw, self.img_channels])
 
                 self.load_classifier(img_pl)
@@ -365,9 +361,9 @@ class NetInversion:
 
                     if test_freq > 0 and (count % test_freq == 0 or
                                                          count == n_iterations):
-                        val_batch_gen = self.get_batch_generator(mode='validate')
+                        val_batch_gen = self.get_batch_generator(batch_size, mode='validate')
                         val_loss_acc = 0.0
-                        num_runs = test_set_size // self.batch_size + 1
+                        num_runs = test_set_size // batch_size + 1
                         for val_count in range(num_runs):
                             val_feed_dict = {img_pl: next(val_batch_gen)}
                             val_batch_loss = sess.run(loss, feed_dict=val_feed_dict)
@@ -398,16 +394,16 @@ class NetInversion:
         :return: None
         """
 
-        actual_batch_size = self.batch_size
+        actual_batch_size = None # batch_size
         assert num_images <= actual_batch_size
-        self.batch_size = num_images
+        batch_size = num_images
 
-        batch_gen = self.get_batch_generator(mode='validate')
+        batch_gen = self.get_batch_generator(batch_size, mode='validate')
 
         with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
                 img_pl = tf.placeholder(dtype=tf.float32,
-                                        shape=[self.batch_size, self.img_hw, self.img_hw, self.img_channels])
+                                        shape=[batch_size, self.img_hw, self.img_hw, self.img_channels])
                 self.load_classifier(img_pl)
                 self.build_model()
                 saver = tf.train.Saver()
@@ -418,7 +414,7 @@ class NetInversion:
                 reconstruction = graph.get_tensor_by_name(rec_tensor_name)
                 rec_mat = sess.run(reconstruction, feed_dict=feed_dict)
 
-        self.batch_size = actual_batch_size
+        batch_size = actual_batch_size
 
         img_mat = feed_dict[img_pl] / 255.0
 
