@@ -15,7 +15,7 @@ class Module:
     def get_in_tensors(self):
         g = tf.get_default_graph()
         if isinstance(self.in_tensor_names, tuple):
-            return [g.get_tensor_by_name(n) for n in self.in_tensor_names]
+            return tuple(g.get_tensor_by_name(n) for n in self.in_tensor_names)
         else:
             return g.get_tensor_by_name(self.in_tensor_names)
 

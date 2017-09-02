@@ -9,17 +9,20 @@ import os
 
 class ICAPrior(LearnedPriorLoss):
 
-    def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                 n_features_white,
+    def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling,
+                 n_components, n_channels, n_features_white,
                  trainable=False, name='ICAPrior',load_name='ICAPrior', dir_name='ica_prior',
-                 mean_mode='lf', sdev_mode='none'):
+                 mean_mode='lf', sdev_mode='none', load_tensor_names=None):
+
         mode_abbreviatons = {'global_channel': 'gc', 'global_feature': 'gf', 'local_channel': 'lc', 'local_full': 'lf'}
         if mean_mode in mode_abbreviatons:
             mean_mode = mode_abbreviatons[mean_mode]
         if sdev_mode in mode_abbreviatons:
             sdev_mode = mode_abbreviatons[sdev_mode]
 
-        load_path = self.get_load_path(dir_name, classifier, tensor_names, filter_dims,
+        if load_tensor_names is None:
+            load_tensor_names = tensor_names
+        load_path = self.get_load_path(dir_name, classifier, load_tensor_names, filter_dims,
                                        n_components, n_features_white, mean_mode, sdev_mode)
 
         super().__init__(tensor_names, weighting, name, load_path, trainable, load_name)

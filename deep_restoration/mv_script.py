@@ -36,7 +36,7 @@ pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_500.npy'), [1, 
 
 # ni.train_pre_image('../data/selected/images_resized/val13_monkey.bmp', jitter_t=0, optim_name='adam',
 #                    lr_lower_points=((0, 0.01), (500, 0.001), (1000, 0.0001), (3000, 0.00003), (7000, 0.00001)))
-ni.train_pre_image('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
-                   jitter_t=4, jitter_stop_point=3000, range_clip=True, scale_pre_img=1., range_b=80,
-                   lr_lower_points=((1500, (0.003 * 80. ** 2 / 6.)), (3000, (0.001 * 80. ** 2 / 6.))),
-                   pre_featmap_init=pre_img_init, ckpt_offset=0, save_as_plot=True)
+ni.train_pre_featmap('../data/selected/images_resized/red-fox.bmp', optim_name='adam',
+                     jitter_t=4, jitter_stop_point=3000, range_clip=True, scale_pre_img=1., range_b=80,
+                     lr_lower_points=((1500, (0.003 * 80. ** 2 / 6.)), (3000, (0.001 * 80. ** 2 / 6.))),
+                     pre_featmap_init=pre_img_init, ckpt_offset=0, save_as_plot=True)

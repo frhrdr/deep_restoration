@@ -16,10 +16,10 @@ class ChannelICAPrior(ICAPrior):
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
                  n_features_white,
                  trainable=False, name='ChannelICAPrior', load_name='ChannelICAPrior', dir_name='channel_ica_prior',
-                 mean_mode='lc', sdev_mode='none'):
+                 mean_mode='lc', sdev_mode='none', load_tensor_names=None):
         super().__init__(tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
                          n_features_white, trainable=trainable, name=name, load_name=load_name, dir_name=dir_name,
-                         mean_mode=mean_mode, sdev_mode=sdev_mode)
+                         mean_mode=mean_mode, sdev_mode=sdev_mode, load_tensor_names=load_tensor_names)
         self.n_features_total = n_features_white * n_channels
         self.load_path = self.load_path.rstrip('/') + '_channelwise/'
 

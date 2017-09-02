@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tf_vgg import vgg16
 from tf_alexnet import alexnet
-from utils.filehandling import save_dict, load_image
+from utils.filehandling import load_image
 from utils.temp_utils import get_optimizer, plot_feat_map_diffs
 from modules.inv_modules import TrainedModule
 from modules.loss_modules import LossModule, LearnedPriorLoss
@@ -16,17 +16,22 @@ import matplotlib.pyplot as plt
 
 class NetInversion:
 
-    def __init__(self, params):
+    def __init__(self, modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500):
         # check_params(params)
-        self.params = params
+        self.modules = modules
+        self.log_path = log_path
+        self.classifier = classifier
+        self.print_freq = print_freq
+        self.log_freq = log_freq
+        self.summary_freq = summary_freq
         self.imagenet_mean = np.asarray([123.68, 116.779, 103.939])  # in RGB order
         self.img_hw = 224
         self.img_channels = 3
 
     def load_classifier(self, img_pl):
-        if self.params['classifier'].lower() == 'vgg16':
+        if self.classifier.lower() == 'vgg16':
             classifier = vgg16.Vgg16()
-        elif self.params['classifier'].lower() == 'alexnet':
+        elif self.classifier.lower() == 'alexnet':
             classifier = alexnet.AlexNet()
         else:
             raise NotImplementedError
@@ -34,10 +39,10 @@ class NetInversion:
         classifier.build(img_pl, rescale=1.0)
 
     def load_partial_classifier(self, in_tensor, in_tensor_name):
-        if self.params['classifier'].lower() == 'vgg16':
+        if self.classifier.lower() == 'vgg16':
             raise NotImplementedError
             # classifier = vgg16.Vgg16()
-        elif self.params['classifier'].lower() == 'alexnet':
+        elif self.classifier.lower() == 'alexnet':
             classifier = alexnet.AlexNet()
         else:
             raise NotImplementedError
@@ -47,11 +52,11 @@ class NetInversion:
 
     def build_model(self):
 
-        if not isinstance(self.params['modules'], list):
-            self.params['modules'] = [self.params['modules']]
+        if not isinstance(self.modules, list):
+            self.modules = [self.modules]
 
         loss = 0
-        for idx, mod in enumerate(self.params['modules']):
+        for idx, mod in enumerate(self.modules):
             mod.build(scope_suffix=str(idx))
             if isinstance(mod, LossModule):
                 loss += mod.get_loss()
@@ -60,12 +65,12 @@ class NetInversion:
 
     def build_logging(self, loss):
         tf.summary.scalar('Total_Loss', loss)
-        for mod in self.params['modules']:
+        for mod in self.modules:
             if isinstance(mod, LossModule):
                 mod.scalar_summary()
 
         train_summary_op = tf.summary.merge_all()
-        summary_writer = tf.summary.FileWriter(self.params['log_path'] + '/summaries')
+        summary_writer = tf.summary.FileWriter(self.log_path + '/summaries')
         saver = tf.train.Saver()
 
         val_loss = tf.placeholder(dtype=tf.float32, shape=[], name='val_loss')
@@ -73,20 +78,23 @@ class NetInversion:
 
         return train_summary_op, summary_writer, saver, val_loss, val_summary_op
 
-    def get_batch_generator(self, mode='train', resize=False):
+    def get_batch_generator(self, mode='train', resize=False,
+                            data_path='../data/imagenet2012-validationset/',
+                            train_images_file='train_48k_images.txt',
+                            validation_images_file='validate_2k_images.txt'):
         if mode == 'train':
-            img_file = self.params['train_images_file']
+            img_file = train_images_file
         elif mode == 'validate':
-            img_file = self.params['validation_images_file']
+            img_file = validation_images_file
         else:
             raise NotImplementedError
 
-        with open(self.params['data_path'] + img_file) as f:
+        with open(data_path + img_file) as f:
             image_files = [k.rstrip() for k in f.readlines()]
 
         begin = 0
         while True:
-            end = begin + self.params['batch_size']
+            end = begin + self.batch_size
             if end < len(image_files):
                 batch_files = image_files[begin:end]
             else:
@@ -94,7 +102,7 @@ class NetInversion:
                 batch_files = image_files[begin:] + image_files[:end]
             begin = end
             if resize:
-                batch_paths = [self.params['data_path'] + 'images/' + k for k in batch_files]
+                batch_paths = [data_path + 'images/' + k for k in batch_files]
                 images = []
                 for img_path in batch_paths:
                     image = load_image(img_path, resize=True)
@@ -103,7 +111,7 @@ class NetInversion:
                     images.append(image)
                 mat = np.stack(images, axis=0)
             else:
-                batch_paths = [self.params['data_path'] + 'images_resized/' +
+                batch_paths = [data_path + 'images_resized/' +
                                k[:-len('JPEG')] + 'bmp' for k in batch_files]
                 images = []
                 for img_path in batch_paths:
@@ -112,22 +120,20 @@ class NetInversion:
                 mat = np.stack(images, axis=0)
             yield mat
 
-    def train_pre_image(self, image_path, grad_clip=100.0, lr_lower_points=(),
-                        range_b=80, jitter_t=0, optim_name='momentum',
-                        range_clip=False, save_as_plot=False, jitter_stop_point=-1, scale_pre_img=1.0,
-                        pre_featmap_init=None, ckpt_offset=0,
-                        pre_featmap_name = 'input',
-                        tensor_names_to_save=(), featmap_names_to_plot=(), max_n_featmaps_to_plot=5):
+    def train_pre_featmap(self, image_path, n_iterations, grad_clip=100.0, lr_lower_points=((0, 1e-4),),
+                          range_b=80, jitter_t=0, optim_name='adam',
+                          range_clip=False, save_as_plot=False, jitter_stop_point=-1, scale_pre_img=1.0,
+                          pre_featmap_init=None, ckpt_offset=0,
+                          pre_featmap_name = 'input',
+                          tensor_names_to_save=(), featmap_names_to_plot=(), max_n_featmaps_to_plot=5):
         """
         like mahendran & vedaldi, optimizes pre-image based on a single other image
         """
 
-        if not os.path.exists(self.params['log_path'] + 'mats/'):
-            os.makedirs(self.params['log_path'] + 'mats/')
-        if save_as_plot and not os.path.exists(self.params['log_path'] + 'imgs/'):
-            os.makedirs(self.params['log_path'] + 'imgs/')
-
-        save_dict(self.params, self.params['log_path'] + 'params.txt')
+        if not os.path.exists(self.log_path + 'mats/'):
+            os.makedirs(self.log_path + 'mats/')
+        if save_as_plot and not os.path.exists(self.log_path + 'imgs/'):
+            os.makedirs(self.log_path + 'imgs/')
 
         img_mat = np.expand_dims(load_image(image_path, resize=False), axis=0)
 
@@ -136,7 +142,8 @@ class NetInversion:
 
         with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
-                target_featmap = tf.constant(img_mat, dtype=tf.float32)
+                target_featmap = tf.get_variable(name='target_featmap', dtype=tf.float32, trainable=False,
+                                                 initializer=target_featmap_mat)
                 print(target_featmap)
 
                 if pre_featmap_init is None and scale_pre_img == 2.7098e+4:
@@ -170,7 +177,7 @@ class NetInversion:
                 featmaps_to_plot = [graph.get_tensor_by_name(k) for k in featmap_names_to_plot]
 
                 if optim_name.lower() == 'l-bfgs-b':
-                    options = {'maxiter': self.params['num_iterations']}
+                    options = {'maxiter': n_iterations}
                     scipy_opt = tf.contrib.opt.ScipyOptimizerInterface(loss, method='L-BFGS-B',
                                                                        options=options)
 
@@ -181,7 +188,7 @@ class NetInversion:
                     scipy_opt.minimize(session=sess, feed_dict={jitter_x_pl: 0, jitter_y_pl: 0, use_jitter_pl: False},
                                        loss_callback=loss_cb)
                     rec_mat = sess.run(pre_featmap)
-                    np.save(self.params['log_path'] + 'mats/rec_{}.npy'.format(self.params['num_iterations']), rec_mat)
+                    np.save(self.log_path + 'mats/rec_{}.npy'.format(n_iterations), rec_mat)
                 else:
                     lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
                     optimizer = get_optimizer(optim_name, lr_pl)
@@ -193,23 +200,26 @@ class NetInversion:
                                   for k in tg_pairs]
                     train_op = optimizer.apply_gradients(tg_clipped)
 
-                    position_norm = tf.sqrt(tf.reduce_sum((pre_featmap - self.imagenet_mean) ** 2, axis=3))
-                    box_rescale = tf.minimum(2 * range_b / position_norm, 1.)
-                    box_rescale = tf.stack([box_rescale] * 3, axis=3)
-                    clip_op = tf.assign(pre_featmap, (pre_featmap - self.imagenet_mean) * box_rescale + self.imagenet_mean)
+                    if range_clip and pre_featmap_name == 'input':
+                        position_norm = tf.sqrt(tf.reduce_sum((pre_featmap - self.imagenet_mean) ** 2, axis=3))
+                        box_rescale = tf.minimum(2 * range_b / position_norm, 1.)
+                        box_rescale = tf.stack([box_rescale] * 3, axis=3)
+                        clip_op = tf.assign(pre_featmap, (pre_featmap - self.imagenet_mean) * box_rescale + self.imagenet_mean)
+                    else:
+                        clip_op = None
 
                     train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
 
                     sess.run(tf.global_variables_initializer())
 
-                    for mod in self.params['modules']:
+                    for mod in self.modules:
                         if isinstance(mod, (TrainedModule, LearnedPriorLoss)):
                             mod.load_weights(sess)
 
                     use_jitter = False if jitter_t == 0 else True
-                    lr = self.params['learning_rate']
+                    lr = lr_lower_points[0][1]
                     start_time = time.time()
-                    for count in range(ckpt_offset + 1, ckpt_offset + self.params['num_iterations'] + 1):
+                    for count in range(ckpt_offset + 1, ckpt_offset + n_iterations + 1):
                         jitter = np.random.randint(low=0, high=jitter_t + 1, dtype=int, size=(2,))
 
                         feed = {lr_pl: lr,
@@ -222,31 +232,31 @@ class NetInversion:
                         if range_clip:
                             sess.run(clip_op)
 
-                        if count % self.params['summary_freq'] == 0:
+                        if count % self.summary_freq == 0:
                             summary_writer.add_summary(summary_string, count)
 
-                        if count % self.params['print_freq'] == 0:
+                        if count % self.print_freq == 0:
                             print(('Iteration: {0:6d} Training Error:   {1:8.5f} ' +
                                    'Time: {2:5.1f} min').format(count, batch_loss, (time.time() - start_time) / 60))
 
-                        if count % self.params['log_freq'] == 0:
+                        if count % self.log_freq == 0:
                             rec_mat = sess.run(pre_featmap)
-                            np.save(self.params['log_path'] + 'mats/rec_' + str(count) + '.npy', rec_mat)
-
-                            plot_mat = np.zeros(shape=(self.img_hw, 2 * self.img_hw, 3))
-
-                            plot_mat[:, :self.img_hw, :] = img_mat / 255.0
-                            rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))  # M&V just rescale
-                            plot_mat[:, self.img_hw:, :] = rec_mat
+                            np.save(self.log_path + 'mats/rec_' + str(count) + '.npy', rec_mat)
 
                             if save_as_plot:
+                                plot_mat = np.zeros(shape=(self.img_hw, 2 * self.img_hw, 3))
+                                plot_mat[:, :self.img_hw, :] = img_mat / 255.0
+                                rec_mat = (rec_mat - np.min(rec_mat)) / (
+                                np.max(rec_mat) - np.min(rec_mat))  # M&V just rescale
+                                plot_mat[:, self.img_hw:, :] = rec_mat
+
                                 fig = plt.figure(frameon=False)
                                 fig.set_size_inches(2, 1)
                                 ax = plt.Axes(fig, [0., 0., 1., 1.])
                                 ax.set_axis_off()
                                 fig.add_axes(ax)
                                 ax.imshow(plot_mat, aspect='auto')
-                                plt.savefig(self.params['log_path'] + 'imgs/rec_' + str(count) + '.png',
+                                plt.savefig(self.log_path + 'imgs/rec_' + str(count) + '.png',
                                             format='png', dpi=self.img_hw)
                                 plt.close()
 
@@ -255,17 +265,17 @@ class NetInversion:
 
                                 for idx, fmap in enumerate(mats_to_save):
                                     file_name = tensor_names_to_save[idx] + '-' + str(count) + '.npy'
-                                    np.save(self.params['log_path'] + 'mats/' + file_name, fmap)
+                                    np.save(self.log_path + 'mats/' + file_name, fmap)
 
                             if featmaps_to_plot:
                                 fmaps_to_plot = sess.run(featmaps_to_plot, feed_dict=feed)
 
                                 for fmap, name in zip(fmaps_to_plot, featmap_names_to_plot):
                                     name = name.replace('/', '_').rstrip(':0')
-                                    file_path = '{}mats/{}-{}.npy'.format(self.params['log_path'], name, count)
+                                    file_path = '{}mats/{}-{}.npy'.format(self.log_path, name, count)
                                     np.save(file_path, fmap)
                                     if save_as_plot:
-                                        file_path = '{}imgs/{}-{}.png'.format(self.params['log_path'], name, count)
+                                        file_path = '{}imgs/{}-{}.png'.format(self.log_path, name, count)
                                         plot_feat_map_diffs(fmap, file_path, max_n_featmaps_to_plot)
 
                         if jitter_stop_point == count:
@@ -277,20 +287,20 @@ class NetInversion:
                             print('new learning rate: ', lr)
                             lr_lower_points = lr_lower_points[1:]
 
-    def train_on_dataset(self, optim_name='adam'):
+    def train_on_dataset(self, n_iterations, batch_size, test_set_size=200, test_freq=100,
+                         optim_name='adam', lr_lower_points=((0, 1e-4),)):
         """
         trains all trainable variables with respect to the registered losses on the imagenet validation set
         """
 
-        if not os.path.exists(self.params['log_path']):
-            os.makedirs(self.params['log_path'])
-
-        save_dict(self.params, self.params['log_path'] + 'params.txt')
+        if not os.path.exists(self.log_path):
+            os.makedirs(self.log_path)
 
         batch_gen = self.get_batch_generator(mode='train')
+
         with tf.Graph().as_default():
             with tf.Session() as sess:
-                img_pl = tf.placeholder(dtype=tf.float32, shape=[self.params['batch_size'], self.img_hw,
+                img_pl = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.img_hw,
                                                                  self.img_hw, self.img_channels])
 
                 self.load_classifier(img_pl)
@@ -302,58 +312,62 @@ class NetInversion:
 
                 train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
 
-                for inv_mod in self.params['modules']:
-                    if isinstance(inv_mod, LearnedPriorLoss) and inv_mod.trainable is False:
+
+
+                # if self.load_path:  # deprecated: weights are to be saved by the individual modules
+                #     print('Deprecated: weights are to be saved by the individual modules')
+                #     global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+                #     train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+                #     opt_vars = [v for v in global_vars if v not in train_vars]
+                #
+                #     if self.load_opt_vars:
+                #         tf.train.Saver(var_list=opt_vars).restore(sess, self.load_path)
+                #     else:
+                #     sess.run(tf.variables_initializer(opt_vars))
+                #
+                #     load_vars = tf.trainable_variables()
+                #     loader = tf.train.Saver(var_list=load_vars)
+                #     loader.restore(sess, self.load_path)
+                #
+                # else:
+                sess.run(tf.global_variables_initializer())
+
+                for inv_mod in self.modules:
+                    if (isinstance(inv_mod, LearnedPriorLoss) or isinstance(inv_mod, TrainedModule)) \
+                       and inv_mod.trainable is False:
                         inv_mod.load_weights(sess)
 
-                for loss_mod in self.params['loss_modules']:
-                    if isinstance(loss_mod, LearnedPriorLoss) and loss_mod.trainable is False:
-                        loss_mod.load_weights(sess)
-
-                if self.params['load_path']:
-                    global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-                    train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-                    opt_vars = [v for v in global_vars if v not in train_vars]
-
-                    if self.params['load_opt_vars']:
-                        tf.train.Saver(var_list=opt_vars).restore(sess, self.params['load_path'])
-                    else:
-                        sess.run(tf.variables_initializer(opt_vars))
-
-                    load_vars = tf.trainable_variables()
-                    loader = tf.train.Saver(var_list=load_vars)
-                    loader.restore(sess, self.params['load_path'])
-
-                else:
-                    sess.run(tf.global_variables_initializer())
-
-                start_time = time.time()
+                lr = lr_lower_points[0][1]
                 train_time = 0.0
-                for count in range(self.params['num_iterations']):
-                    feed_dict = {img_pl: next(batch_gen)}
+                start_time = time.time()
+                for count in range(1, n_iterations + 1):
+                    feed_dict = {img_pl: next(batch_gen), lr_pl: lr}
 
                     batch_start = time.time()
                     batch_loss, _, summary_string = sess.run([loss, train_op, train_summary_op],
                                                              feed_dict=feed_dict)
                     train_time += time.time() - batch_start
 
-                    if (count + 1) % self.params['summary_freq'] == 0:
+                    if count % self.summary_freq == 0:
                         summary_writer.add_summary(summary_string, count)
 
-                    if (count + 1) % self.params['print_freq'] == 0:
+                    if count % self.print_freq == 0:
                         summary_writer.flush()
                         print(('Iteration: {0:6d} Training Error:   {1:9.2f} ' +
-                               'Time: {2:5.1f} min').format(count + 1, batch_loss, (time.time() - start_time) / 60))
+                               'Time: {2:5.1f} min').format(count, batch_loss, (time.time() - start_time) / 60))
 
-                    if (count + 1) % self.params['log_freq'] == 0 or (count + 1) == self.params['num_iterations']:
-                        checkpoint_file = os.path.join(self.params['log_path'], 'ckpt')
-                        saver.save(sess, checkpoint_file, global_step=(count + 1), write_meta_graph=False)
+                    if count % self.log_freq == 0 or count == n_iterations:
+                        # checkpoint_file = os.path.join(self.log_path, 'ckpt')
+                        # saver.save(sess, checkpoint_file, global_step=(count + 1), write_meta_graph=False)
+                        for inv_mod in self.modules:
+                            if isinstance(inv_mod, TrainedModule) and inv_mod.trainable is True:
+                                inv_mod.save_weights(sess, count)
 
-                    if self.params['test_freq'] > 0 and ((count + 1) % self.params['test_freq'] == 0 or
-                                                         (count + 1) == self.params['num_iterations']):
+                    if test_freq > 0 and (count % test_freq == 0 or
+                                                         count == n_iterations):
                         val_batch_gen = self.get_batch_generator(mode='validate')
                         val_loss_acc = 0.0
-                        num_runs = self.params['test_set_size'] // self.params['batch_size'] + 1
+                        num_runs = test_set_size // self.batch_size + 1
                         for val_count in range(num_runs):
                             val_feed_dict = {img_pl: next(val_batch_gen)}
                             val_batch_loss = sess.run(loss, feed_dict=val_feed_dict)
@@ -362,38 +376,16 @@ class NetInversion:
                         val_summary_string = sess.run(val_summary_op, feed_dict={val_loss: val_loss_acc})
                         summary_writer.add_summary(val_summary_string, count)
                         print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
-                               'Time: {2:5.1f} min').format(count + 1, val_loss_acc, (time.time() - start_time) / 60))
+                               'Time: {2:5.1f} min').format(count, val_loss_acc, (time.time() - start_time) / 60))
+
+                    if lr_lower_points and lr_lower_points[0][0] <= count:
+                        lr = lr_lower_points[0][1]
+                        print('new learning rate: ', lr)
+                        lr_lower_points = lr_lower_points[1:]
+
                 sess_time = time.time() - start_time
                 train_ratio = 100.0 * train_time / sess_time
                 print('Session finished. {0:2.1f}% of the time spent in run calls'.format(train_ratio))
-
-    def run_inverse_model(self, inv_input_mat, ckpt_num=3000):
-        """
-        runs the model on a specified input. used for stacking models
-        :param inv_input_mat: numpy array serving as input
-        :param ckpt_num: checkpoint number to be loaded
-        :return: model output as numpy array
-        """
-        with tf.Graph().as_default() as graph:
-            with tf.Session() as sess:
-                img_pl = tf.placeholder(dtype=tf.float32,
-                                        shape=[self.params['batch_size'], self.img_hw, self.img_hw, self.img_channels])
-                self.load_classifier(img_pl)
-
-                if not isinstance(self.params['inv_modules'], list):
-                    self.params['inv_modules'] = [self.params['inv_modules']]
-                input_shape = graph.get_tensor_by_name(self.params['inv_modules'][0]['inv_input_name']).get_shape()
-                inv_input = tf.placeholder(dtype=tf.float32, name='new_input', shape=input_shape)
-                self.params['inv_modules'][0]['inv_input_name'] = 'new_input:0'
-
-                self.build_model()
-
-                saver = tf.train.Saver()
-                saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
-                rec_tensor_name = 'module_' + str(len(self.params['inv_modules'])) + '/reconstruction:0'
-                reconstruction = graph.get_tensor_by_name(rec_tensor_name)
-                rec_mat = sess.run(reconstruction, feed_dict={inv_input: inv_input_mat})
-                return rec_mat
 
     def visualize(self, num_images=7, rec_type='bgr_normed', file_name='img_vs_rec', ckpt_num=1000, add_diffs=True):
         """
@@ -406,27 +398,27 @@ class NetInversion:
         :return: None
         """
 
-        actual_batch_size = self.params['batch_size']
+        actual_batch_size = self.batch_size
         assert num_images <= actual_batch_size
-        self.params['batch_size'] = num_images
+        self.batch_size = num_images
 
         batch_gen = self.get_batch_generator(mode='validate')
 
         with tf.Graph().as_default() as graph:
             with tf.Session() as sess:
                 img_pl = tf.placeholder(dtype=tf.float32,
-                                        shape=[self.params['batch_size'], self.img_hw, self.img_hw, self.img_channels])
+                                        shape=[self.batch_size, self.img_hw, self.img_hw, self.img_channels])
                 self.load_classifier(img_pl)
                 self.build_model()
                 saver = tf.train.Saver()
 
-                saver.restore(sess, self.params['log_path'] + 'ckpt-' + str(ckpt_num))
+                saver.restore(sess, self.log_path + 'ckpt-' + str(ckpt_num))
                 feed_dict = {img_pl: next(batch_gen)}
-                rec_tensor_name = 'module_' + str(len(self.params['inv_modules'])) + '/reconstruction:0'
+                rec_tensor_name = 'module_' + str(len(self.inv_modules)) + '/reconstruction:0'
                 reconstruction = graph.get_tensor_by_name(rec_tensor_name)
                 rec_mat = sess.run(reconstruction, feed_dict=feed_dict)
 
-        self.params['batch_size'] = actual_batch_size
+        self.batch_size = actual_batch_size
 
         img_mat = feed_dict[img_pl] / 255.0
 
@@ -434,9 +426,9 @@ class NetInversion:
             rec_mat /= 255.0
         elif rec_type == 'bgr_normed':
             rec_mat = rec_mat[:, :, :, ::-1]
-            if self.params['classifier'].lower() == 'vgg16':
+            if self.classifier.lower() == 'vgg16':
                 rec_mat = rec_mat + self.imagenet_mean
-            elif self.params['classifier'].lower() == 'alexnet':
+            elif self.classifier.lower() == 'alexnet':
                 rec_mat = rec_mat + np.mean(self.imagenet_mean)
             else:
                 raise NotImplementedError
@@ -473,7 +465,7 @@ class NetInversion:
         ax.set_axis_off()
         fig.add_axes(ax)
         ax.imshow(plot_mat, aspect='auto')
-        plt.savefig(self.params['log_path'] + file_name + '.png', format='png', dpi=224)
+        plt.savefig(self.log_path + file_name + '.png', format='png', dpi=224)
 
     def get_target_featmap(self, target_image_mat, target_map_name):
         if target_map_name == 'input':
