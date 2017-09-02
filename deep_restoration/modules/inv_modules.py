@@ -20,7 +20,10 @@ class TrainedModule(Module):
 
     def load_weights(self, session):
         loader = tf.train.Saver(var_list=self.var_list)
-        loader.restore(session, self.load_path)
+        with open(os.path.join(self.load_path, 'checkpoint')) as f:
+            ckpt = f.readline().split('"')[1]
+            print('For module {0}: loading weights from {1}'.format(self.name, ckpt))
+        loader.restore(session, os.path.join(self.load_path, ckpt))
 
     def save_weights(self, session, step):
         if not os.path.exists(self.load_path):

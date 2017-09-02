@@ -295,37 +295,36 @@ class NetInversion:
         batch_gen = self.get_batch_generator(batch_size, mode='train')
 
         with tf.Graph().as_default():
+
+            img_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.img_hw,
+                                                             self.img_hw, self.img_channels])
+
+            self.load_classifier(img_pl)
+            loss = self.build_model()
+
+            lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
+            optimizer = get_optimizer(optim_name, lr_pl)
+            train_op = optimizer.minimize(loss)
+
+            train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
+
+            # if self.load_path:  # deprecated: weights are to be saved by the individual modules
+            #     print('Deprecated: weights are to be saved by the individual modules')
+            #     global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+            #     train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+            #     opt_vars = [v for v in global_vars if v not in train_vars]
+            #
+            #     if self.load_opt_vars:
+            #         tf.train.Saver(var_list=opt_vars).restore(sess, self.load_path)
+            #     else:
+            #     sess.run(tf.variables_initializer(opt_vars))
+            #
+            #     load_vars = tf.trainable_variables()
+            #     loader = tf.train.Saver(var_list=load_vars)
+            #     loader.restore(sess, self.load_path)
+            #
+            # else:
             with tf.Session() as sess:
-                img_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.img_hw,
-                                                                 self.img_hw, self.img_channels])
-
-                self.load_classifier(img_pl)
-                loss = self.build_model()
-
-                lr_pl = tf.placeholder(dtype=tf.float32, shape=[])
-                optimizer = get_optimizer(optim_name, lr_pl)
-                train_op = optimizer.minimize(loss)
-
-                train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
-
-
-
-                # if self.load_path:  # deprecated: weights are to be saved by the individual modules
-                #     print('Deprecated: weights are to be saved by the individual modules')
-                #     global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-                #     train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-                #     opt_vars = [v for v in global_vars if v not in train_vars]
-                #
-                #     if self.load_opt_vars:
-                #         tf.train.Saver(var_list=opt_vars).restore(sess, self.load_path)
-                #     else:
-                #     sess.run(tf.variables_initializer(opt_vars))
-                #
-                #     load_vars = tf.trainable_variables()
-                #     loader = tf.train.Saver(var_list=load_vars)
-                #     loader.restore(sess, self.load_path)
-                #
-                # else:
                 sess.run(tf.global_variables_initializer())
 
                 for inv_mod in self.modules:
@@ -474,4 +473,25 @@ class NetInversion:
                 with tf.Session() as sess:
                     feat_map_mat = sess.run(feat_map)
 
-            return feat_map_mat
+            return
+
+    def run_model_on_image(self, image_file, tensor_names_to_fetch):
+        img_mat = np.expand_dims(load_image(image_file, resize=False), axis=0)
+
+        with tf.Graph().as_default() as graph:
+
+            img_tensor = tf.constant(img_mat, dtype=tf.float32)
+
+            self.load_classifier(img_tensor)
+            self.build_model()
+            tensors_to_fetch = [graph.get_tensor_by_name(n) for n in tensor_names_to_fetch]
+
+            with tf.Session() as sess:
+                for inv_mod in self.modules:
+                    if (isinstance(inv_mod, LearnedPriorLoss) or isinstance(inv_mod, TrainedModule)) \
+                       and inv_mod.trainable is False:
+                        inv_mod.load_weights(sess)
+
+                fetched_mats = sess.run(tensors_to_fetch)
+
+        return fetched_mats
