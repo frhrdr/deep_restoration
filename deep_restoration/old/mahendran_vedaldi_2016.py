@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from modules.loss_modules import SoftRangeLoss, TotalVariationLoss, NormedMSELoss, LearnedPriorLoss
-from modules.ica_prior import ICAPrior
+from modules.foe_full_prior import FoEFullPrior
 
 PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',
               classifier='alexnet',
@@ -74,10 +74,10 @@ def invert_layer(params):
             tv_mod = TotalVariationLoss(reconstruction.name, params['beta_tv'],
                                         weighting=1 / (params['img_HW'] ** 2 * params['range_V'] ** params['beta_tv']))
 
-            ica_prior = ICAPrior(tensor_names='reconstruction/read:0',
-                                 weighting=1.0e-4, name='ICAPrior',
-                                 load_path='../logs/priors/ica_prior/color_8x8_512comps_191feats_mean_lf_sdev_none/ckpt-10000',
-                                 trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
+            ica_prior = FoEFullPrior(tensor_names='reconstruction/read:0',
+                                     weighting=1.0e-4, name='ICAPrior',
+                                     load_path='../logs/priors/ica_prior/color_8x8_512comps_191feats_mean_lf_sdev_none/ckpt-10000',
+                                     trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
 
             loss_mods = [mse_mod, ica_prior]  # [mse_mod, sr_mod, tv_mod]
             loss = 0

@@ -1,35 +1,55 @@
 import tensorflow as tf
 import numpy as np
-from modules.ica_prior import ICAPrior
-from utils.temp_utils import patch_batch_gen, plot_img_mats, get_optimizer
-from utils.preprocessing import make_data_dir
 import time
 import os
+from modules.foe_full_prior import FoEFullPrior
+from utils.temp_utils import patch_batch_gen, plot_img_mats, get_optimizer
+from utils.preprocessing import make_data_dir
+from utils.patch_prior_losses import logistic_channelwise_mrf_loss, logistic_channelwise_score_matching_loss, \
+    student_channelwise_mrf_loss, student_channelwise_score_matching_loss
 #  _mean_lc_sdev_none
 
 
-class ChannelICAPrior(ICAPrior):
+class FoEChannelwisePrior(FoEFullPrior):
     """
     ICA prior which views each channel as independent
     """
 
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                 n_features_white,
-                 trainable=False, name='ChannelICAPrior', load_name='ChannelICAPrior', dir_name='channel_ica_prior',
-                 mean_mode='lc', sdev_mode='none', load_tensor_names=None):
+                 n_features_white, dist, mean_mode='gc', sdev_mode='gc',
+                 trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None):
+
         super().__init__(tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                         n_features_white, trainable=trainable, name=name, load_name=load_name, dir_name=dir_name,
-                         mean_mode=mean_mode, sdev_mode=sdev_mode, load_tensor_names=load_tensor_names)
+                         n_features_white, dist, mean_mode=mean_mode, sdev_mode=sdev_mode, trainable=trainable,
+                         name=name, load_name=load_name, dir_name=dir_name, load_tensor_names=load_tensor_names)
+
+
         self.n_features_total = n_features_white * n_channels
         self.load_path = self.load_path.rstrip('/') + '_channelwise/'
 
     @staticmethod
-    def mrf_loss(xw, ica_a_squeezed):
-        xw_abs = tf.abs(xw)
-        log_sum_exp = tf.log(1 + tf.exp(-2 * xw_abs)) + xw_abs
-        neg_g_wx = (tf.log(0.5) + log_sum_exp) * tf.stack([ica_a_squeezed] * xw.get_shape()[1].value, axis=1)
-        neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
-        return tf.reduce_mean(neg_log_p_patches, name='loss')
+    def assign_names(dist, name, load_name, dir_name, load_tensor_names, tensor_names):
+        dist_options = ('student', 'logistic')
+        assert dist in dist_options
+
+        student_names = ('FoEStudentChannelwisePrior', 'FoEStudentChannelwisePrior', 'student_channelwise_prior')
+        logistic_names = ('FoELogisticChannelwisePrior', 'FoELogisticChannelwisePrior', 'logistic_channelwise_prior')
+        dist_names = student_names if dist == 'student' else logistic_names
+
+        name = name if name is not None else dist_names[0]
+        load_name = load_name if load_name is not None else dist_names[1]
+        dir_name = dir_name if dir_name is not None else dist_names[2]
+        load_tensor_names = load_tensor_names if load_tensor_names is not None else tensor_names
+
+        return name, load_name, dir_name, load_tensor_names
+
+    def mrf_loss(self, xw, ica_a_squeezed):
+        if self.dist == 'logistic':
+            return logistic_channelwise_mrf_loss(xw, ica_a_squeezed)
+        elif self.dist == 'student':
+            return student_channelwise_mrf_loss(xw, ica_a_squeezed)
+        else:
+            raise NotImplementedError
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
@@ -75,31 +95,13 @@ class ChannelICAPrior(ICAPrior):
             self.loss = self.mrf_loss(xw, ica_a_squeezed)
             self.var_list.extend([ica_a, ica_w, whitening_tensor])
 
-    @staticmethod
-    def score_matching_loss(x_mat, w_mat, alpha):
-        """
-        :param x_mat: data    -- n_channels x batch_size x n_features_per_channel_white
-        :param w_mat: filters -- n_channels x n_features_per_channel_white x n_components_per_channel
-        :param alpha: scaling -- n_channels x n_components_per_channel
-        :return: full loss, and two partial loss terms
-        """
-        alpha_pos = tf.nn.softplus(alpha)
-        const_t = x_mat.get_shape()[0].value
-        xw_mat = tf.matmul(x_mat, w_mat)
-        g_mat = -tf.tanh(xw_mat)
-        gp_mat = -4.0 / tf.square(tf.exp(xw_mat) + tf.exp(-xw_mat))  # d/dx tanh(x) = 4 / (exp(x) + exp(-x))^2
-        gp_vec = tf.reduce_sum(gp_mat, axis=1) / const_t
-        gg_mat = tf.matmul(g_mat, g_mat, transpose_a=True) / const_t
-        aa_mat = tf.matmul(alpha_pos, alpha_pos, transpose_b=True)
-        ww_mat = tf.matmul(w_mat, w_mat, transpose_a=True)
-
-        ww_list = tf.split(ww_mat, num_or_size_splits=ww_mat.get_shape()[0].value, axis=0)
-        w_norm_list = [tf.diag_part(tf.squeeze(k)) for k in ww_list]
-        w_norm = tf.stack(w_norm_list, axis=0, name='w_norm')
-
-        term_1 = tf.reduce_sum(tf.squeeze(alpha_pos) * w_norm * gp_vec, name='t1')
-        term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
-        return term_1 + term_2, term_1, term_2
+    def score_matching_loss(self, x_mat, w_mat, alpha):
+        if self.dist == 'logistic':
+            return logistic_channelwise_score_matching_loss(x_mat, w_mat, alpha)
+        elif self.dist == 'student':
+            return student_channelwise_score_matching_loss(x_mat, w_mat, alpha)
+        else:
+            raise NotImplementedError
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
                     whiten_mode='pca', num_data_samples=100000,

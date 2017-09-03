@@ -1,7 +1,7 @@
 from utils.preprocessing import raw_patch_data_mat, make_channel_separate_patch_data
 # from utils.temp_utils import plot_feat_map_diffs
 # import numpy as np
-from modules.channel_ica_prior import ChannelICAPrior
+from modules.foe_channelwise_prior import FoEChannelwisePrior
 from modules.foe_prior import FoEPrior
 from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
 

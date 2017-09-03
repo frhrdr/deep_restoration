@@ -1,6 +1,6 @@
-from modules.channel_ica_prior import ChannelICAPrior
+from modules.foe_channelwise_prior import FoEChannelwisePrior
 
-class ChannelFoEPrior(ChannelICAPrior):
+class ChannelFoEPrior(FoEChannelwisePrior):
 
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
                  n_features_white,

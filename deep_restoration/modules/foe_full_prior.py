@@ -1,18 +1,25 @@
 import tensorflow as tf
 import numpy as np
+import time
+import os
 from modules.loss_modules import LearnedPriorLoss
 from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
 from utils.preprocessing import preprocess_patch_tensor, make_data_dir, preprocess_featmap_tensor
-import time
-import os
+from utils.patch_prior_losses import logistic_full_mrf_loss, logistic_full_score_matching_loss, \
+    student_full_mrf_loss, student_full_score_matching_loss
 # _mean_lf_sdev_none
 
 
-class ICAPrior(LearnedPriorLoss):
+class FoEFullPrior(LearnedPriorLoss):
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling,
                  n_components, n_channels, n_features_white,
-                 trainable=False, name='ICAPrior',load_name='ICAPrior', dir_name='ica_prior',
-                 mean_mode='lf', sdev_mode='none', load_tensor_names=None):
+                 dist, mean_mode='gc', sdev_mode='gc',
+                 trainable=False,
+                 name=None,load_name=None, dir_name=None,
+                 load_tensor_names=None):
+
+        name, load_name, dir_name, load_tensor_names = self.assign_names(dist, name, load_name, dir_name,
+                                                                         load_tensor_names, tensor_names)
 
         mode_abbreviatons = {'global_channel': 'gc', 'global_feature': 'gf', 'local_channel': 'lc', 'local_full': 'lf'}
         if mean_mode in mode_abbreviatons:
@@ -20,8 +27,6 @@ class ICAPrior(LearnedPriorLoss):
         if sdev_mode in mode_abbreviatons:
             sdev_mode = mode_abbreviatons[sdev_mode]
 
-        if load_tensor_names is None:
-            load_tensor_names = tensor_names
         load_path = self.get_load_path(dir_name, classifier, load_tensor_names, filter_dims,
                                        n_components, n_features_white, mean_mode, sdev_mode)
 
@@ -35,15 +40,36 @@ class ICAPrior(LearnedPriorLoss):
         self.classifier = classifier
         self.mean_mode = mean_mode
         self.sdev_mode = sdev_mode
-
+        self.dist = dist
 
     @staticmethod
-    def mrf_loss(xw, ica_a_squeezed):
-        xw_abs = tf.abs(xw)
-        log_sum_exp = tf.log(1 + tf.exp(-2 * xw_abs)) + xw_abs
-        neg_g_wx = (tf.log(0.5) + log_sum_exp) * ica_a_squeezed
-        neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
-        return tf.reduce_mean(neg_log_p_patches, name='loss')
+    def assign_names(dist, name, load_name, dir_name, load_tensor_names, tensor_names):
+        dist_options = ('student', 'logistic')
+        assert dist in dist_options
+
+        student_names = ('FoEStudentFullPrior', 'FoEStudentFullPrior', 'student_full_prior')
+        logistic_names = ('FoELogisticFullPrior', 'FoELogisticFullPrior', 'logistic_full_prior')
+        dist_names = student_names if dist == 'student' else logistic_names
+
+        name = name if name is not None else dist_names[0]
+        load_name = load_name if load_name is not None else dist_names[1]
+        dir_name = dir_name if dir_name is not None else dist_names[2]
+        load_tensor_names = load_tensor_names if load_tensor_names is not None else tensor_names
+
+        return name, load_name, dir_name, load_tensor_names
+
+    def mrf_loss(self, xw, ica_a_squeezed):
+        if self.dist == 'logistic':
+            return logistic_full_mrf_loss(xw, ica_a_squeezed)
+        elif self.dist == 'student':
+            return student_full_mrf_loss(xw, ica_a_squeezed)
+        else:
+            raise NotImplementedError
+        # xw_abs = tf.abs(xw)
+        # log_sum_exp = tf.log(1 + tf.exp(-2 * xw_abs)) + xw_abs
+        # neg_g_wx = (tf.log(0.5) + log_sum_exp) * ica_a_squeezed
+        # neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
+        # return tf.reduce_mean(neg_log_p_patches, name='loss')
 
     def build(self, scope_suffix=''):
 
@@ -79,21 +105,24 @@ class ICAPrior(LearnedPriorLoss):
             self.loss = self.mrf_loss(xw, ica_a_squeezed)
             self.var_list.extend([ica_a, ica_w, whitening_tensor])
 
-    @staticmethod
-    def score_matching_loss(x_mat, w_mat, alpha):
-        const_t = x_mat.get_shape()[0].value
-        xw_mat = tf.matmul(x_mat, w_mat)
-        g_mat = -tf.tanh(xw_mat)
-        gp_mat = -4.0 / tf.square(tf.exp(xw_mat) + tf.exp(-xw_mat))  # d/dx tanh(x) = 4 / (exp(x) + exp(-x))^2
-        gp_vec = tf.reduce_sum(gp_mat, axis=0) / const_t
-        gg_mat = tf.matmul(g_mat, g_mat, transpose_a=True) / const_t
-        aa_mat = tf.matmul(alpha, alpha, transpose_b=True)
-        ww_mat = tf.matmul(w_mat, w_mat, transpose_a=True)
-        w_norm = tf.diag_part(ww_mat, name='w_norm')
-
-        term_1 = tf.reduce_sum(alpha * w_norm * gp_vec, name='t1')
-        term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
-        return term_1 + term_2, term_1, term_2
+    def score_matching_loss(self, x_mat, w_mat, alpha):
+        if self.dist == 'logistic':
+            return logistic_full_score_matching_loss(x_mat, w_mat, alpha)
+        if self.dist == 'student':
+            return student_full_score_matching_loss(x_mat, w_mat, alpha)
+        # const_t = x_mat.get_shape()[0].value
+        # xw_mat = tf.matmul(x_mat, w_mat)
+        # g_mat = -tf.tanh(xw_mat)
+        # gp_mat = -4.0 / tf.square(tf.exp(xw_mat) + tf.exp(-xw_mat))  # d/dx tanh(x) = 4 / (exp(x) + exp(-x))^2
+        # gp_vec = tf.reduce_sum(gp_mat, axis=0) / const_t
+        # gg_mat = tf.matmul(g_mat, g_mat, transpose_a=True) / const_t
+        # aa_mat = tf.matmul(alpha, alpha, transpose_b=True)
+        # ww_mat = tf.matmul(w_mat, w_mat, transpose_a=True)
+        # w_norm = tf.diag_part(ww_mat, name='w_norm')
+        #
+        # term_1 = tf.reduce_sum(alpha * w_norm * gp_vec, name='t1')
+        # term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
+        # return term_1 + term_2, term_1, term_2
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
                     whiten_mode='pca', num_data_samples=100000, n_val_samples=500,
@@ -469,7 +498,7 @@ class ICAPrior(LearnedPriorLoss):
         assert fps[0] == 1  # commit to singular batch size
 
         n_patches = fps[1] * fps[2]
-        n_features_raw = fps[3] * fps[4]
+        # n_features_raw = fps[3] * fps[4]
         flat_patches = tf.reshape(flat_patches, shape=[fps[0], n_patches, fps[3], fps[4]])  # flatten h,w
 
         flat_patches = tf.squeeze(flat_patches)

@@ -8,7 +8,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from modules.ica_prior import ICAPrior
+from modules.foe_full_prior import FoEFullPrior
 from modules.loss_modules import NormedMSELoss
 
 PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',
@@ -80,10 +80,10 @@ def invert_layer(params):
             prior_tv = params['lambda_tv'] * total_variation_prior(reconstruction, params['beta_tv'])
             # loss = mse_loss + prior_l2 + prior_tv
 
-            ica_prior = ICAPrior(tensor_names='reconstruction/read:0',
-                                 weighting=5.0e-6, name='ICAPrior',
-                                 load_path='./logs/priors/ica_prior/color_8x8_512comps_191feats_mean_lf_sdev_none/ckpt-10000',
-                                 trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
+            ica_prior = FoEFullPrior(tensor_names='reconstruction/read:0',
+                                     weighting=5.0e-6, name='ICAPrior',
+                                     load_path='./logs/priors/ica_prior/color_8x8_512comps_191feats_mean_lf_sdev_none/ckpt-10000',
+                                     trainable=False, filter_dims=[8, 8], input_scaling=1.0, n_components=512)
 
             ica_prior.build()
             mse_loss.build()

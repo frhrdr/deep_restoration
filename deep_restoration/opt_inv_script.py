@@ -1,7 +1,7 @@
 from net_inversion import NetInversion
-from modules.ica_prior import ICAPrior
+from modules.foe_full_prior import FoEFullPrior
 from modules.foe_prior import FoEPrior
-from modules.channel_ica_prior import ChannelICAPrior
+from modules.foe_channelwise_prior import FoEChannelwisePrior
 from modules.loss_modules import NormedMSELoss
 from modules.split_module import SplitModule
 from utils.parameter_defaults import mv_default_params
@@ -29,12 +29,12 @@ mse1.add_loss = False
 # mse1 = NormedMSELoss(target='img_rep_c1r:0', reconstruction='conv1_relu:0', name='MSE_conv1_tracker')
 # mse1.add_loss = False
 
-img_prior = ICAPrior(tensor_names='pre_img/read:0',
-                     weighting=1e-7, name='ICAPrior',
-                     classifier='alexnet',
-                     filter_dims=[8, 8], input_scaling=1.0, n_components=512, n_channels=3,
-                     n_features_white=64*3-1,
-                     mean_mode='lf', sdev_mode='gc')
+img_prior = FoEFullPrior(tensor_names='pre_img/read:0',
+                         weighting=1e-7, name='ICAPrior',
+                         classifier='alexnet',
+                         filter_dims=[8, 8], input_scaling=1.0, n_components=512, n_channels=3,
+                         n_features_white=64*3-1,
+                         mean_mode='lf', sdev_mode='gc')
 
 # c1l_prior = ICAPrior(tensor_names='conv1_lin:0',
 #                      weighting=1e-13, name='C1LPrior',
@@ -48,12 +48,12 @@ img_prior = ICAPrior(tensor_names='pre_img/read:0',
 #                      filter_dims=[5, 5], input_scaling=1.0, n_components=3000, n_channels=96,
 #                      n_features_white=1800, mean_mode='lc', sdev_mode='gc')
 
-c1l_prior = ChannelICAPrior('pre_featmap/read:0', 1e-6, 'alexnet', [5, 5], input_scaling=1.0,
-                            n_components=150, n_channels=96,
-                            n_features_white=24,
-                            name='ChannelICAPrior',
-                            mean_mode='gc', sdev_mode='gc',
-                            load_tensor_names='conv1/lin:0')
+c1l_prior = FoEChannelwisePrior('pre_featmap/read:0', 1e-6, 'alexnet', [5, 5], input_scaling=1.0,
+                                n_components=150, n_channels=96,
+                                n_features_white=24,
+                                name='ChannelICAPrior',
+                                mean_mode='gc', sdev_mode='gc',
+                                load_tensor_names='conv1/lin:0')
 
 # c1l_prior = FoEPrior(tensor_names='pre_featmap/read:0',
 #                      weighting=1e-10, name='FoEPrior',

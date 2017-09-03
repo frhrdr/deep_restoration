@@ -1,5 +1,5 @@
 from utils.preprocessing import make_flattened_patch_data, add_flattened_validation_set
-from modules.ica_prior import ICAPrior
+from modules.foe_full_prior import FoEFullPrior
 from modules.foe_prior import FoEPrior
 
 
