@@ -12,30 +12,6 @@ class FoEPrior(ICAPrior):
                          n_features_white, trainable=trainable, name=name, load_name=load_name, dir_name=dir_name,
                          mean_mode=mean_mode, sdev_mode=sdev_mode, load_tensor_names=load_tensor_names)
 
-    def build(self, scope_suffix=''):
-        with tf.variable_scope(self.name):
-            normed_patches = self.shape_and_norm_tensor()
-            n_patches, n_channels, n_feats_per_channel = [k.value for k in normed_patches.get_shape()]
-            n_features_raw = n_feats_per_channel * n_channels
-
-            normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
-
-            whitening_tensor = tf.get_variable('whiten_mat', shape=[self.n_features_white, n_features_raw],
-                                               dtype=tf.float32, trainable=False)
-
-            ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable, dtype=tf.float32)
-            ica_w = tf.get_variable('ica_w', shape=[self.n_features_white, self.n_components],
-                                    trainable=self.trainable, dtype=tf.float32)
-            ica_a_squeezed = tf.squeeze(ica_a)
-            whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
-
-            xw = tf.matmul(normed_patches, whitened_mixing)
-            neg_g_wx = tf.log(1.0 + 0.5 * tf.square(xw)) * ica_a_squeezed
-            neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
-            self.loss = tf.reduce_mean(neg_log_p_patches, name='loss')
-
-            self.var_list.extend([ica_a, ica_w, whitening_tensor])
-
     @staticmethod
     def score_matching_loss(x_mat, w_mat, alpha):
         const_T = x_mat.get_shape()[0].value
@@ -52,3 +28,9 @@ class FoEPrior(ICAPrior):
         term_1 = tf.reduce_sum(alpha * w_norm * gp_vec, name='t1')
         term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
         return term_1 + term_2, term_1, term_2
+
+    @staticmethod
+    def mrf_loss(xw, ica_a_squeezed):
+        neg_g_wx = tf.log(1.0 + 0.5 * tf.square(xw)) * ica_a_squeezed
+        neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
+        return tf.reduce_mean(neg_log_p_patches, name='loss')

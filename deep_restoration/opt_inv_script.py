@@ -48,18 +48,19 @@ img_prior = ICAPrior(tensor_names='pre_img/read:0',
 #                      filter_dims=[5, 5], input_scaling=1.0, n_components=3000, n_channels=96,
 #                      n_features_white=1800, mean_mode='lc', sdev_mode='gc')
 
-# c1l_prior = ChannelICAPrior('pre_featmap/read:0', 1e-6, 'alexnet', [5, 5], input_scaling=1.0,
-#                             n_components=150, n_channels=96,
-#                             n_features_white=24,
-#                             trainable=False, name='ChannelICAPrior', mean_mode='gc', sdev_mode='gc',
-#                             load_tensor_names='conv1/lin:0')
+c1l_prior = ChannelICAPrior('pre_featmap/read:0', 1e-6, 'alexnet', [5, 5], input_scaling=1.0,
+                            n_components=150, n_channels=96,
+                            n_features_white=24,
+                            name='ChannelICAPrior',
+                            mean_mode='gc', sdev_mode='gc',
+                            load_tensor_names='conv1/lin:0')
 
-c1l_prior = FoEPrior(tensor_names='pre_featmap/read:0',
-                     weighting=1e-10, name='FoEPrior',
-                     classifier='alexnet',
-                     filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
-                     n_features_white=3000, mean_mode='gc', sdev_mode='gc',
-                     load_tensor_names='conv1/lin:0')
+# c1l_prior = FoEPrior(tensor_names='pre_featmap/read:0',
+#                      weighting=1e-10, name='FoEPrior',
+#                      classifier='alexnet',
+#                      filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
+#                      n_features_white=3000, mean_mode='gc', sdev_mode='gc',
+#                      load_tensor_names='conv1/lin:0')
 
 pre_mse = NormedMSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
 pre_mse.add_loss = False
@@ -68,13 +69,13 @@ pre_mse.add_loss = False
 # modules = [split4, mse4, split1, mse1, c1l_prior]
 
 modules = [split4, mse4, pre_mse, c1l_prior]
-log_path='../logs/opt_inversion/alexnet/pre_featmap/88/1e-10/'
+log_path='../logs/opt_inversion/alexnet/pre_featmap/full_conv_test/'
 
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
 if not os.path.exists(log_path):
     os.makedirs(log_path)
-copyfile('./ni_tests.py', log_path + 'script.py')
+copyfile('./opt_inv_script.py', log_path + 'script.py')
 
 
 # pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_10500.npy'), [1, 224, 224, 3])

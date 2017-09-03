@@ -2,13 +2,13 @@ import tensorflow as tf
 import numpy as np
 from modules.loss_modules import LearnedPriorLoss
 from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
-from utils.preprocessing import preprocess_tensor, make_data_dir
+from utils.preprocessing import preprocess_patch_tensor, make_data_dir, preprocess_featmap_tensor
 import time
 import os
 # _mean_lf_sdev_none
 
-class ICAPrior(LearnedPriorLoss):
 
+class ICAPrior(LearnedPriorLoss):
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling,
                  n_components, n_channels, n_features_white,
                  trainable=False, name='ICAPrior',load_name='ICAPrior', dir_name='ica_prior',
@@ -37,14 +37,19 @@ class ICAPrior(LearnedPriorLoss):
         self.sdev_mode = sdev_mode
 
 
+    @staticmethod
+    def mrf_loss(xw, ica_a_squeezed):
+        xw_abs = tf.abs(xw)
+        log_sum_exp = tf.log(1 + tf.exp(-2 * xw_abs)) + xw_abs
+        neg_g_wx = (tf.log(0.5) + log_sum_exp) * ica_a_squeezed
+        neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
+        return tf.reduce_mean(neg_log_p_patches, name='loss')
+
     def build(self, scope_suffix=''):
+
         with tf.variable_scope(self.name):
-            normed_patches = self.shape_and_norm_tensor()
-            n_patches, n_channels, n_feats_per_channel = [k.value for k in normed_patches.get_shape()]
-            n_features_raw = n_feats_per_channel * n_channels
 
-            normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
-
+            n_features_raw = self.filter_dims[0] * self.filter_dims[1] * self.n_channels
             whitening_tensor = tf.get_variable('whiten_mat', shape=[self.n_features_white, n_features_raw],
                                                dtype=tf.float32, trainable=False)
 
@@ -54,16 +59,24 @@ class ICAPrior(LearnedPriorLoss):
             ica_a_squeezed = tf.squeeze(ica_a)
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
 
-            xw = tf.matmul(normed_patches, whitened_mixing)
-            # xw_mean = tf.reduce_mean(xw)  # log sum exp trick in hopes of some added numerical stability
-            # log_sum_exp = tf.log(tf.exp(-xw - xw_mean) + tf.exp(xw - xw_mean)) + xw_mean
-            xw_abs = tf.abs(xw)
-            log_sum_exp = tf.log(1 + tf.exp(-2 * xw_abs)) + xw_abs
+            if self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf'):
+                normed_featmap = self.norm_feat_map_directly()  # shape [1, h, w, n_channels]
 
-            neg_g_wx = (tf.log(0.5) + log_sum_exp) * ica_a_squeezed
-            neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
-            self.loss = tf.reduce_mean(neg_log_p_patches, name='loss')
+                whitened_mixing = tf.reshape(whitened_mixing, shape=[self.n_channels, self.filter_dims[0],
+                                                                     self.filter_dims[1], self.n_components])
+                whitened_mixing = tf.transpose(whitened_mixing, perm=[1, 2, 0, 3])
+                print(normed_featmap.get_shape())
+                print(whitened_mixing.get_shape())
+                xw = tf.nn.conv2d(normed_featmap, whitened_mixing, strides=[1, 1, 1, 1], padding='VALID')
+                xw = tf.reshape(xw, shape=[-1, self.n_components])
 
+            else:
+                normed_patches = self.shape_and_norm_tensor()
+                n_patches = normed_patches.get_shape()[0].value
+                normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
+                xw = tf.matmul(normed_patches, whitened_mixing)
+
+            self.loss = self.mrf_loss(xw, ica_a_squeezed)
             self.var_list.extend([ica_a, ica_w, whitening_tensor])
 
     @staticmethod
@@ -220,58 +233,6 @@ class ICAPrior(LearnedPriorLoss):
                         co = np.transpose(co, axes=[0, 2, 3, 1])
                         plot_img_mats(co, color=True, rescale=True)
 
-    def plot_filters_all_channels(self, filter_ids, save_path, save_as_mat=False, save_as_plot=True):
-        """
-        visualizes the patch for each channel of a trained filter and saves this as one plot.
-        does so for the filter of each given index
-
-        :param filter_ids: collection of filter indices
-        :param save_path: location to save plots
-        :param save_as_mat: if true, saves each filter as channel x height x width matrix
-        :param save_as_plot:  if true, saves each filter as image
-        :return: None
-        """
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-
-        with tf.Graph().as_default():
-
-            with tf.variable_scope(self.name):
-                n_features_raw = self.filter_dims[0] * self.filter_dims[1] * self.n_channels
-                unwhitening_tensor = tf.get_variable('unwhiten_mat', shape=[self.n_features_white, n_features_raw],
-                                                     dtype=tf.float32, trainable=False)
-                ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable,
-                                        dtype=tf.float32)
-                ica_w = tf.get_variable('ica_w', shape=[self.n_features_white, self.n_components],
-                                        trainable=self.trainable, dtype=tf.float32)
-            self.var_list = [unwhitening_tensor, ica_a, ica_w]
-
-            with tf.Session() as sess:
-                self.load_weights(sess)
-                unwhitening_mat, a_mat, w_mat = sess.run(self.var_list)
-
-            print('matrices loaded')
-
-            rotated_w_mat = np.dot(w_mat[:, filter_ids].T, unwhitening_mat)
-
-            print('whitening reversed')
-
-            for idx, filter_id in enumerate(filter_ids):
-                flat_filter = rotated_w_mat[idx, :]
-                alpha = a_mat[filter_id]
-                plottable_filters = np.reshape(flat_filter, [self.n_channels, self.filter_dims[0], self.filter_dims[1]])
-
-                if save_as_mat:
-                    file_name = 'filter_{}_alpha_{:.3e}.npy'.format(filter_id, float(alpha))
-                    np.save(save_path + file_name, plottable_filters)
-                if save_as_plot:
-                    file_name = 'filter_{}_alpha_{:.3e}.png'.format(filter_id, float(alpha))
-
-                    plottable_filters -= np.min(plottable_filters)
-                    plottable_filters /= np.max(plottable_filters)
-                    plot_img_mats(plottable_filters, rescale=False, show=False, save_path=save_path + file_name)
-                    print('filter {} done'.format(filter_id))
-
     def plot_channels_all_filters(self, channel_ids, save_path, save_as_mat=False, save_as_plot=True, n_vis=144):
         """
         visualizes all filters of selected channels and saves these as one plot per channel.
@@ -328,6 +289,58 @@ class ICAPrior(LearnedPriorLoss):
                     plottable_channels /= np.max(plottable_channels)
                     plot_img_mats(plottable_channels, rescale=False, show=False, save_path=save_path + file_name)
                     print('filter {} done'.format(channel_id))
+
+    def plot_filters_all_channels(self, filter_ids, save_path, save_as_mat=False, save_as_plot=True):
+        """
+        visualizes the patch for each channel of a trained filter and saves this as one plot.
+        does so for the filter of each given index
+
+        :param filter_ids: collection of filter indices
+        :param save_path: location to save plots
+        :param save_as_mat: if true, saves each filter as channel x height x width matrix
+        :param save_as_plot:  if true, saves each filter as image
+        :return: None
+        """
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+        with tf.Graph().as_default():
+
+            with tf.variable_scope(self.name):
+                n_features_raw = self.filter_dims[0] * self.filter_dims[1] * self.n_channels
+                unwhitening_tensor = tf.get_variable('unwhiten_mat', shape=[self.n_features_white, n_features_raw],
+                                                     dtype=tf.float32, trainable=False)
+                ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable,
+                                        dtype=tf.float32)
+                ica_w = tf.get_variable('ica_w', shape=[self.n_features_white, self.n_components],
+                                        trainable=self.trainable, dtype=tf.float32)
+            self.var_list = [unwhitening_tensor, ica_a, ica_w]
+
+            with tf.Session() as sess:
+                self.load_weights(sess)
+                unwhitening_mat, a_mat, w_mat = sess.run(self.var_list)
+
+            print('matrices loaded')
+
+            rotated_w_mat = np.dot(w_mat[:, filter_ids].T, unwhitening_mat)
+
+            print('whitening reversed')
+
+            for idx, filter_id in enumerate(filter_ids):
+                flat_filter = rotated_w_mat[idx, :]
+                alpha = a_mat[filter_id]
+                plottable_filters = np.reshape(flat_filter, [self.n_channels, self.filter_dims[0], self.filter_dims[1]])
+
+                if save_as_mat:
+                    file_name = 'filter_{}_alpha_{:.3e}.npy'.format(filter_id, float(alpha))
+                    np.save(save_path + file_name, plottable_filters)
+                if save_as_plot:
+                    file_name = 'filter_{}_alpha_{:.3e}.png'.format(filter_id, float(alpha))
+
+                    plottable_filters -= np.min(plottable_filters)
+                    plottable_filters /= np.max(plottable_filters)
+                    plot_img_mats(plottable_filters, rescale=False, show=False, save_path=save_path + file_name)
+                    print('filter {} done'.format(filter_id))
 
     def plot_channels_top_filters(self, channel_ids, save_path, save_as_mat=False, save_as_plot=True, n_vis=144):
         """
@@ -455,13 +468,30 @@ class ICAPrior(LearnedPriorLoss):
         fps = [k.value for k in flat_patches.get_shape()]  # shape = [bs, h, w, n_fpc, n_c]
         assert fps[0] == 1  # commit to singular batch size
 
-        print(fps)
         n_patches = fps[1] * fps[2]
         n_features_raw = fps[3] * fps[4]
         flat_patches = tf.reshape(flat_patches, shape=[fps[0], n_patches, fps[3], fps[4]])  # flatten h,w
 
         flat_patches = tf.squeeze(flat_patches)
 
-        normed_patches, mean_sdev_list = preprocess_tensor(flat_patches, self.mean_mode, self.sdev_mode)
+        normed_patches, mean_sdev_list = preprocess_patch_tensor(flat_patches, self.mean_mode, self.sdev_mode)
         self.var_list.extend(mean_sdev_list)
         return normed_patches
+
+    def norm_feat_map_directly(self):
+        """
+        if both mean and sdev modes use training set values (gc or gf),
+        norming can be applied directly to the feature map (shape [bs, h, w, c])
+
+        :return:
+        """
+        assert self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf')
+
+        featmap = self.get_tensors()
+        featmap = featmap * self.input_scaling
+        assert featmap.get_shape()[0].value == 1
+        featmap = tf.squeeze(featmap)
+        normed_featmap, mean_sdev_list = preprocess_featmap_tensor(featmap, self.mean_mode, self.sdev_mode)
+        normed_featmap = tf.expand_dims(normed_featmap, axis=0)
+        self.var_list.extend(mean_sdev_list)
+        return normed_featmap

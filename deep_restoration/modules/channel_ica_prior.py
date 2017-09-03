@@ -23,11 +23,18 @@ class ChannelICAPrior(ICAPrior):
         self.n_features_total = n_features_white * n_channels
         self.load_path = self.load_path.rstrip('/') + '_channelwise/'
 
+    @staticmethod
+    def mrf_loss(xw, ica_a_squeezed):
+        xw_abs = tf.abs(xw)
+        log_sum_exp = tf.log(1 + tf.exp(-2 * xw_abs)) + xw_abs
+        neg_g_wx = (tf.log(0.5) + log_sum_exp) * tf.stack([ica_a_squeezed] * xw.get_shape()[1].value, axis=1)
+        neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
+        return tf.reduce_mean(neg_log_p_patches, name='loss')
+
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
-            normed_patches = self.shape_and_norm_tensor()
-            n_patches, n_channels, n_feats_per_channel = normed_patches.get_shape()
 
+            n_feats_per_channel = self.filter_dims[0] * self.filter_dims[1]
             whitening_tensor = tf.get_variable('whiten_mat',
                                                shape=[self.n_channels, self.n_features_white, n_feats_per_channel],
                                                dtype=tf.float32, trainable=False)
@@ -38,26 +45,34 @@ class ChannelICAPrior(ICAPrior):
             ica_a_squeezed = tf.squeeze(tf.nn.softplus(ica_a))
 
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
-            print(1, normed_patches.get_shape())
-            print(2, whitened_mixing.get_shape())
-            print(3, whitening_tensor.get_shape())
-            xw = tf.matmul(tf.transpose(normed_patches, perm=[1, 0, 2]), whitened_mixing)
-            print(4, xw.get_shape())
 
-            xw_abs = tf.abs(xw)
-            log_sum_exp = tf.log(1 + tf.exp(-2 * xw_abs)) + xw_abs
+            if False and self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf'):
+                normed_featmap = self.norm_feat_map_directly()  # shape [1, h, w, n_channels]
+                print(whitened_mixing.get_shape())  # shape [n_channels, n_features_raw, n_components]
+                whitened_mixing = tf.transpose(whitened_mixing, perm=[1, 0, 2])
+                whitened_mixing = tf.reshape(whitened_mixing, [self.filter_dims[0], self.filter_dims[1],
+                                                               self.n_channels, self.n_components])
 
-            neg_g_wx = (tf.log(0.5) + log_sum_exp) * tf.stack([ica_a_squeezed] * xw.get_shape()[1].value, axis=1)
-            # neg_g_wx = tf.transpose(neg_g_wx, perm=(1, 0, 2)) * ica_a_squeezed
-            # neg_g_wx = tf.transpose(neg_g_wx, perm=(1, 0, 2))
+                xw_stacked = tf.nn.depthwise_conv2d(normed_featmap, whitened_mixing,
+                                                    strides=[1, 1, 1, 1], padding='VALID')
+                # out shape [1, out_height, out_width, in_channels * channel_multiplier]
+                bs, h, w, n_stacked_patches = [k.value for k in xw_stacked.get_shape()]
+                assert bs == 1
+                xw = tf.reshape(xw_stacked, shape=[h * w, self.n_channels, self.n_components])
+                xw = tf.transpose(xw, perm=[1, 0, 2])
 
-            print(5, neg_g_wx.get_shape())
-            neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
-            print(6, neg_log_p_patches.get_shape())
-            naive_mean = tf.reduce_mean(neg_log_p_patches, name='loss')
-            print(7, naive_mean.get_shape())
-            self.loss = naive_mean
+                # whitened_mixing = tf.reshape(whitened_mixing, shape=[self.n_channels, self.filter_dims[0],
+                #                                                      self.filter_dims[1], self.n_components])
+                # whitened_mixing = tf.transpose(whitened_mixing, perm=[1, 2, 0, 3])
+                # print(normed_featmap.get_shape())
+                # print(whitened_mixing.get_shape())
+                # xw = tf.nn.conv2d(normed_featmap, whitened_mixing, strides=[1, 1, 1, 1], padding='VALID')
+                # xw = tf.reshape(xw, shape=[-1, self.n_components])
+            else:
+                normed_patches = self.shape_and_norm_tensor() # shape [n_patches, n_channels, n_feats_per_channel]
+                xw = tf.matmul(tf.transpose(normed_patches, perm=[1, 0, 2]), whitened_mixing)
 
+            self.loss = self.mrf_loss(xw, ica_a_squeezed)
             self.var_list.extend([ica_a, ica_w, whitening_tensor])
 
     @staticmethod
@@ -82,10 +97,8 @@ class ChannelICAPrior(ICAPrior):
         w_norm_list = [tf.diag_part(tf.squeeze(k)) for k in ww_list]
         w_norm = tf.stack(w_norm_list, axis=0, name='w_norm')
 
-        # w_norm = tf.Print(w_norm, [g_mat, gp_mat, xw_mat, x_mat])
         term_1 = tf.reduce_sum(tf.squeeze(alpha_pos) * w_norm * gp_vec, name='t1')
         term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
-        term_2 = tf.Print(term_2, [term_2, x_mat])
         return term_1 + term_2, term_1, term_2
 
     def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,

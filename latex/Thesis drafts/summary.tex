@@ -352,6 +352,11 @@ Computing the derivatives of $G$ then allows for the training of parameters $\ma
 
 Directly following Hyvarinen 2003, equations (11) and (12), this results in the same sampled loss function $\tilde{J}$, shown in equation (\ref{eq:jtilde}), which finds the optimal $\mathbf{w}$ and $\alpha$ for a set of natural image patches, when minimized.
 
+\subsubsection{separable FoE priors}
+
+In an effort to reduce the number of parameters, we propose a field of experts model with separability assumptions regarding the used filters. Instead of using filters with separate parameters for all entries of the patch (this amounts to patch-height x patch-width x number-of-channels parameters), the model assumes each filter to be composed of a channel-independent 'depth' filter $D$ of shape [patch-height x patch-width x 1] and a point-wise inter-channel filter $P$ with shape [n\_channels x 1]. so the full filter can be decomposed as $W = DP^T$.
+
+
 
 \section{Results (clear split from methods \& discussion in progress)}
 

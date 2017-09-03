@@ -473,7 +473,7 @@ class NetInversion:
                 with tf.Session() as sess:
                     feat_map_mat = sess.run(feat_map)
 
-            return
+            return feat_map_mat
 
     def run_model_on_image(self, image_file, tensor_names_to_fetch):
         img_mat = np.expand_dims(load_image(image_file, resize=False), axis=0)

@@ -584,7 +584,73 @@ def channel_independent_whitening_mats(cov, whiten_mode, save_dir):
     return channel_whiten, channel_unwhiten
 
 
-def preprocess_tensor(patch_tensor, mean_mode, sdev_mode):
+def add_flattened_validation_set(num_patches, ph, pw, classifier, map_name, n_channels,
+                                 n_feats_white, whiten_mode='pca', batch_size=100,
+                                 mean_mode='global_channel', sdev_mode='global_channel'):
+
+    save_dir = make_data_dir(map_name, ph, pw, mean_mode, sdev_mode, n_feats_white, classifier='alexnet')
+    raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir,
+                                 file_name='raw_val_mat.npy')
+    print(1, raw_mat.shape)
+    ###### MEAN treatment ######
+    if mean_mode in ('global_channel', 'gc'):
+        channel_mean = np.load(save_dir + 'data_mean.npy')
+        raw_t = np.transpose(raw_mat, axes=(0, 2, 1))
+        raw_t_centered = raw_t - channel_mean
+        raw_centered = np.transpose(raw_t_centered, axes=(0, 2, 1))
+
+    elif mean_mode in ('global_feature', 'gf'):
+        feature_mean = np.load(save_dir + 'data_mean.npy')
+        raw_centered = raw_mat - feature_mean
+
+    elif mean_mode in ('local_channel', 'lc'):
+        channel_mean = np.mean(raw_mat, axis=2)  # shape=[n_patches, n_channels]
+        raw_t = np.transpose(raw_mat, axes=(2, 0, 1))
+        raw_t_centered = raw_t - channel_mean
+        raw_centered = np.transpose(raw_t_centered, axes=(1, 2, 0))
+
+    elif mean_mode in ('local_full', 'lf'):
+        sample_mean = np.mean(raw_mat, axis=(1, 2))
+        raw_t = np.transpose(raw_mat)
+        raw_t_centered = raw_t - sample_mean
+        raw_centered = np.transpose(raw_t_centered)
+
+    else:  # mean_mode is 'none'
+        raw_centered = raw_mat
+
+    ###### SDEV treatment ######
+    if sdev_mode in ('global_channel', 'gc'):
+        channel_sdev = np.load(save_dir + 'data_sdev.npy')
+        raw_t_centered = np.transpose(raw_centered, axes=(0, 2, 1))
+        normed_t = raw_t_centered / channel_sdev
+        normed = np.transpose(normed_t, axes=(0, 2, 1))
+
+    elif sdev_mode in ('global_feature', 'gf'):
+        feat_sdev = np.load(save_dir + 'data_sdev.npy')
+        normed = raw_centered / feat_sdev
+
+    elif sdev_mode in ('local_channel', 'lc'):  # seems like a bad idea anyway
+        raise NotImplementedError
+
+    elif sdev_mode in ('local_full', 'lf'):  # this too
+        sample_sdev = np.std(raw_centered, axis=(1, 2))
+        raw_t_centered = np.transpose(raw_centered)
+        normed_t = raw_t_centered / sample_sdev
+        normed = np.transpose(normed_t)
+
+    elif isinstance(sdev_mode, float):
+        normed = sdev_mode * raw_centered
+
+    flat_mat = normed.reshape([num_patches, -1])
+
+    whiten_mat = np.load(save_dir + 'whiten_{}.npy'.format(whiten_mode))
+
+    val_mat = flat_mat @ whiten_mat.T
+    print(val_mat.shape)
+    np.save(save_dir + 'val_mat.npy', val_mat)
+
+
+def preprocess_patch_tensor(patch_tensor, mean_mode, sdev_mode):
     """
     to be called on a TensorFlow graph. takes patch tensor and loads means and sdevs.
     then applies the same preprocessing as used on the training set (whitening is done after)
@@ -593,7 +659,6 @@ def preprocess_tensor(patch_tensor, mean_mode, sdev_mode):
     :param patch_tensor: tensor of shape [n_patches, n_feats_per_channel, n_channels] to be processed
     :param mean_mode: mode for centering
     :param sdev_mode: mode for rescaling
-    :param load_dir: if provided, npy mats are loaded from this directory.  # not needed!!
     otherwise, values must be loaded from checkpoints
     :return: normalized tensor of shape [n_patches, n_channels, n_feats_per_channel]
     """
@@ -665,75 +730,58 @@ def preprocess_tensor(patch_tensor, mean_mode, sdev_mode):
     else:  # sdev_mode == 'none'
         pass
 
+
     patch_tensor = tf.transpose(patch_tensor, perm=(0, 2, 1))
     return patch_tensor, init_list
 
 
-def add_flattened_validation_set(num_patches, ph, pw, classifier, map_name, n_channels,
-                                 n_feats_white, whiten_mode='pca', batch_size=100,
-                                 mean_mode='global_channel', sdev_mode='global_channel'):
+def preprocess_featmap_tensor(patch_tensor, mean_mode, sdev_mode):
+    """
+    to be called on a TensorFlow graph. takes patch tensor and loads means and sdevs.
+    then applies the same preprocessing as used on the training set (whitening is done after)
+    takes in tensor with n_channels as last dimension. outputs tensor with n_feats_per_channel as last dimension.
 
-    save_dir = make_data_dir(map_name, ph, pw, mean_mode, sdev_mode, n_feats_white, classifier='alexnet')
-    raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir,
-                                 file_name='raw_val_mat.npy')
-    print(1, raw_mat.shape)
+    :param patch_tensor: tensor of shape [n_patches, n_feats_per_channel, n_channels] to be processed
+    :param mean_mode: mode for centering
+    :param sdev_mode: mode for rescaling
+    otherwise, values must be loaded from checkpoints
+    :return: normalized tensor of shape [n_patches, n_channels, n_feats_per_channel]
+    """
+    modes = ('global_channel', 'global_feature', 'gc', 'gf')
+    assert mean_mode in modes
+    assert sdev_mode in modes
+    init_list = []
+    n_patches, n_feats_per_channel, n_channels = [k.value for k in patch_tensor.get_shape()]
+    print('seeing tensor shape as n_p={}, n_fpc={}, n_c={}'.format(n_patches, n_feats_per_channel, n_channels))
+    n_feats_raw = n_feats_per_channel * n_channels
+
     ###### MEAN treatment ######
     if mean_mode in ('global_channel', 'gc'):
-        channel_mean = np.load(save_dir + 'data_mean.npy')
-        raw_t = np.transpose(raw_mat, axes=(0, 2, 1))
-        raw_t_centered = raw_t - channel_mean
-        raw_centered = np.transpose(raw_t_centered, axes=(0, 2, 1))
+        mean_tensor = tf.get_variable('centering_mean', shape=(n_channels,), trainable=False, dtype=tf.float32)
+        init_list.append(mean_tensor)
+        patch_tensor = patch_tensor - mean_tensor
 
-    elif mean_mode in ('global_feature', 'gf'):
-        feature_mean = np.load(save_dir + 'data_mean.npy')
-        raw_centered = raw_mat - feature_mean
-
-    elif mean_mode in ('local_channel', 'lc'):
-        channel_mean = np.mean(raw_mat, axis=2)  # shape=[n_patches, n_channels]
-        raw_t = np.transpose(raw_mat, axes=(2, 0, 1))
-        raw_t_centered = raw_t - channel_mean
-        raw_centered = np.transpose(raw_t_centered, axes=(1, 2, 0))
-
-    elif mean_mode in ('local_full', 'lf'):
-        sample_mean = np.mean(raw_mat, axis=(1, 2))
-        raw_t = np.transpose(raw_mat)
-        raw_t_centered = raw_t - sample_mean
-        raw_centered = np.transpose(raw_t_centered)
-
-    else:  # mean_mode is 'none'
-        raw_centered = raw_mat
+    else:
+        raise NotImplementedError
+        # mean_tensor = tf.get_variable('centering_mean', shape=(n_feats_raw,), trainable=False, dtype=tf.float32)
+        # init_list.append(mean_tensor)
+        # patch_tensor = tf.reshape(patch_tensor, [n_patches, n_feats_raw]) - mean_tensor
+        # patch_tensor = tf.reshape(patch_tensor, shape=(n_patches, n_feats_per_channel, n_channels))
 
     ###### SDEV treatment ######
     if sdev_mode in ('global_channel', 'gc'):
-        channel_sdev = np.load(save_dir + 'data_sdev.npy')
-        raw_t_centered = np.transpose(raw_centered, axes=(0, 2, 1))
-        normed_t = raw_t_centered / channel_sdev
-        normed = np.transpose(normed_t, axes=(0, 2, 1))
+        sdev_tensor = tf.get_variable('rescaling_sdev', shape=(n_channels,), trainable=False, dtype=tf.float32)
+        init_list.append(sdev_tensor)
+        patch_tensor = patch_tensor / sdev_tensor
 
-    elif sdev_mode in ('global_feature', 'gf'):
-        feat_sdev = np.load(save_dir + 'data_sdev.npy')
-        normed = raw_centered / feat_sdev
-
-    elif sdev_mode in ('local_channel', 'lc'):  # seems like a bad idea anyway
+    else:
         raise NotImplementedError
+        # sdev_tensor = tf.get_variable('rescaling_sdev', shape=(n_feats_raw,), trainable=False, dtype=tf.float32)
+        # init_list.append(sdev_tensor)
+        # patch_tensor = tf.reshape(patch_tensor, [n_patches, n_feats_raw]) / sdev_tensor
+        # patch_tensor = tf.reshape(patch_tensor, shape=(n_patches, n_feats_per_channel, n_channels))
 
-    elif sdev_mode in ('local_full', 'lf'):  # this too
-        sample_sdev = np.std(raw_centered, axis=(1, 2))
-        raw_t_centered = np.transpose(raw_centered)
-        normed_t = raw_t_centered / sample_sdev
-        normed = np.transpose(normed_t)
-
-    elif isinstance(sdev_mode, float):
-        normed = sdev_mode * raw_centered
-
-    flat_mat = normed.reshape([num_patches, -1])
-
-    whiten_mat = np.load(save_dir + 'whiten_{}.npy'.format(whiten_mode))
-
-    val_mat = flat_mat @ whiten_mat.T
-    print(val_mat.shape)
-    np.save(save_dir + 'val_mat.npy', val_mat)
-
+    return patch_tensor, init_list
 
 
 def make_data_dir(in_tensor_name, ph, pw, mean_mode, sdev_mode, n_features_white, classifier='alexnet'):
