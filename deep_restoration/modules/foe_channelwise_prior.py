@@ -16,16 +16,13 @@ class FoEChannelwisePrior(FoEFullPrior):
     """
 
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                 n_features_white, dist, mean_mode='gc', sdev_mode='gc',
+                 n_features_white, dist='logistic', mean_mode='gc', sdev_mode='gc',
                  trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None):
 
         super().__init__(tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                         n_features_white, dist, mean_mode=mean_mode, sdev_mode=sdev_mode, trainable=trainable,
+                         n_features_white, dist=dist, mean_mode=mean_mode, sdev_mode=sdev_mode, trainable=trainable,
                          name=name, load_name=load_name, dir_name=dir_name, load_tensor_names=load_tensor_names)
 
-
-        self.n_features_total = n_features_white * n_channels
-        self.load_path = self.load_path.rstrip('/') + '_channelwise/'
 
     @staticmethod
     def assign_names(dist, name, load_name, dir_name, load_tensor_names, tensor_names):
@@ -42,6 +39,13 @@ class FoEChannelwisePrior(FoEFullPrior):
         load_tensor_names = load_tensor_names if load_tensor_names is not None else tensor_names
 
         return name, load_name, dir_name, load_tensor_names
+
+    @staticmethod
+    def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
+                      n_features_white, mean_mode, sdev_mode):
+        path = super().get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
+                      n_features_white, mean_mode, sdev_mode)
+        return path.rstrip('/') + '_channelwise/'
 
     def mrf_loss(self, xw, ica_a_squeezed):
         if self.dist == 'logistic':

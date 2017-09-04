@@ -13,7 +13,7 @@ from utils.patch_prior_losses import logistic_full_mrf_loss, logistic_full_score
 class FoEFullPrior(LearnedPriorLoss):
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling,
                  n_components, n_channels, n_features_white,
-                 dist, mean_mode='gc', sdev_mode='gc',
+                 dist='student', mean_mode='gc', sdev_mode='gc',
                  trainable=False,
                  name=None,load_name=None, dir_name=None,
                  load_tensor_names=None):
@@ -458,7 +458,7 @@ class FoEFullPrior(LearnedPriorLoss):
             mode_str = '_mean_' + mean_mode + '_sdev_rescaled'
         else:
             mode_str = '_mean_' + mean_mode + '_sdev_' + sdev_mode
-        load_path = '../logs/priors/' + dir_name + '/' + subdir + target_dir + mode_str + '/'
+        load_path = '../logs/foe_priors/' + dir_name + '/' + subdir + target_dir + mode_str + '/'
 
         return load_path
 

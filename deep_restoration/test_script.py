@@ -2,8 +2,23 @@ from utils.preprocessing import raw_patch_data_mat, make_channel_separate_patch_
 # from utils.temp_utils import plot_feat_map_diffs
 # import numpy as np
 from modules.foe_channelwise_prior import FoEChannelwisePrior
-from modules.foe_prior import FoEPrior
+from modules.foe_full_prior import FoEFullPrior
 from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
+
+
+c1l_prior = FoEFullPrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
+                         filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
+                         n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
+                         load_name='FoEPrior')
+
+c1l_prior.train_prior()
+
+#tensor_names, weighting, classifier, filter_dims, input_scaling,
+                 # n_components, n_channels, n_features_white,
+                 # dist='student', mean_mode='gc', sdev_mode='gc',
+                 # trainable=False,
+                 # name=None,load_name=None, dir_name=None,
+                 # load_tensor_names=None
 
 # make_channel_separate_patch_data(100000, 8, 8, 'alexnet', 'conv1/relu:0', 96,
 #                                  whiten_mode='pca', batch_size=100,
@@ -35,9 +50,9 @@ from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
 # raw_mat_name = 'raw_mat.npy'
 # show_patches_by_channel(raw_mat_dir, raw_mat_name, 100, 5, 5, 96, plot_patches=range(5))
 
-raw_mat_dir = '../data/patches/alexnet/conv1_relu_8x8_6144feats_mean_gc_sdev_gc/'
-raw_mat_name = 'raw_mat.npy'
-show_patches_by_channel(raw_mat_dir, raw_mat_name, 100000, 8, 8, 96, plot_patches=range(10, 15))
+# raw_mat_dir = '../data/patches/alexnet/conv1_relu_8x8_6144feats_mean_gc_sdev_gc/'
+# raw_mat_name = 'raw_mat.npy'
+# show_patches_by_channel(raw_mat_dir, raw_mat_name, 100000, 8, 8, 96, plot_patches=range(10, 15))
 
 
 # plot_alexnet_filters('./', filter_name='conv1', filter_ids=range(10))
