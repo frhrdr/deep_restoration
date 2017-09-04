@@ -26,7 +26,7 @@ prior.train_prior(batch_size=50, num_iterations=10, lr=3e-5,
                                    (21000, 1e-5), (25000, 1e-5), (30000, 1e-5)),
                   grad_clip=100.0,
                   whiten_mode='pca', num_data_samples=100000,
-                  log_freq=1000, summary_freq=10, print_freq=100,
+                  log_freq=50, summary_freq=10, print_freq=100,
                   test_freq=100, n_val_samples=1000,
                   prev_ckpt=28000,
                   optimizer_name='adam')

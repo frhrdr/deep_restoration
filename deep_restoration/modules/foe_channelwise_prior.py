@@ -43,8 +43,8 @@ class FoEChannelwisePrior(FoEFullPrior):
     @staticmethod
     def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
                       n_features_white, mean_mode, sdev_mode):
-        path = super().get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
-                      n_features_white, mean_mode, sdev_mode)
+        path = FoEFullPrior.get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
+                                          n_features_white, mean_mode, sdev_mode)
         return path.rstrip('/') + '_channelwise/'
 
     def mrf_loss(self, xw, ica_a_squeezed):
@@ -85,13 +85,6 @@ class FoEChannelwisePrior(FoEFullPrior):
                 xw = tf.reshape(xw_stacked, shape=[h * w, self.n_channels, self.n_components])
                 xw = tf.transpose(xw, perm=[1, 0, 2])
 
-                # whitened_mixing = tf.reshape(whitened_mixing, shape=[self.n_channels, self.filter_dims[0],
-                #                                                      self.filter_dims[1], self.n_components])
-                # whitened_mixing = tf.transpose(whitened_mixing, perm=[1, 2, 0, 3])
-                # print(normed_featmap.get_shape())
-                # print(whitened_mixing.get_shape())
-                # xw = tf.nn.conv2d(normed_featmap, whitened_mixing, strides=[1, 1, 1, 1], padding='VALID')
-                # xw = tf.reshape(xw, shape=[-1, self.n_components])
             else:
                 normed_patches = self.shape_and_norm_tensor() # shape [n_patches, n_channels, n_feats_per_channel]
                 xw = tf.matmul(tf.transpose(normed_patches, perm=[1, 0, 2]), whitened_mixing)
@@ -154,7 +147,11 @@ class FoEChannelwisePrior(FoEFullPrior):
                               for k in tg_pairs]
                 opt_op = opt.apply_gradients(tg_clipped)
 
-                saver = tf.train.Saver()
+                if self.load_name != self.name and prev_ckpt:
+                    to_load = self.tensor_load_dict_by_name(tf.global_variables())
+                    saver = tf.train.Saver(var_list=to_load)
+                else:
+                    saver = tf.train.Saver()
 
                 checkpoint_file = os.path.join(log_path, 'ckpt')
 

@@ -121,11 +121,11 @@ class LearnedPriorLoss(LossModule):
 
     def load_weights(self, session):
         if self.load_name != self.name:
-            names = [k.name.split('/')[1:] for k in self.var_list]
-            names = [''.join(k) for k in names]
-            names = [self.load_name + '/' + k.split(':')[0] for k in names]
-            to_load = dict(zip(names, self.var_list))
-
+            # names = [k.name.split('/')[1:] for k in self.var_list]
+            # names = [''.join(k) for k in names]
+            # names = [self.load_name + '/' + k.split(':')[0] for k in names]
+            # to_load = dict(zip(names, self.var_list))
+            to_load = self.tensor_load_dict_by_name(self.var_list)
         else:
             to_load = self.var_list
         loader = tf.train.Saver(var_list=to_load)
@@ -139,3 +139,11 @@ class LearnedPriorLoss(LossModule):
         saver = tf.train.Saver(var_list=self.var_list)
         checkpoint_file = os.path.join(self.load_path, 'ckpt')
         saver.save(session, checkpoint_file, global_step=step, write_meta_graph=False)
+
+    def tensor_load_dict_by_name(self, tensor_list):
+        names = [k.name.split('/') for k in tensor_list]
+        prev_load_name = names[0][0]
+        names = [[l if l != prev_load_name else self.load_name for l in k] for k in names]
+        names = ['/'.join(k) for k in names]
+        names = [k.split(':')[0] for k in names]
+        return dict(zip(names, tensor_list))

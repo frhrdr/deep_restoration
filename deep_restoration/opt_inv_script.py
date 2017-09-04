@@ -1,6 +1,5 @@
 from net_inversion import NetInversion
 from modules.foe_full_prior import FoEFullPrior
-from modules.foe_prior import FoEPrior
 from modules.foe_channelwise_prior import FoEChannelwisePrior
 from modules.loss_modules import NormedMSELoss
 from modules.split_module import SplitModule
@@ -53,14 +52,15 @@ c1l_prior = FoEChannelwisePrior('pre_featmap/read:0', 1e-6, 'alexnet', [5, 5], i
                                 n_features_white=24,
                                 name='ChannelICAPrior',
                                 mean_mode='gc', sdev_mode='gc',
+                                load_name='ChannelICAPrior',
                                 load_tensor_names='conv1/lin:0')
 
-# c1l_prior = FoEPrior(tensor_names='pre_featmap/read:0',
-#                      weighting=1e-10, name='FoEPrior',
-#                      classifier='alexnet',
-#                      filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
-#                      n_features_white=3000, mean_mode='gc', sdev_mode='gc',
-#                      load_tensor_names='conv1/lin:0')
+# c1l_prior = FoEFullPrior(tensor_names='pre_featmap/read:0', weighting=1e-10, classifier='alexnet',
+#                          filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
+#                          n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
+#                          load_name='FoEPrior',
+#                          load_tensor_names='conv1/lin:0')
+
 
 pre_mse = NormedMSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
 pre_mse.add_loss = False
