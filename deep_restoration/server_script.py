@@ -4,22 +4,22 @@ from modules.foe_full_prior import FoEFullPrior
 
 
 
-make_flattened_patch_data(num_patches=100000, ph=12, pw=12, classifier='alexnet', map_name='rgb_scaled:0',
-                          n_channels=3,
-                          n_feats_white=432, whiten_mode='pca', batch_size=100,
-                          mean_mode='gc', sdev_mode='gc',
-                          raw_mat_load_path='')
-
-add_flattened_validation_set(num_patches=1000, ph=12, pw=12, classifier='alexnet', map_name='rgb_scaled:0',
-                             n_channels=3, n_feats_white=432, whiten_mode='pca', batch_size=100,
-                             mean_mode='gc', sdev_mode='gc')
+# make_flattened_patch_data(num_patches=100000, ph=12, pw=12, classifier='alexnet', map_name='rgb_scaled:0',
+#                           n_channels=3,
+#                           n_feats_white=432, whiten_mode='pca', batch_size=100,
+#                           mean_mode='gc', sdev_mode='gc',
+#                           raw_mat_load_path='')
+#
+# add_flattened_validation_set(num_patches=1000, ph=12, pw=12, classifier='alexnet', map_name='rgb_scaled:0',
+#                              n_channels=3, n_feats_white=432, whiten_mode='pca', batch_size=100,
+#                              mean_mode='gc', sdev_mode='gc')
 
 prior = FoEFullPrior(tensor_names='pre_img:0', weighting=1e-10, classifier='alexnet',
                      filter_dims=[12, 12], input_scaling=1.0, n_components=1000, n_channels=3,
                      n_features_white=432, dist='student', mean_mode='gc', sdev_mode='gc',
                      load_name='FoEPrior')
 
-prior.train_prior(batch_size=500, num_iterations=10, lr=3e-5,
+prior.train_prior(batch_size=500, num_iterations=13000, lr=3e-5,
                   lr_lower_points=((0, 1e-0), (6000, 1e-1), (6500, 3e-2),
                                    (7000, 1e-2), (7500, 3e-3), (8000, 1e-3),
                                    (8500, 1e-4), (9000, 1e-4), (10000, 1e-5)),
