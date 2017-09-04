@@ -140,7 +140,8 @@ class FoEFullPrior(LearnedPriorLoss):
 
         val_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
                                   data_shape=(n_val_samples, self.n_features_white), data_mode='validate')
-
+        # data_gen = 0
+        # val_gen = 0
         with tf.Graph().as_default() as graph:
             with tf.variable_scope(self.name):
                 self.add_preprocessing_to_graph(data_dir, whiten_mode)
@@ -171,7 +172,8 @@ class FoEFullPrior(LearnedPriorLoss):
                     names = [k.name.split('/')[1:] for k in tf.global_variables()]
                     names = [''.join(k) for k in names]
                     names = [self.load_name + '/' + k.split(':')[0] for k in names]
-                    to_load = dict(zip(names, self.var_list))
+                    to_load = dict(zip(names, tf.global_variables()))
+                    print(to_load)
                     saver = tf.train.Saver(var_list=to_load)
                 else:
                     saver = tf.train.Saver()
