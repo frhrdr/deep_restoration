@@ -4,13 +4,13 @@ from modules.foe_full_prior import FoEFullPrior
 
 
 
-make_flattened_patch_data(num_patches=100000, ph=12, pw=12, classifier='alexnet', map_name='pre_img:0',
+make_flattened_patch_data(num_patches=100000, ph=12, pw=12, classifier='alexnet', map_name='rgb_scaled:0',
                           n_channels=3,
                           n_feats_white=432, whiten_mode='pca', batch_size=100,
                           mean_mode='gc', sdev_mode='gc',
                           raw_mat_load_path='')
 
-add_flattened_validation_set(num_patches=1000, ph=12, pw=12, classifier='alexnet', map_name='pre_img:0',
+add_flattened_validation_set(num_patches=1000, ph=12, pw=12, classifier='alexnet', map_name='rgb_scaled:0',
                              n_channels=3, n_feats_white=432, whiten_mode='pca', batch_size=100,
                              mean_mode='gc', sdev_mode='gc')
 
