@@ -168,7 +168,7 @@ class FoEFullPrior(LearnedPriorLoss):
                 opt_op = opt.apply_gradients(tg_clipped)
 
                 if self.load_name != self.name and prev_ckpt:
-                    names = [k.name.split('/')[1:] for k in tf.trainable_variables()]
+                    names = [k.name.split('/')[1:] for k in tf.global_variables()]
                     names = [''.join(k) for k in names]
                     names = [self.load_name + '/' + k.split(':')[0] for k in names]
                     to_load = dict(zip(names, self.var_list))
