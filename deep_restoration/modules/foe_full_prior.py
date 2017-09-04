@@ -50,7 +50,6 @@ class FoEFullPrior(LearnedPriorLoss):
         student_names = ('FoEStudentFullPrior', 'FoEStudentFullPrior', 'student_full_prior')
         logistic_names = ('FoELogisticFullPrior', 'FoELogisticFullPrior', 'logistic_full_prior')
         dist_names = student_names if dist == 'student' else logistic_names
-
         name = name if name is not None else dist_names[0]
         load_name = load_name if load_name is not None else dist_names[1]
         dir_name = dir_name if dir_name is not None else dist_names[2]
@@ -168,7 +167,14 @@ class FoEFullPrior(LearnedPriorLoss):
                               for k in tg_pairs]
                 opt_op = opt.apply_gradients(tg_clipped)
 
-                saver = tf.train.Saver()
+                if self.load_name != self.name and prev_ckpt:
+                    names = [k.name.split('/')[1:] for k in tf.trainable_variables()]
+                    names = [''.join(k) for k in names]
+                    names = [self.load_name + '/' + k.split(':')[0] for k in names]
+                    to_load = dict(zip(names, self.var_list))
+                    saver = tf.train.Saver(var_list=to_load)
+                else:
+                    saver = tf.train.Saver()
 
                 checkpoint_file = os.path.join(log_path, 'ckpt')
 

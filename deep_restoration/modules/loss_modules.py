@@ -121,12 +121,11 @@ class LearnedPriorLoss(LossModule):
 
     def load_weights(self, session):
         if self.load_name != self.name:
-
             names = [k.name.split('/')[1:] for k in self.var_list]
             names = [''.join(k) for k in names]
             names = [self.load_name + '/' + k.split(':')[0] for k in names]
             to_load = dict(zip(names, self.var_list))
-            print(to_load)
+
         else:
             to_load = self.var_list
         loader = tf.train.Saver(var_list=to_load)
