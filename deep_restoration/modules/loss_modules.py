@@ -1,6 +1,6 @@
 import tensorflow as tf
 import os
-
+from tf_vgg.vgg16 import Vgg16
 
 class Module:
 
@@ -108,6 +108,16 @@ class TotalVariationLoss(LossModule):
 
         self.loss = tf.reduce_sum(d_sum ** (self.beta / 2))
 
+
+class VggScoreLoss(LossModule):
+
+    def __init__(self, in_tensor_names, weighting, name=None, input_scaling=1.0):
+        super().__init__(in_tensor_names, weighting, name=name)
+        self.input_scaling = input_scaling
+
+    def build(self, scope_suffix=''):
+
+        loss = 0
 
 class LearnedPriorLoss(LossModule):
 
