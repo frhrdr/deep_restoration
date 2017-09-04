@@ -82,3 +82,20 @@ def student_channelwise_mrf_loss(xw, ica_a_squeezed):
 
 def student_channelwise_score_matching_loss(x_mat, w_mat, alpha):
     return None
+
+# Equivalent to full prior losses
+#
+# def logistic_separable_mrf_loss(xw, ica_a_squeezed):
+#     pass
+#
+#
+# def logistic_separable_score_matching_loss(x_mat, w_mat, alpha):
+#     return None
+#
+#
+# def student_separable_mrf_loss(xw, ica_a_squeezed):
+#     return None
+#
+#
+# def student_separable_score_matching_loss(x_mat, w_mat, alpha):
+#     return None
