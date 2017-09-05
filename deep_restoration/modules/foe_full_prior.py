@@ -32,6 +32,8 @@ class FoEFullPrior(LearnedPriorLoss):
 
         super().__init__(tensor_names, weighting, name, load_path, trainable, load_name)
         self.filter_dims = filter_dims  # tuple (height, width)
+        self.filter_h = filter_dims[0]
+        self.filter_w = filter_dims[1]
         self.input_scaling = input_scaling  # most likely 1, 255 or 1/255
         self.n_components = n_components  # number of components to be produced
         self.n_channels = n_channels
@@ -109,6 +111,7 @@ class FoEFullPrior(LearnedPriorLoss):
             return logistic_full_score_matching_loss(x_mat, w_mat, alpha)
         if self.dist == 'student':
             return student_full_score_matching_loss(x_mat, w_mat, alpha)
+
         # const_t = x_mat.get_shape()[0].value
         # xw_mat = tf.matmul(x_mat, w_mat)
         # g_mat = -tf.tanh(xw_mat)
@@ -118,13 +121,13 @@ class FoEFullPrior(LearnedPriorLoss):
         # aa_mat = tf.matmul(alpha, alpha, transpose_b=True)
         # ww_mat = tf.matmul(w_mat, w_mat, transpose_a=True)
         # w_norm = tf.diag_part(ww_mat, name='w_norm')
-        #
+
         # term_1 = tf.reduce_sum(alpha * w_norm * gp_vec, name='t1')
         # term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
         # return term_1 + term_2, term_1, term_2
 
-    def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
-                    whiten_mode='pca', num_data_samples=100000, n_val_samples=500,
+    def train_prior(self, batch_size, n_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
+                    whiten_mode='pca', n_data_samples=100000, n_val_samples=500,
                     log_freq=5000, summary_freq=10, print_freq=100, test_freq=100,
                     prev_ckpt=0, optimizer_name='adam',
                     plot_filters=False, do_clip=True):
@@ -136,7 +139,7 @@ class FoEFullPrior(LearnedPriorLoss):
                                  n_features_white=self.n_features_white, classifier=self.classifier)
 
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
-                                   data_shape=(num_data_samples, self.n_features_white), data_mode='train')
+                                   data_shape=(n_data_samples, self.n_features_white), data_mode='train')
 
         val_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
                                   data_shape=(n_val_samples, self.n_features_white), data_mode='validate')
@@ -205,7 +208,7 @@ class FoEFullPrior(LearnedPriorLoss):
 
                     start_time = time.time()
                     train_time = 0
-                    for count in range(prev_ckpt + 1, prev_ckpt + num_iterations + 1):
+                    for count in range(prev_ckpt + 1, prev_ckpt + n_iterations + 1):
                         data = next(data_gen)
 
                         if lr_lower_points and lr_lower_points[0][0] <= count:
@@ -232,7 +235,7 @@ class FoEFullPrior(LearnedPriorLoss):
                             term_1 = graph.get_tensor_by_name(self.name + '/t1:0')
                             term_2 = graph.get_tensor_by_name(self.name + '/t2:0')
                             w_res, alp, t1, t2 = sess.run([w_mat, alpha, term_1, term_2], feed_dict={x_pl: data})
-                            print('it: ', count, ' / ', num_iterations + prev_ckpt)
+                            print('it: ', count, ' / ', n_iterations + prev_ckpt)
                             print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
                             print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
                             print('term_1: ', t1, ' term_2: ', t2)
@@ -257,7 +260,7 @@ class FoEFullPrior(LearnedPriorLoss):
                         if count % log_freq == 0:
                             saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=count)
 
-                    saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=num_iterations + prev_ckpt)
+                    saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=n_iterations + prev_ckpt)
 
                     if plot_filters:
                         unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)

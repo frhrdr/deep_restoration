@@ -1,12 +1,15 @@
 import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import skimage
 import tensorflow as tf
 from sklearn.decomposition import FastICA
+from tf_alexnet.alexnet import AlexNet
+
 from utils.filehandling import load_image
 from utils.whitening import pca_whiten_mats, zca_whiten_mats
-from tf_alexnet.alexnet import AlexNet
+
 
 def flattening_filter(dims):
     assert len(dims) == 3
@@ -262,18 +265,6 @@ def find_memmap_size(path, data_type=np.float32):
             ub = size
 
     print('computed size:', lb)
-
-
-def pca_whiten_as_pca(data):
-    n_samples, n_features = data.shape
-    u, s, v = np.linalg.svd(data, full_matrices=False)
-    max_abs_cols = np.argmax(np.abs(u), axis=0)
-    signs = np.sign(u[max_abs_cols, range(u.shape[1])])
-    u *= signs
-    u *= np.sqrt(n_samples)
-    v *= signs[:, np.newaxis]
-    rerotate = v / s[:, np.newaxis] * np.sqrt(n_samples)
-    return u, rerotate
 
 
 def patch_data_vis(patch_file, mat_shape, patch_hw, n_vis=100):

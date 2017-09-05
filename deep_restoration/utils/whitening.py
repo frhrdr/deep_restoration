@@ -22,7 +22,7 @@ def pca_whiten_mats(cov, n_to_drop=1):
 
 def zca_whiten_mats(cov):
     U, S, _ = np.linalg.svd(cov)
-    s = np.sqrt(S.clip(1.e-6))
+    s = np.sqrt(S.clip(1.e-7))
     s_inv = np.diag(1. / s)
     s = np.diag(s)
     whiten = np.dot(np.dot(U, s_inv), U.T)
@@ -30,26 +30,45 @@ def zca_whiten_mats(cov):
     return whiten, un_whiten
 
 
-def pca_whiten(data):
-    cov = np.dot(data.T, data) / (data.shape[0] - 1)
-    whiten, unwhiten = pca_whiten_mats(cov)
-    data = np.dot(data, whiten.T)
-    return data, unwhiten
+def not_whiten_mats(cov):
+    eye = np.eye(cov.shape[0])
+    return eye, eye
+
+# principal_components = np.dot(np.dot(U, np.diag(1. / np.sqrt(S + 10e-7))), U.T)
 
 
-def zca_whiten(data):
-    cov = np.dot(data.T, data) / (data.shape[0] - 1)
-    whiten, unwhiten = zca_whiten_mats(cov)
-    data = np.dot(data, whiten.T)
-    return data, unwhiten
+# def pca_whiten(data):
+#     cov = np.dot(data.T, data) / (data.shape[0] - 1)
+#     whiten, unwhiten = pca_whiten_mats(cov)
+#     data = np.dot(data, whiten.T)
+#     return data, unwhiten
 
 
-def pca_whiten_as_ica(data):
-    n_samples, n_features = data.shape
-    data = data.T
-    data -= data.mean(axis=-1)[:, np.newaxis]
-    u, d, _ = np.linalg.svd(data, full_matrices=False)
-    K = (u / d).T[:n_features]
-    data = np.dot(K, data)
-    data *= np.sqrt(n_samples)
-    return data.T, K
+# def zca_whiten(data):
+#     cov = np.dot(data.T, data) / (data.shape[0] - 1)
+#     whiten, unwhiten = zca_whiten_mats(cov)
+#     data = np.dot(data, whiten.T)
+#     return data, unwhiten
+
+
+# def pca_whiten_as_ica(data):
+#     n_samples, n_features = data.shape
+#     data = data.T
+#     data -= data.mean(axis=-1)[:, np.newaxis]
+#     u, d, _ = np.linalg.svd(data, full_matrices=False)
+#     K = (u / d).T[:n_features]
+#     data = np.dot(K, data)
+#     data *= np.sqrt(n_samples)
+#     return data.T, K
+
+
+# def pca_whiten_as_pca(data):
+#     n_samples, n_features = data.shape
+#     u, s, v = np.linalg.svd(data, full_matrices=False)
+#     max_abs_cols = np.argmax(np.abs(u), axis=0)
+#     signs = np.sign(u[max_abs_cols, range(u.shape[1])])
+#     u *= signs
+#     u *= np.sqrt(n_samples)
+#     v *= signs[:, np.newaxis]
+#     rerotate = v / s[:, np.newaxis] * np.sqrt(n_samples)
+#     return u, rerotate

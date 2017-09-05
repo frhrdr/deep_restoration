@@ -100,8 +100,8 @@ class FoEChannelwisePrior(FoEFullPrior):
         else:
             raise NotImplementedError
 
-    def train_prior(self, batch_size, num_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
-                    whiten_mode='pca', num_data_samples=100000,
+    def train_prior(self, batch_size, n_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
+                    whiten_mode='pca', n_data_samples=100000,
                     n_val_samples=0,
                     log_freq=5000, summary_freq=10, print_freq=100, test_freq=0, prev_ckpt=0,
                     optimizer_name='adam',
@@ -116,7 +116,7 @@ class FoEChannelwisePrior(FoEFullPrior):
                                  classifier=self.classifier).rstrip('/') + '_channelwise/'
 
         data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
-                                   data_shape=(num_data_samples, self.n_channels, self.n_features_white))
+                                   data_shape=(n_data_samples, self.n_channels, self.n_features_white))
 
         with tf.Graph().as_default() as graph:
             with tf.variable_scope(self.name):
@@ -177,7 +177,7 @@ class FoEChannelwisePrior(FoEFullPrior):
                     # print(whiten_mat[0, :, :] @ unwhiten_mat[0, :, :].T)
                     start_time = time.time()
                     train_time = 0
-                    for count in range(prev_ckpt + 1, prev_ckpt + num_iterations + 1):
+                    for count in range(prev_ckpt + 1, prev_ckpt + n_iterations + 1):
                         data = next(data_gen)
 
                         if lr_lower_points and lr_lower_points[0][0] <= count:
@@ -201,7 +201,7 @@ class FoEChannelwisePrior(FoEFullPrior):
                             term_1 = graph.get_tensor_by_name(self.name + '/t1:0')
                             term_2 = graph.get_tensor_by_name(self.name + '/t2:0')
                             w_res, alp, t1, t2 = sess.run([w_mat, alpha, term_1, term_2], feed_dict={x_pl: data})
-                            print('it: ', count, ' / ', num_iterations + prev_ckpt)
+                            print('it: ', count, ' / ', n_iterations + prev_ckpt)
                             print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
                             print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
                             print('term_1: ', t1, ' term_2: ', t2)
@@ -212,7 +212,7 @@ class FoEChannelwisePrior(FoEFullPrior):
                         if count % log_freq == 0:
                             saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=count)
 
-                    saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=num_iterations)
+                    saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=n_iterations)
 
                     if plot_filters:
                         unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)

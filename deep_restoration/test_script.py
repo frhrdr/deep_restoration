@@ -1,17 +1,45 @@
-from utils.preprocessing import raw_patch_data_mat, make_channel_separate_patch_data
-# from utils.temp_utils import plot_feat_map_diffs
-# import numpy as np
-from modules.foe_channelwise_prior import FoEChannelwisePrior
-from modules.foe_full_prior import FoEFullPrior
-from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
+from utils.preprocessing import make_channel_separate_patch_data, make_flattened_patch_data, \
+    add_flattened_validation_set
+from utils.temp_utils import show_patches_by_channel
+from modules.foe_separable_prior import FoESeparablePrior
+import numpy as np
+# from modules.foe_channelwise_prior import FoEChannelwisePrior
+# from modules.foe_full_prior import FoEFullPrior
+# from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
 
 
-c1l_prior = FoEFullPrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
-                         filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
-                         n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
-                         load_name='FoEPrior')
+# make_flattened_patch_data(100000, 9, 9, 'alexnet', 'rgb_scaled:0', 3, n_feats_white=81*3,
+#                           whiten_mode='zca', batch_size=100,
+#                           mean_mode='gc', sdev_mode='gc')
 
-c1l_prior.train_prior()
+# add_flattened_validation_set(num_patches=1000, ph=9, pw=9, classifier='alexnet', map_name='rgb_scaled:0',
+#                              n_channels=3, n_feats_white=81*3, whiten_mode='zca', batch_size=100,
+#                              mean_mode='gc', sdev_mode='gc')
+
+p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [9, 9], 1.0, n_components=600, n_channels=3,
+                      n_features_white=81*3, dim_multiplier=10, dist='logistic', mean_mode='gc', sdev_mode='gc',
+                      trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
+
+
+p.train_prior(batch_size=500, n_iterations=10000, lr=3e-5,
+              lr_lower_points=((0, 1e-0), (5000, 1e-1), (5500, 3e-2),
+                                       (6000, 1e-2), (6500, 3e-3), (7000, 1e-3),
+                                       (8000, 1e-4), (9000, 3e-5), (10000, 1e-5),),
+              grad_clip=1e-3,
+              whiten_mode='zca', n_data_samples=100000, n_val_samples=1000,
+              log_freq=1000, summary_freq=10, print_freq=100,
+              prev_ckpt=0,
+              optimizer_name='adam')
+
+# show_patches_by_channel('/home/frederik/PycharmProjects/deep_restoration/data/patches/image/13x13_mean_gc_sdev_gc_channelwise/',
+#                         'data_mat_zca_whitened_channelwise.npy', 10000, 13, 13, 3, plot_patches=range(10))
+
+# c1l_prior = FoEFullPrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
+#                          filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
+#                          n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
+#                          load_name='FoEPrior')
+#
+# c1l_prior.train_prior()
 
 #tensor_names, weighting, classifier, filter_dims, input_scaling,
                  # n_components, n_channels, n_features_white,
@@ -127,3 +155,37 @@ c1l_prior.train_prior()
 # add_flattened_validation_set(num_patches=500, ph=8, pw=8, classifier='alexnet', map_name='rgb_scaled:0',
 #                              n_channels=3, n_feats_white=64*3-1, whiten_mode='pca', batch_size=100,
 #                              mean_mode='global_channel', sdev_mode='global_channel')
+
+# some tests for separable foe prior
+# c = 3
+# dm = 2
+# k = 500
+# h = 4
+# w = 4
+# f = h * w
+#
+# X = np.ones((h, w, c))
+# D = np.ones((h, w, c * dm))
+# P = np.ones((c * dm, k))
+#
+# D[2, 1, 4] = 10
+# P[4, 100] = 7
+#
+# # D_prime = np.expand_dims(D, axis=3)
+# D_prime = D.reshape((f, c * dm, 1))
+# P_prime = np.expand_dims(P, axis=2)
+#
+# Q = D_prime.transpose((1, 0, 2)) @ P_prime.transpose((0, 2, 1))
+#
+# print(Q.shape)
+# print(Q[4, 9, 100])
+# Q_prime = Q.reshape(c, dm, f, k)
+#
+# print(Q_prime.shape)
+# print(Q_prime[2, 0, 9, 100])
+#
+# W = np.sum(Q_prime, axis=1)
+# print(W.shape)
+# W = W.reshape((c * f, k))
+# print(W.shape)
+# print(W[h * w * 2 + w * 2 + 1, 100])

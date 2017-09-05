@@ -11,19 +11,43 @@ from modules.foe_full_prior import FoEFullPrior
 class FoESeparablePrior(FoEFullPrior):
 
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                 n_features_white, dist='logistic', mean_mode='gc', sdev_mode='gc',
+                 n_features_white, dim_multiplier, dist='logistic', mean_mode='gc', sdev_mode='gc',
                  trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None):
 
         super().__init__(tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
                          n_features_white, dist=dist, mean_mode=mean_mode, sdev_mode=sdev_mode, trainable=trainable,
                          name=name, load_name=load_name, dir_name=dir_name, load_tensor_names=load_tensor_names)
 
+        self.dim_multiplier = dim_multiplier
+
+    @staticmethod
+    def assign_names(dist, name, load_name, dir_name, load_tensor_names, tensor_names):
+        dist_options = ('student', 'logistic')
+        assert dist in dist_options
+
+        student_names = ('FoEStudentSeparablePrior', 'FoEStudentSeparablePrior', 'student_separable_prior')
+        logistic_names = ('FoELogisticSeparablePrior', 'FoELogisticSeparablePrior', 'logistic_separable_prior')
+        dist_names = student_names if dist == 'student' else logistic_names
+
+        name = name if name is not None else dist_names[0]
+        load_name = load_name if load_name is not None else dist_names[1]
+        dir_name = dir_name if dir_name is not None else dist_names[2]
+        load_tensor_names = load_tensor_names if load_tensor_names is not None else tensor_names
+
+        return name, load_name, dir_name, load_tensor_names
+
+    @staticmethod
+    def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
+                      n_features_white, mean_mode, sdev_mode):
+        path = FoEFullPrior.get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
+                                          n_features_white, mean_mode, sdev_mode)
+        return path.rstrip('/') + '_separable/'
 
     def build(self, scope_suffix=''):
 
         with tf.variable_scope(self.name):
 
-            n_features_per_channel = self.filter_dims[0] * self.filter_dims[1]
+            n_features_per_channel = self.filter_h * self.filter_w
             n_features_raw = n_features_per_channel * self.n_channels
             whitening_tensor = tf.get_variable('whiten_mat', shape=[self.n_features_white, n_features_raw],
                                                dtype=tf.float32, trainable=False)
@@ -31,9 +55,11 @@ class FoESeparablePrior(FoEFullPrior):
             ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable, dtype=tf.float32)
             ica_a_squeezed = tf.squeeze(ica_a)
 
-            depth_filter = tf.get_variable('depth_filter', shape=[self.n_components, self.n_features_white])
+            depth_filter = tf.get_variable('depth_filter', shape=[self.filter_h, self.filter_w,
+                                                                  self.n_channels, self.dim_multiplier])
 
-            point_filter = tf.get_variable('point_filter', shape=[])
+            point_filter = tf.get_variable('point_filter', shape=[1, 1, self.n_channels * self.dim_multiplier,
+                                                                  self.n_components])
             ica_w = None
 
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
@@ -41,8 +67,8 @@ class FoESeparablePrior(FoEFullPrior):
             if self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf'):
                 normed_featmap = self.norm_feat_map_directly()  # shape [1, h, w, n_channels]
 
-                whitened_mixing = tf.reshape(whitened_mixing, shape=[self.n_channels, self.filter_dims[0],
-                                                                     self.filter_dims[1], self.n_components])
+                whitened_mixing = tf.reshape(whitened_mixing, shape=[self.n_channels, self.filter_h,
+                                                                     self.filter_w, self.n_components])
                 whitened_mixing = tf.transpose(whitened_mixing, perm=[1, 2, 0, 3])
                 print(normed_featmap.get_shape())
                 print(whitened_mixing.get_shape())
@@ -57,3 +83,182 @@ class FoESeparablePrior(FoEFullPrior):
 
             self.loss = self.mrf_loss(xw, ica_a_squeezed)
             self.var_list.extend([ica_a, ica_w, whitening_tensor])
+
+
+    def train_prior(self, batch_size, n_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
+                    whiten_mode='pca', n_data_samples=100000, n_val_samples=500,
+                    log_freq=5000, summary_freq=10, print_freq=100, test_freq=100,
+                    prev_ckpt=0, optimizer_name='adam',
+                    plot_filters=False, do_clip=True):
+        log_path = self.load_path
+        ph, pw = self.filter_dims
+
+        data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=ph, pw=pw,
+                                 mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
+                                 n_features_white=self.n_features_white, classifier=self.classifier)
+
+        data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
+                                   data_shape=(n_data_samples, self.n_features_white), data_mode='train')
+
+        val_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
+                                  data_shape=(n_val_samples, self.n_features_white), data_mode='validate')
+
+        with tf.Graph().as_default() as graph:
+            with tf.variable_scope(self.name):
+                self.add_preprocessing_to_graph(data_dir, whiten_mode)
+
+                x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_features_white], name='x_pl')
+                lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
+
+                depth_filter = tf.get_variable('depth_filter', shape=[self.filter_h, self.filter_w,
+                                                                      self.n_channels, self.dim_multiplier])
+
+                point_filter = tf.get_variable('point_filter', shape=[1, 1, self.n_channels * self.dim_multiplier,
+                                                                      self.n_components])
+
+                alpha = tf.get_variable(shape=[self.n_components, 1], dtype=tf.float32, name='ica_a',
+                                        initializer=tf.random_normal_initializer())
+
+                w_mat = self.get_w_tensor(depth_filter, point_filter)
+
+                loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, w_mat=w_mat, alpha=alpha)
+
+                flat_depth_filter = tf.reshape(depth_filter, shape=(self.n_features_white, self.dim_multiplier))
+                flat_point_filter = tf.squeeze(point_filter)
+
+                # clip_op = tf.assign(w_mat, w_mat / tf.norm(w_mat, ord=2, axis=0))
+                clip_op1 = tf.assign(depth_filter, depth_filter/ tf.norm(depth_filter, ord=2, axis=None))
+                clip_op2 = tf.assign(point_filter, point_filter / tf.norm(flat_point_filter, ord=2, axis=0))
+
+                opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
+                tvars = tf.trainable_variables()
+                grads = tf.gradients(loss, tvars)
+                tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
+                tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
+                              for k in tg_pairs]
+                opt_op = opt.apply_gradients(tg_clipped)
+
+                if self.load_name != self.name and prev_ckpt:
+                    to_load = self.tensor_load_dict_by_name(tf.global_variables())
+                    saver = tf.train.Saver(var_list=to_load)
+                else:
+                    saver = tf.train.Saver()
+
+                checkpoint_file = os.path.join(log_path, 'ckpt')
+
+                if not os.path.exists(log_path):
+                    os.makedirs(log_path)
+
+                tf.summary.scalar('total_loss', loss)
+                tf.summary.scalar('term_1', term_1)
+                tf.summary.scalar('term_2', term_2)
+                train_summary_op = tf.summary.merge_all()
+                summary_writer = tf.summary.FileWriter(log_path + '/summaries')
+
+                val_loss = tf.placeholder(dtype=tf.float32, shape=[], name='val_loss')
+                val_summary_op = tf.summary.scalar('validation_loss', val_loss)
+
+                with tf.Session() as sess:
+                    # print(tf.trainable_variables())
+                    sess.run(tf.global_variables_initializer())
+
+                    if prev_ckpt:
+                        prev_path = self.load_path + 'ckpt-' + str(prev_ckpt)
+                        saver.restore(sess, prev_path)
+
+                    sess.run([clip_op1, clip_op2])
+
+                    start_time = time.time()
+                    train_time = 0
+                    for count in range(prev_ckpt + 1, prev_ckpt + n_iterations + 1):
+                        data = next(data_gen)
+
+                        if lr_lower_points and lr_lower_points[0][0] <= count:
+                            lr = lr_lower_points[0][1]
+                            print('new learning rate: ', lr)
+                            lr_lower_points = lr_lower_points[1:]
+
+                        batch_start = time.time()
+                        batch_loss, _, summary_string = sess.run(fetches=[loss, opt_op, train_summary_op],
+                                                                 feed_dict={x_pl: data, lr_pl: lr})
+
+                        if do_clip:
+                            sess.run([clip_op1, clip_op2])
+
+                        train_time += time.time() - batch_start
+
+                        if count % summary_freq == 0:
+                            summary_writer.add_summary(summary_string, count)
+
+                        if count % print_freq == 0:
+                            print(batch_loss)
+
+                        if count % (print_freq * 10) == 0:
+                            term_1 = graph.get_tensor_by_name(self.name + '/t1:0')
+                            term_2 = graph.get_tensor_by_name(self.name + '/t2:0')
+                            w_res, alp, t1, t2 = sess.run([w_mat, alpha, term_1, term_2], feed_dict={x_pl: data})
+                            print('it: ', count, ' / ', n_iterations + prev_ckpt)
+                            print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
+                            print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
+                            print('term_1: ', t1, ' term_2: ', t2)
+
+                            train_ratio = 100.0 * train_time / (time.time() - start_time)
+                            print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
+
+                        if test_freq > 0 and count % test_freq == 0:
+                            val_loss_acc = 0.0
+                            num_runs = n_val_samples // batch_size
+                            for val_count in range(num_runs):
+                                val_feed_dict = {x_pl: next(val_gen)}
+                                val_batch_loss = sess.run(loss, feed_dict=val_feed_dict)
+                                val_loss_acc += val_batch_loss
+                            val_loss_acc /= num_runs
+                            val_summary_string = sess.run(val_summary_op, feed_dict={val_loss: val_loss_acc})
+                            summary_writer.add_summary(val_summary_string, count)
+                            print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
+                                   'Time: {2:5.1f} min').format(count, val_loss_acc,
+                                                                (time.time() - start_time) / 60))
+
+                        if count % log_freq == 0:
+                            saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=count)
+
+                    saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=n_iterations + prev_ckpt)
+
+
+    def get_w_tensor(self, depth_filter, point_filter):
+        h, w, c, dm = [k.value for k in depth_filter.get_shape()]
+        assert c == self.n_channels
+        assert dm == self.dim_multiplier
+        assert h == self.filter_h and w == self.filter_w
+
+        _, _, cdm, k = [k.value for k in point_filter.get_shape()]
+        assert cdm == c * dm
+        assert k == self.n_components
+        # f = h * w
+        # D = np.ones((h, w, c * dm))
+        # P = np.ones((c * dm, k))
+
+        # D_prime = np.expand_dims(D, axis=3)
+        # D_prime = D.reshape((f, c * dm, 1))
+        # P_prime = np.expand_dims(P, axis=2)
+
+        # Q = D_prime.transpose((1, 0, 2)) @ P_prime.transpose((0, 2, 1))
+
+        depth_filter = tf.reshape(depth_filter, shape=(h * w, c * dm, 1))
+        depth_filter = tf.transpose(depth_filter, perm=(1, 0, 2))
+        point_filter = tf.reshape(point_filter, shape=(cdm, k, 1))
+        point_filter = tf.transpose(point_filter, perm=(0, 2, 1))
+
+        q_tensor = tf.matmul(depth_filter, point_filter, name='Q')
+        print('Q', q_tensor.get_shape())
+
+        # Q_prime = Q.reshape(c, dm, f, k)
+        q_tensor = tf.reshape(q_tensor, shape=(c, dm, h * w, k))
+
+        # W = np.sum(Q_prime, axis=1)
+        # W = W.reshape((c * f, k))
+        w_tensor = tf.reduce_sum(q_tensor, axis=1, name='W')
+        w_tensor = tf.reshape(w_tensor, shape=(c * h * w, k))
+        print('W', w_tensor.get_shape())
+
+        return w_tensor
