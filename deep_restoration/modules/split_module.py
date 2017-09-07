@@ -1,4 +1,4 @@
-from modules.loss_modules import Module
+from modules.core_modules import Module
 import tensorflow as tf
 
 

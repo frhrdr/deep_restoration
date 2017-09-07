@@ -2,34 +2,58 @@ from utils.preprocessing import make_channel_separate_patch_data, make_flattened
     add_flattened_validation_set
 from utils.temp_utils import show_patches_by_channel
 from modules.foe_separable_prior import FoESeparablePrior
+from modules.foe_full_prior import FoEFullPrior
 import numpy as np
 # from modules.foe_channelwise_prior import FoEChannelwisePrior
 # from modules.foe_full_prior import FoEFullPrior
 # from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
+from modules.loss_modules import VggScoreLoss
+
+assert (1, 2, 3) == (1, 2, 3)
+
+v = VggScoreLoss(('target:0', 'reconstruction:0'), 1.0)
 
 
-# make_flattened_patch_data(100000, 9, 9, 'alexnet', 'rgb_scaled:0', 3, n_feats_white=81*3,
-#                           whiten_mode='zca', batch_size=100,
+tgt_path = '/home/frederik/PycharmProjects/deep_restoration/data/selected/images_resized/red-fox.bmp'
+rec_path = '/home/frederik/PycharmProjects/deep_restoration/logs/opt_inversion/alexnet/img/mats/rec_{}.npy'
+scores = []
+
+for idx in range(500, 13501, 500):
+    score = v.get_score(tgt_path, rec_path.format(idx), load_tgt_as_image=True)
+    print(score)
+    scores.append((idx,score))
+print(scores)
+
+# hw = 9
+# wmode = 'zca'
+# make_flattened_patch_data(100000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_white=hw**2*3,
+#                           whiten_mode=wmode, batch_size=100,
 #                           mean_mode='gc', sdev_mode='gc')
-
-# add_flattened_validation_set(num_patches=1000, ph=9, pw=9, classifier='alexnet', map_name='rgb_scaled:0',
-#                              n_channels=3, n_feats_white=81*3, whiten_mode='zca', batch_size=100,
+#
+# add_flattened_validation_set(num_patches=1000, ph=hw, pw=hw, classifier='alexnet', map_name='rgb_scaled:0',
+#                              n_channels=3, n_feats_white=hw**2*3, whiten_mode=wmode, batch_size=100,
 #                              mean_mode='gc', sdev_mode='gc')
 
-p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [9, 9], 1.0, n_components=600, n_channels=3,
-                      n_features_white=81*3, dim_multiplier=10, dist='logistic', mean_mode='gc', sdev_mode='gc',
-                      trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
+# p = FoEFullPrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=600, n_channels=3,
+#                  n_features_white=hw**2*3, dist='student', mean_mode='gc', sdev_mode='gc',
+#                  trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
+# p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=600, n_channels=3,
+#                       n_features_white=hw**2*3, dim_multiplier=500, dist='student', mean_mode='gc', sdev_mode='gc',
+#                       trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
+#
+# p.train_prior(batch_size=500, n_iterations=15000, lr=3e-5,
+#               lr_lower_points=(# (0, 1e-0), (1000, 1e-1),
+#                                (0, 3e-2),
+#                                (1000, 1e-2), (3000, 3e-3), (5000, 1e-3),
+#                                (8000, 1e-4), (10000, 3e-5), (13000, 1e-5),),
+#               grad_clip=1e+100,
+#               whiten_mode=wmode, n_data_samples=100000, n_val_samples=1000,
+#               log_freq=1000, summary_freq=10, print_freq=100,
+#               prev_ckpt=0,
+#               optimizer_name='adam', plot_filters=True, do_clip=True)
 
-p.train_prior(batch_size=500, n_iterations=10000, lr=3e-5,
-              lr_lower_points=((0, 1e-0), (5000, 1e-1), (5500, 3e-2),
-                                       (6000, 1e-2), (6500, 3e-3), (7000, 1e-3),
-                                       (8000, 1e-4), (9000, 3e-5), (10000, 1e-5),),
-              grad_clip=1e-3,
-              whiten_mode='zca', n_data_samples=100000, n_val_samples=1000,
-              log_freq=1000, summary_freq=10, print_freq=100,
-              prev_ckpt=0,
-              optimizer_name='adam')
+# p.validate_w_build(prev_ckpt=0)
 
 # show_patches_by_channel('/home/frederik/PycharmProjects/deep_restoration/data/patches/image/13x13_mean_gc_sdev_gc_channelwise/',
 #                         'data_mat_zca_whitened_channelwise.npy', 10000, 13, 13, 3, plot_patches=range(10))

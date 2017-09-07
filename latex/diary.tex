@@ -18,15 +18,48 @@
 	\item skim simonyan papers, find the relevant ones
 	\item do search on samplings from FoE models
 	\item at some point look into hybrid mc sampling
-	\item (maybe later) adapt alexnet to take inputs at arbitrary points
 \end{enumerate}
 
-\section{September 2.}
+\section{September 7.}
 \begin{enumerate}
+	\item Vgg Score implementation
 	\item 
 \end{enumerate}
 
-\section{September 1.}
+\section{September 6.}
+\begin{enumerate}
+	\item tested with PCA, ZCA and unwhitened image data
+	\item tested ZCA on full prior
+	\item started Vgg score implementation
+\end{enumerate}
+
+\section*{September 5.}
+\begin{enumerate}
+	\item implemented separable separable prior training
+	\item validated ICA filter derivation
+		
+\end{enumerate}
+
+\section*{September 4.}
+\begin{enumerate}
+	\item Starting to implement separable prior - working out derivation of implicit ICA filters from convolutional ones
+\end{enumerate}
+
+\section*{September 3.}
+\begin{enumerate}
+	\item half day: 
+	\item refactoring FoE priors so distributions are an argument rather than different classes. a lot of cleaning up and re-naming for clarity, ensuring backward compatibility
+	\item reading up in separable convolutions
+\end{enumerate}
+
+
+\section*{September 2.}
+\begin{enumerate}
+	\item modular inverting nets updated and tested
+	\item updated inference on full and channel-wise foe priors to use convolutions more efficiently if pre-processing allows
+\end{enumerate}
+
+\section*{September 1.}
 \begin{enumerate}
 	\item full prior with larger 8x8 patches tests
 	\item partial alexnet build + preliminary tests
@@ -35,23 +68,23 @@
 \end{enumerate}
 
 
-\section{August 31.}
+\section*{August 31.}
 \begin{enumerate}
 	\item meeting
 	\item full prior with larger 8x8 patches start training
 \end{enumerate}
 
-\section{August 30.}
+\section*{August 30.}
 \begin{enumerate}
 	\item Writing thesis outline, planning
 \end{enumerate}
 
-\section{August 29.}
+\section*{August 29.}
 \begin{enumerate}
 	\item Writing thesis outline, planning
 \end{enumerate}
 
-\section{August 28.}
+\section*{August 28.}
 
 \begin{enumerate}
 	\item Writing thesis outline, planning
@@ -60,13 +93,13 @@
 
 
 
-\section{August 27.}
+\section*{August 27.}
 
 \begin{enumerate}
 	\item Day off
 \end{enumerate}
 
-\section{August 26.}
+\section*{August 26.}
 
 \begin{enumerate}
 	\item trained undercomplete full prior. 1k components to 3200 features. filters exhibit little to no discernible structure
@@ -74,7 +107,7 @@
 \end{enumerate}
 
 
-\section{August 25.}
+\section*{August 25.}
 
 \begin{enumerate}
 	\item channelwise and full prior on conv2/lin - filters are smoother than in conv1, again, full priors don't look very informative
@@ -83,7 +116,7 @@
 \end{enumerate}
 
 
-\section{August 24.}
+\section*{August 24.}
 
 \begin{enumerate}
 	\item meeting
@@ -92,7 +125,7 @@
 \end{enumerate}
 
 
-\section{August 23.}
+\section*{August 23.}
 
 \begin{enumerate}
 	\item train 3x overcomplete lcgc foe prior to convergence on low lr.
@@ -103,14 +136,14 @@
 	\item train lcgc cica prior and look at the filters
 \end{enumerate}
 
-\section{August 19. - 22.}
+\section*{August 19. - 22.}
 
 \begin{enumerate}
 	\item Bosch interview + preparation + one day off
 \end{enumerate}
 
 
-\section{August 18.}
+\section*{August 18.}
 
 \begin{enumerate}
 	\item c-independent prior. see if they learn better filters
@@ -126,14 +159,14 @@
 
 
 
-\section{August 17.}
+\section*{August 17.}
 
 \begin{enumerate}
 	\item off day bosch prep
 \end{enumerate}
 
 
-\section{August 16.}
+\section*{August 16.}
 
 \begin{enumerate}
 	\item fixed filter vis
@@ -154,7 +187,7 @@
 \end{enumerate}
 
 
-\section{August 15.}
+\section*{August 15.}
 
 \begin{enumerate}
 	\item train lc - gc 1800f prior to convergence (amlab)
@@ -167,7 +200,7 @@
 
 
 
-\section{August 14.}
+\section*{August 14.}
 
 \begin{enumerate}
 	\item train conv1 lin prior with local full mean (center each sample) and global channel standard deviation normalization 
@@ -176,7 +209,7 @@
 \end{enumerate}
 
 
-\section{August 13.}
+\section*{August 13.}
 
 \begin{enumerate}
 	\item pre-image init was bad. could perhaps still be tweaked (right now, adam needs to be restarted after the initial 500 steps, because its parameters get much too conservative)
@@ -185,7 +218,7 @@
 \end{enumerate}
 
 
-\section{August 12.}
+\section*{August 12.}
 
 \begin{enumerate}
 	\item write out all the preprocessing
@@ -197,7 +230,7 @@
 \end{enumerate}
 
 
-\section{August 9.}
+\section*{August 9.}
 
 \begin{enumerate}
 	\item integrate mean and sdev loading into the priors, adapt data-filenaming conventions
@@ -207,7 +240,7 @@
 	\item train and test conv1lin feature map priors (1 ica, 1 cica)
 \end{enumerate}
 
-\section{August 8.}
+\section*{August 8.}
 
 \begin{enumerate}
 	\item integrate mean and sdev processing funtion into the priors

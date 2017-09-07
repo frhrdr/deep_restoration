@@ -1,6 +1,7 @@
 import tensorflow as tf
 import os
-from modules.loss_modules import Module
+from modules.core_modules import Module
+
 
 # spec1 = dict(op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1], op1_pad='SAME',
 #              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1], op2_pad='SAME',

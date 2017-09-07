@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import time
 import os
-from modules.loss_modules import LearnedPriorLoss
+from modules.core_modules import LearnedPriorLoss
 from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
 from utils.preprocessing import preprocess_patch_tensor, make_data_dir, preprocess_featmap_tensor
 from modules.foe_full_prior import FoEFullPrior
@@ -127,7 +127,8 @@ class FoESeparablePrior(FoEFullPrior):
                 flat_point_filter = tf.squeeze(point_filter)
 
                 # clip_op = tf.assign(w_mat, w_mat / tf.norm(w_mat, ord=2, axis=0))
-                clip_op1 = tf.assign(depth_filter, depth_filter/ tf.norm(depth_filter, ord=2, axis=None))
+                # clip_op1 = tf.assign(depth_filter, depth_filter/ tf.norm(depth_filter, ord=2, axis=None))
+                clip_op1 = tf.assign(depth_filter, depth_filter / tf.norm(flat_depth_filter, ord=2, axis=0))
                 clip_op2 = tf.assign(point_filter, point_filter / tf.norm(flat_point_filter, ord=2, axis=0))
 
                 opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
@@ -224,6 +225,18 @@ class FoESeparablePrior(FoEFullPrior):
 
                     saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=n_iterations + prev_ckpt)
 
+                    if plot_filters:
+                        unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
+                        w_res, alp = sess.run([w_mat, alpha])
+                        comps = np.dot(w_res.T, unwhiten_mat)
+                        # print(comps.shape)
+                        comps -= np.min(comps)
+                        comps /= np.max(comps)
+                        # co = np.reshape(comps[:n_vis, :], [n_vis, ph, pw, 3])
+                        co = np.reshape(comps[:n_vis, :], [n_vis, 3, ph, pw])
+                        co = np.transpose(co, axes=[0, 2, 3, 1])
+                        plot_img_mats(co, color=True, rescale=True)
+
 
     def get_w_tensor(self, depth_filter, point_filter):
         h, w, c, dm = [k.value for k in depth_filter.get_shape()]
@@ -262,3 +275,54 @@ class FoESeparablePrior(FoEFullPrior):
         print('W', w_tensor.get_shape())
 
         return w_tensor
+
+    def validate_w_build(self, prev_ckpt):
+
+        log_path = self.load_path
+        ph, pw = self.filter_dims
+
+        with tf.Graph().as_default() as graph:
+            with tf.variable_scope(self.name):
+                x_init = np.random.normal(size=(1, ph, pw, self.n_channels))
+                x_patch = tf.constant(x_init, dtype=tf.float32, name='x_flat')
+                x_flat = tf.reshape(tf.transpose(x_patch, perm=(0, 3, 1, 2)), shape=(1, self.n_features_white))
+
+                depth_filter = tf.get_variable('depth_filter', shape=[self.filter_h, self.filter_w,
+                                                                      self.n_channels, self.dim_multiplier])
+
+                point_filter = tf.get_variable('point_filter', shape=[1, 1, self.n_channels * self.dim_multiplier,
+                                                                      self.n_components])
+
+                w_mat = self.get_w_tensor(depth_filter, point_filter)
+
+                xw_mat_based = tf.squeeze(tf.matmul(x_flat, w_mat))
+
+                xw_conv_based = tf.squeeze(tf.nn.separable_conv2d(x_patch, depth_filter, point_filter,
+                                                                  strides=(1, 1, 1, 1), padding='VALID'))
+
+
+                print('mat ', xw_mat_based.get_shape())
+                print('conv', xw_conv_based.get_shape())
+
+                if self.load_name != self.name and prev_ckpt:
+                    to_load = self.tensor_load_dict_by_name(tf.global_variables())
+                    saver = tf.train.Saver(var_list=to_load)
+                else:
+                    saver = tf.train.Saver()
+
+                with tf.Session() as sess:
+                    # print(tf.trainable_variables())
+                    sess.run(tf.global_variables_initializer())
+
+                    if prev_ckpt:
+                        checkpoint_file = os.path.join(log_path, 'ckpt')
+                        prev_path = self.load_path + 'ckpt-' + str(prev_ckpt)
+                        saver.restore(sess, prev_path)
+
+
+                    xw_mat, xw_conv = sess.run(fetches=[xw_mat_based, xw_conv_based])
+
+                    print(xw_mat[:30])
+                    print(xw_conv[:30])
+                    print(xw_mat / xw_conv)
+                    print(np.max(np.abs(xw_mat / xw_conv - 1)))

@@ -66,7 +66,7 @@ class FoEChannelwisePrior(FoEFullPrior):
                                     trainable=self.trainable, dtype=tf.float32)
             ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_white, self.n_components],
                                     trainable=self.trainable, dtype=tf.float32)
-            ica_a_squeezed = tf.squeeze(tf.nn.softplus(ica_a))
+            ica_a_squeezed = tf.squeeze(ica_a)
 
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
 

@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import time
 import os
-from modules.loss_modules import LearnedPriorLoss
+from modules.core_modules import LearnedPriorLoss
 from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
 from utils.preprocessing import preprocess_patch_tensor, make_data_dir, preprocess_featmap_tensor
 from utils.patch_prior_losses import logistic_full_mrf_loss, logistic_full_score_matching_loss, \

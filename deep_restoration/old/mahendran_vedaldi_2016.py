@@ -8,7 +8,8 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from modules.loss_modules import SoftRangeLoss, TotalVariationLoss, NormedMSELoss, LearnedPriorLoss
+from modules.loss_modules import SoftRangeLoss, TotalVariationLoss, NormedMSELoss
+from modules.core_modules import LearnedPriorLoss
 from modules.foe_full_prior import FoEFullPrior
 
 PARAMS = dict(image_path='./data/selected/images_resized/val13_monkey.bmp', layer_name='conv3/relu:0',

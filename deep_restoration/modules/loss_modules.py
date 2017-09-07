@@ -1,57 +1,9 @@
+import numpy as np
 import tensorflow as tf
-import os
-from tf_vgg.vgg16 import Vgg16
-
-class Module:
-
-    def __init__(self, in_tensor_names, name=None):
-        self.in_tensor_names = in_tensor_names
-        self.name = name if name is not None else self.__class__.__name__
-
-
-    def build(self, scope_suffix=''):
-        raise NotImplementedError
-
-    def get_in_tensors(self):
-        g = tf.get_default_graph()
-        if isinstance(self.in_tensor_names, tuple):
-            return tuple(g.get_tensor_by_name(n) for n in self.in_tensor_names)
-        else:
-            return g.get_tensor_by_name(self.in_tensor_names)
-
-
-class LossModule(Module):
-
-    def __init__(self, in_tensor_names, weighting, name=None):
-        super().__init__(in_tensor_names, name=name)
-        self.weighting = weighting
-        self.loss = None
-        self.add_loss = True
-
-    def build(self, scope_suffix=''):
-        self.loss = 0
-
-    def get_loss(self, weighted=True):
-        if self.loss is not None and self.add_loss:
-            if weighted:
-                return self.loss * self.weighting
-            else:
-                return self.loss
-        elif not self.add_loss:
-            return 0
-        else:
-            raise AttributeError
-
-    def get_tensors(self):
-        g = tf.get_default_graph()
-        if isinstance(self.in_tensor_names, tuple):
-            return [g.get_tensor_by_name(n) for n in self.in_tensor_names]
-        else:
-            return g.get_tensor_by_name(self.in_tensor_names)
-
-    def scalar_summary(self, weighted=True):
-        loss = self.loss * self.weighting if weighted else self.loss
-        tf.summary.scalar(self.name, loss)
+from tf_vgg.vgg19 import Vgg19
+from modules.core_modules import LossModule
+from utils.feature_statistics import gram_tensor
+from utils.filehandling import load_image
 
 
 class MSELoss(LossModule):
@@ -111,49 +63,63 @@ class TotalVariationLoss(LossModule):
 
 class VggScoreLoss(LossModule):
 
-    def __init__(self, in_tensor_names, weighting, name=None, input_scaling=1.0):
+    def __init__(self, in_tensor_names, weighting=1.0, name=None, input_scaling=1.0):
         super().__init__(in_tensor_names, weighting, name=name)
         self.input_scaling = input_scaling
 
     def build(self, scope_suffix=''):
+        with tf.variable_scope(self.name):
+            tgt, rec = self.get_in_tensors()
+            print(tgt, rec)
+            assert tuple(k.value for k in tgt.get_shape()) == (1, 224, 224, 3)
+            assert tuple(k.value for k in rec.get_shape()) == (1, 224, 224, 3)
+            t_in = tf.concat((tgt, rec), axis=0)
 
-        loss = 0
+            vgg = Vgg19()
+            vgg.build(t_in, pool_mode='avg')
 
-class LearnedPriorLoss(LossModule):
+            graph = tf.get_default_graph()
+            layers = ['{}/conv{}_1/relu:0'.format(self.name, k) for k in range(1, 6)]
+            featmaps = [graph.get_tensor_by_name(n) for n in layers]
+            featmap_splits = [tf.split(k, 2) for k in featmaps]
+            print(featmap_splits)
 
-    def __init__(self, tensor_names, weighting, name, load_path, trainable, load_name):
-        super().__init__(tensor_names, weighting)
-        self.name = name
-        self.load_path = load_path
-        self.trainable = trainable
-        self.var_list = []
-        self.load_name = load_name
+            loss_acc = 0
+            for split in featmap_splits:
+                tgt, rec = split
 
-    def load_weights(self, session):
-        if self.load_name != self.name:
-            # names = [k.name.split('/')[1:] for k in self.var_list]
-            # names = [''.join(k) for k in names]
-            # names = [self.load_name + '/' + k.split(':')[0] for k in names]
-            # to_load = dict(zip(names, self.var_list))
-            to_load = self.tensor_load_dict_by_name(self.var_list)
+                tgt_gram = gram_tensor(tf.squeeze(tgt))
+                rec_gram = gram_tensor(tf.squeeze(rec))
+                print(tgt_gram.get_shape())
+                cost = tf.reduce_sum((tgt_gram - rec_gram)**2)
+                norm = tf.reduce_sum(tgt_gram**2)
+
+                loss_acc += cost / norm
+
+            self.loss = loss_acc / len(layers)
+
+    def get_score(self, target_file, reconstruction_file, load_tgt_as_image=False, load_rec_as_image=False):
+        if load_tgt_as_image:
+            target = np.expand_dims(load_image(target_file, resize=False), axis=0)
         else:
-            to_load = self.var_list
-        loader = tf.train.Saver(var_list=to_load)
+            target = np.load(target_file).reshape((1, 224, 224, 3))
 
-        with open(os.path.join(self.load_path, 'checkpoint')) as f:
-            ckpt = f.readline().split('"')[1]
-            print('For module {0}: loading weights from {1}'.format(self.name, ckpt))
-        loader.restore(session, os.path.join(self.load_path, ckpt))
+        if load_rec_as_image:
+            reconstruction = np.expand_dims(load_image(reconstruction_file, resize=False), axis=0)
+        else:
+            reconstruction = np.load(reconstruction_file).reshape((1, 224, 224, 3))
 
-    def save_weights(self, session, step):
-        saver = tf.train.Saver(var_list=self.var_list)
-        checkpoint_file = os.path.join(self.load_path, 'ckpt')
-        saver.save(session, checkpoint_file, global_step=step, write_meta_graph=False)
+        with tf.Graph().as_default() as graph:
+            tgt_name, rec_name = self.in_tensor_names
+            tgt = tf.constant(target, dtype=tf.float32, name=tgt_name[:-len(':0')])
+            rec = tf.constant(reconstruction, dtype=tf.float32, name=rec_name[:-len(':0')])
+            print(tgt, rec)
+            self.build()
 
-    def tensor_load_dict_by_name(self, tensor_list):
-        names = [k.name.split('/') for k in tensor_list]
-        prev_load_name = names[0][0]
-        names = [[l if l != prev_load_name else self.load_name for l in k] for k in names]
-        names = ['/'.join(k) for k in names]
-        names = [k.split(':')[0] for k in names]
-        return dict(zip(names, tensor_list))
+            with tf.Session() as sess:
+                loss = self.get_loss()
+                score = sess.run(loss)
+
+        return score
+
+

@@ -4,7 +4,7 @@ from tf_alexnet import alexnet
 from utils.filehandling import load_image
 from utils.temp_utils import get_optimizer, plot_feat_map_diffs
 from modules.inv_modules import TrainedModule
-from modules.loss_modules import LossModule, LearnedPriorLoss
+from modules.core_modules import LossModule, LearnedPriorLoss
 import os
 import time
 import numpy as np
