@@ -456,7 +456,7 @@ class FoEFullPrior(LearnedPriorLoss):
     def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
                       n_features_white, mean_mode, sdev_mode):
         d_str = str(filter_dims[0]) + 'x' + str(filter_dims[1])
-        if 'pre_img' in tensor_name:
+        if 'img' in tensor_name or 'image' in tensor_name:
             subdir = 'image/color'
         else:
             if tensor_name.lower().startswith('split'):

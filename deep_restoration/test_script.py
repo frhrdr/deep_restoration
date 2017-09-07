@@ -3,27 +3,52 @@ from utils.preprocessing import make_channel_separate_patch_data, make_flattened
 from utils.temp_utils import show_patches_by_channel
 from modules.foe_separable_prior import FoESeparablePrior
 from modules.foe_full_prior import FoEFullPrior
+from modules.foe_channelwise_prior import FoEChannelwisePrior
 import numpy as np
 # from modules.foe_channelwise_prior import FoEChannelwisePrior
 # from modules.foe_full_prior import FoEFullPrior
 # from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
 from modules.loss_modules import VggScoreLoss
 
-assert (1, 2, 3) == (1, 2, 3)
+# assert (1, 2, 3) == (1, 2, 3)
+#
+# v = VggScoreLoss(('target:0', 'reconstruction:0'), 1.0)
+#
+#
+# tgt_path = '/home/frederik/PycharmProjects/deep_restoration/data/selected/images_resized/red-fox.bmp'
+# rec_path = '/home/frederik/PycharmProjects/deep_restoration/logs/opt_inversion/alexnet/img/mats/rec_{}.npy'
+# scores = []
+#
+# for idx in range(500, 13501, 500):
+#     score = v.get_score(tgt_path, rec_path.format(idx), load_tgt_as_image=True)
+#     print(score)
+#     scores.append((idx,score))
+# print(scores)
 
-v = VggScoreLoss(('target:0', 'reconstruction:0'), 1.0)
+p = FoEChannelwisePrior('rgb_scaled:0', 1e-10, 'alexnet', [8, 8], 1.0, n_components=200, n_channels=3,
+                        n_features_white=8**2-1, dist='student', mean_mode='gc', sdev_mode='gc',
+                        trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
+p.train_prior(batch_size=500, n_iterations=15000, lr=3e-5,
+              lr_lower_points=((0, 1e-0), (1000, 1e-1),
+                               (2000, 3e-2),
+                               (3000, 1e-2), (4000, 3e-3), (5000, 1e-3),
+                               (8000, 1e-4), (10000, 3e-5), (13000, 1e-5),),
+              grad_clip=1e+100,
+              whiten_mode='pca', n_data_samples=100000, n_val_samples=1000,
+              log_freq=1000, summary_freq=10, print_freq=100,
+              prev_ckpt=0,
+              optimizer_name='adam', plot_filters=True, do_clip=True)
 
-tgt_path = '/home/frederik/PycharmProjects/deep_restoration/data/selected/images_resized/red-fox.bmp'
-rec_path = '/home/frederik/PycharmProjects/deep_restoration/logs/opt_inversion/alexnet/img/mats/rec_{}.npy'
-scores = []
-
-for idx in range(500, 13501, 500):
-    score = v.get_score(tgt_path, rec_path.format(idx), load_tgt_as_image=True)
-    print(score)
-    scores.append((idx,score))
-print(scores)
-
+# img_prior = FoEFullPrior(tensor_names='rgb_scaled/read:0',
+#                          weighting=1e-7, name='ICAPrior',
+#                          classifier='alexnet',
+#                          filter_dims=[12, 12], input_scaling=1.0, n_components=1000, n_channels=3,
+#                          n_features_white=432,
+#                          mean_mode='gc', sdev_mode='gc',
+#                          load_tensor_names = 'image')
+#
+# img_prior.train_prior(10, 0, plot_filters=True, prev_ckpt=13000)
 # hw = 9
 # wmode = 'zca'
 # make_flattened_patch_data(100000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_white=hw**2*3,
