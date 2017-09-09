@@ -91,3 +91,34 @@ class LearnedPriorLoss(LossModule):
         names = ['/'.join(k) for k in names]
         names = [k.split(':')[0] for k in names]
         return dict(zip(names, tensor_list))
+
+
+class TrainedModule(Module):
+
+    def __init__(self, tensor_names, name, load_path, trainable):
+        super().__init__(tensor_names)
+        self.name = name
+        self.load_path = load_path
+        self.trainable = trainable
+        self.var_list = []
+
+    def load_weights(self, session):
+        loader = tf.train.Saver(var_list=self.var_list)
+        with open(os.path.join(self.load_path, 'checkpoint')) as f:
+            ckpt = f.readline().split('"')[1]
+            print('For module {0}: loading weights from {1}'.format(self.name, ckpt))
+        loader.restore(session, os.path.join(self.load_path, ckpt))
+
+    def save_weights(self, session, step):
+        if not os.path.exists(self.load_path):
+            os.makedirs(self.load_path)
+
+        saver = tf.train.Saver(var_list=self.var_list)
+        checkpoint_file = os.path.join(self.load_path, 'ckpt')
+        saver.save(session, checkpoint_file, global_step=step, write_meta_graph=False)
+
+    def build(self, scope_suffix=''):
+        raise NotImplementedError
+
+    def is_trainable(self):
+        return self.trainable

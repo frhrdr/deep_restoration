@@ -2,8 +2,7 @@ import tensorflow as tf
 import numpy as np
 import time
 import os
-from modules.core_modules import LearnedPriorLoss
-from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
+from utils.temp_utils import patch_batch_gen, plot_img_mats, get_optimizer
 from utils.preprocessing import preprocess_patch_tensor, make_data_dir, preprocess_featmap_tensor
 from modules.foe_full_prior import FoEFullPrior
 
@@ -47,7 +46,7 @@ class FoESeparablePrior(FoEFullPrior):
 
         with tf.variable_scope(self.name):
 
-            n_features_per_channel = self.filter_h * self.filter_w
+            n_features_per_channel = self.ph * self.pw
             n_features_raw = n_features_per_channel * self.n_channels
             whitening_tensor = tf.get_variable('whiten_mat', shape=[self.n_features_white, n_features_raw],
                                                dtype=tf.float32, trainable=False)
@@ -55,7 +54,7 @@ class FoESeparablePrior(FoEFullPrior):
             ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=self.trainable, dtype=tf.float32)
             ica_a_squeezed = tf.squeeze(ica_a)
 
-            depth_filter = tf.get_variable('depth_filter', shape=[self.filter_h, self.filter_w,
+            depth_filter = tf.get_variable('depth_filter', shape=[self.ph, self.pw,
                                                                   self.n_channels, self.dim_multiplier])
 
             point_filter = tf.get_variable('point_filter', shape=[1, 1, self.n_channels * self.dim_multiplier,
@@ -67,8 +66,8 @@ class FoESeparablePrior(FoEFullPrior):
             if self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf'):
                 normed_featmap = self.norm_feat_map_directly()  # shape [1, h, w, n_channels]
 
-                whitened_mixing = tf.reshape(whitened_mixing, shape=[self.n_channels, self.filter_h,
-                                                                     self.filter_w, self.n_components])
+                whitened_mixing = tf.reshape(whitened_mixing, shape=[self.n_channels, self.ph,
+                                                                     self.pw, self.n_components])
                 whitened_mixing = tf.transpose(whitened_mixing, perm=[1, 2, 0, 3])
                 print(normed_featmap.get_shape())
                 print(whitened_mixing.get_shape())
@@ -84,16 +83,14 @@ class FoESeparablePrior(FoEFullPrior):
             self.loss = self.mrf_loss(xw, ica_a_squeezed)
             self.var_list.extend([ica_a, ica_w, whitening_tensor])
 
-
     def train_prior(self, batch_size, n_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
                     whiten_mode='pca', n_data_samples=100000, n_val_samples=500,
                     log_freq=5000, summary_freq=10, print_freq=100, test_freq=100,
                     prev_ckpt=0, optimizer_name='adam',
                     plot_filters=False, do_clip=True):
         log_path = self.load_path
-        ph, pw = self.filter_dims
 
-        data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=ph, pw=pw,
+        data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=self.ph, pw=self.pw,
                                  mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
                                  n_features_white=self.n_features_white, classifier=self.classifier)
 
@@ -110,18 +107,18 @@ class FoESeparablePrior(FoEFullPrior):
                 x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_features_white], name='x_pl')
                 lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
 
-                depth_filter = tf.get_variable('depth_filter', shape=[self.filter_h, self.filter_w,
+                depth_filter = tf.get_variable('depth_filter', shape=[self.ph, self.pw,
                                                                       self.n_channels, self.dim_multiplier])
 
                 point_filter = tf.get_variable('point_filter', shape=[1, 1, self.n_channels * self.dim_multiplier,
                                                                       self.n_components])
 
-                alpha = tf.get_variable(shape=[self.n_components, 1], dtype=tf.float32, name='ica_a',
+                ica_a = tf.get_variable(shape=[self.n_components, 1], dtype=tf.float32, name='ica_a',
                                         initializer=tf.random_normal_initializer())
 
-                w_mat = self.get_w_tensor(depth_filter, point_filter)
+                ica_w = self.get_w_tensor(depth_filter, point_filter)
 
-                loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, w_mat=w_mat, alpha=alpha)
+                loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, ica_w=ica_w, ica_a=ica_a)
 
                 flat_depth_filter = tf.reshape(depth_filter, shape=(self.n_features_white, self.dim_multiplier))
                 flat_point_filter = tf.squeeze(point_filter)
@@ -197,7 +194,7 @@ class FoESeparablePrior(FoEFullPrior):
                         if count % (print_freq * 10) == 0:
                             term_1 = graph.get_tensor_by_name(self.name + '/t1:0')
                             term_2 = graph.get_tensor_by_name(self.name + '/t2:0')
-                            w_res, alp, t1, t2 = sess.run([w_mat, alpha, term_1, term_2], feed_dict={x_pl: data})
+                            w_res, alp, t1, t2 = sess.run([ica_w, ica_a, term_1, term_2], feed_dict={x_pl: data})
                             print('it: ', count, ' / ', n_iterations + prev_ckpt)
                             print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
                             print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
@@ -227,79 +224,52 @@ class FoESeparablePrior(FoEFullPrior):
 
                     if plot_filters:
                         unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
-                        w_res, alp = sess.run([w_mat, alpha])
+                        w_res, alp = sess.run([ica_w, ica_a])
                         comps = np.dot(w_res.T, unwhiten_mat)
                         # print(comps.shape)
                         comps -= np.min(comps)
                         comps /= np.max(comps)
                         # co = np.reshape(comps[:n_vis, :], [n_vis, ph, pw, 3])
-                        co = np.reshape(comps[:n_vis, :], [n_vis, 3, ph, pw])
+                        co = np.reshape(comps[:n_vis, :], [n_vis, 3, self.ph, self.pw])
                         co = np.transpose(co, axes=[0, 2, 3, 1])
                         plot_img_mats(co, color=True, rescale=True)
 
-
     def get_w_tensor(self, depth_filter, point_filter):
-        h, w, c, dm = [k.value for k in depth_filter.get_shape()]
-        assert c == self.n_channels
-        assert dm == self.dim_multiplier
-        assert h == self.filter_h and w == self.filter_w
 
-        _, _, cdm, k = [k.value for k in point_filter.get_shape()]
-        assert cdm == c * dm
-        assert k == self.n_components
-        # f = h * w
-        # D = np.ones((h, w, c * dm))
-        # P = np.ones((c * dm, k))
-
-        # D_prime = np.expand_dims(D, axis=3)
-        # D_prime = D.reshape((f, c * dm, 1))
-        # P_prime = np.expand_dims(P, axis=2)
-
-        # Q = D_prime.transpose((1, 0, 2)) @ P_prime.transpose((0, 2, 1))
-
-        depth_filter = tf.reshape(depth_filter, shape=(h * w, c * dm, 1))
+        depth_filter = tf.reshape(depth_filter, shape=(self.ph * self.pw, self.n_channels * self.dim_multiplier, 1))
         depth_filter = tf.transpose(depth_filter, perm=(1, 0, 2))
-        point_filter = tf.reshape(point_filter, shape=(cdm, k, 1))
+
+        point_filter = tf.reshape(point_filter, shape=(self.n_channels * self.dim_multiplier, self.n_components, 1))
         point_filter = tf.transpose(point_filter, perm=(0, 2, 1))
 
         q_tensor = tf.matmul(depth_filter, point_filter, name='Q')
-        print('Q', q_tensor.get_shape())
+        q_tensor = tf.reshape(q_tensor, shape=(self.n_channels, self.dim_multiplier,
+                                               self.ph * self.pw, self.n_components))
 
-        # Q_prime = Q.reshape(c, dm, f, k)
-        q_tensor = tf.reshape(q_tensor, shape=(c, dm, h * w, k))
-
-        # W = np.sum(Q_prime, axis=1)
-        # W = W.reshape((c * f, k))
         w_tensor = tf.reduce_sum(q_tensor, axis=1, name='W')
-        w_tensor = tf.reshape(w_tensor, shape=(c * h * w, k))
-        print('W', w_tensor.get_shape())
+        w_tensor = tf.reshape(w_tensor, shape=(self.n_channels * self.ph * self.pw, self.n_components))
 
         return w_tensor
 
     def validate_w_build(self, prev_ckpt):
 
-        log_path = self.load_path
-        ph, pw = self.filter_dims
-
         with tf.Graph().as_default() as graph:
             with tf.variable_scope(self.name):
-                x_init = np.random.normal(size=(1, ph, pw, self.n_channels))
+                x_init = np.random.normal(size=(1, self.ph, self.pw, self.n_channels))
                 x_patch = tf.constant(x_init, dtype=tf.float32, name='x_flat')
                 x_flat = tf.reshape(tf.transpose(x_patch, perm=(0, 3, 1, 2)), shape=(1, self.n_features_white))
 
-                depth_filter = tf.get_variable('depth_filter', shape=[self.filter_h, self.filter_w,
+                depth_filter = tf.get_variable('depth_filter', shape=[self.ph, self.pw,
                                                                       self.n_channels, self.dim_multiplier])
 
                 point_filter = tf.get_variable('point_filter', shape=[1, 1, self.n_channels * self.dim_multiplier,
                                                                       self.n_components])
 
                 w_mat = self.get_w_tensor(depth_filter, point_filter)
-
                 xw_mat_based = tf.squeeze(tf.matmul(x_flat, w_mat))
 
                 xw_conv_based = tf.squeeze(tf.nn.separable_conv2d(x_patch, depth_filter, point_filter,
                                                                   strides=(1, 1, 1, 1), padding='VALID'))
-
 
                 print('mat ', xw_mat_based.get_shape())
                 print('conv', xw_conv_based.get_shape())
@@ -315,7 +285,7 @@ class FoESeparablePrior(FoEFullPrior):
                     sess.run(tf.global_variables_initializer())
 
                     if prev_ckpt:
-                        checkpoint_file = os.path.join(log_path, 'ckpt')
+                        checkpoint_file = os.path.join(self.load_path, 'ckpt')
                         prev_path = self.load_path + 'ckpt-' + str(prev_ckpt)
                         saver.restore(sess, prev_path)
 
@@ -326,3 +296,29 @@ class FoESeparablePrior(FoEFullPrior):
                     print(xw_conv[:30])
                     print(xw_mat / xw_conv)
                     print(np.max(np.abs(xw_mat / xw_conv - 1)))
+
+    def load_filters_for_plotting(self):
+        with tf.Graph().as_default():
+
+            with tf.variable_scope(self.name):
+                n_features_raw = self.ph * self.pw * self.n_channels
+                unwhitening_tensor = tf.get_variable('unwhiten_mat', shape=[self.n_features_white, n_features_raw],
+                                                     dtype=tf.float32, trainable=False)
+                depth_filter = tf.get_variable('depth_filter', shape=[self.ph, self.pw,
+                                                                      self.n_channels, self.dim_multiplier])
+
+                point_filter = tf.get_variable('point_filter', shape=[1, 1, self.n_channels * self.dim_multiplier,
+                                                                      self.n_components])
+
+                ica_a = tf.get_variable(shape=[self.n_components, 1], dtype=tf.float32, name='ica_a',
+                                        initializer=tf.random_normal_initializer())
+
+                ica_w = self.get_w_tensor(depth_filter, point_filter)
+            self.var_list = [unwhitening_tensor, ica_a, depth_filter, point_filter]
+            fetch_list = [unwhitening_tensor, ica_a, ica_w]
+
+            with tf.Session() as sess:
+                self.load_weights(sess)
+                unwhitening_mat, a_mat, w_mat = sess.run(fetch_list)
+
+            return unwhitening_mat, a_mat, w_mat

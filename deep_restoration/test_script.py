@@ -25,20 +25,20 @@ from modules.loss_modules import VggScoreLoss
 #     scores.append((idx,score))
 # print(scores)
 
-p = FoEChannelwisePrior('rgb_scaled:0', 1e-10, 'alexnet', [8, 8], 1.0, n_components=200, n_channels=3,
-                        n_features_white=8**2-1, dist='student', mean_mode='gc', sdev_mode='gc',
-                        trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
-
-p.train_prior(batch_size=500, n_iterations=15000, lr=3e-5,
-              lr_lower_points=((0, 1e-0), (1000, 1e-1),
-                               (2000, 3e-2),
-                               (3000, 1e-2), (4000, 3e-3), (5000, 1e-3),
-                               (8000, 1e-4), (10000, 3e-5), (13000, 1e-5),),
-              grad_clip=1e+100,
-              whiten_mode='pca', n_data_samples=100000, n_val_samples=1000,
-              log_freq=1000, summary_freq=10, print_freq=100,
-              prev_ckpt=0,
-              optimizer_name='adam', plot_filters=True, do_clip=True)
+# p = FoEChannelwisePrior('rgb_scaled:0', 1e-10, 'alexnet', [8, 8], 1.0, n_components=200, n_channels=3,
+#                         n_features_white=8**2-1, dist='student', mean_mode='gc', sdev_mode='gc',
+#                         trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
+#
+# p.train_prior(batch_size=500, n_iterations=15000, lr=3e-5,
+#               lr_lower_points=((0, 1e-0), (1000, 1e-1),
+#                                (2000, 3e-2),
+#                                (3000, 1e-2), (4000, 3e-3), (5000, 1e-3),
+#                                (8000, 1e-4), (10000, 3e-5), (13000, 1e-5),),
+#               grad_clip=1e+100,
+#               whiten_mode='pca', n_data_samples=100000, n_val_samples=1000,
+#               log_freq=1000, summary_freq=10, print_freq=100,
+#               prev_ckpt=0,
+#               optimizer_name='adam', plot_filters=True, do_clip=True)
 
 # img_prior = FoEFullPrior(tensor_names='rgb_scaled/read:0',
 #                          weighting=1e-7, name='ICAPrior',
@@ -49,8 +49,8 @@ p.train_prior(batch_size=500, n_iterations=15000, lr=3e-5,
 #                          load_tensor_names = 'image')
 #
 # img_prior.train_prior(10, 0, plot_filters=True, prev_ckpt=13000)
-# hw = 9
-# wmode = 'zca'
+hw = 9
+wmode = 'pca'
 # make_flattened_patch_data(100000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_white=hw**2*3,
 #                           whiten_mode=wmode, batch_size=100,
 #                           mean_mode='gc', sdev_mode='gc')
@@ -63,25 +63,31 @@ p.train_prior(batch_size=500, n_iterations=15000, lr=3e-5,
 #                  n_features_white=hw**2*3, dist='student', mean_mode='gc', sdev_mode='gc',
 #                  trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
-# p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=600, n_channels=3,
-#                       n_features_white=hw**2*3, dim_multiplier=500, dist='student', mean_mode='gc', sdev_mode='gc',
-#                       trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
-#
-# p.train_prior(batch_size=500, n_iterations=15000, lr=3e-5,
-#               lr_lower_points=(# (0, 1e-0), (1000, 1e-1),
-#                                (0, 3e-2),
-#                                (1000, 1e-2), (3000, 3e-3), (5000, 1e-3),
-#                                (8000, 1e-4), (10000, 3e-5), (13000, 1e-5),),
-#               grad_clip=1e+100,
-#               whiten_mode=wmode, n_data_samples=100000, n_val_samples=1000,
-#               log_freq=1000, summary_freq=10, print_freq=100,
-#               prev_ckpt=0,
-#               optimizer_name='adam', plot_filters=True, do_clip=True)
+p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=600, n_channels=3,
+                      n_features_white=hw**2*3, dim_multiplier=500, dist='student', mean_mode='gc', sdev_mode='gc',
+                      trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
+
+p.train_prior(batch_size=500, n_iterations=10000, lr=3e-5,
+              lr_lower_points=((0, 1e-0), (1000, 1e-1),
+                               (0, 3e-2),
+                               (1000, 1e-2), (3000, 3e-3), (5000, 1e-3),
+                               (0, 1e-4), (4000, 3e-5), (8000, 1e-5), (10000, 3e-6)),
+              grad_clip=1e+100,
+              whiten_mode=wmode, n_data_samples=100000, n_val_samples=1000,
+              log_freq=1000, summary_freq=10, print_freq=100,
+              prev_ckpt=0,
+              optimizer_name='adam', plot_filters=True, do_clip=True)
+
+# p.plot_filters_top_alphas(7, p.load_path + 'filter_vis/a_top/')
+# p.plot_channels_top_filters(range(7), p.load_path + 'filter_vis/c_top/')
 
 # p.validate_w_build(prev_ckpt=0)
 
+# make_channel_separate_patch_data(10000, 13, 13, 'alexnet', 'rgb_scaled:0', 3, whiten_mode='pca',
+#                                  raw_mat_load_path='../data/patches/image/13x13_mean_gc_sdev_gc_channelwise/raw_mat.npy')
+
 # show_patches_by_channel('/home/frederik/PycharmProjects/deep_restoration/data/patches/image/13x13_mean_gc_sdev_gc_channelwise/',
-#                         'data_mat_zca_whitened_channelwise.npy', 10000, 13, 13, 3, plot_patches=range(10))
+#                         'raw_mat.npy', 10000, 13, 13, 3, plot_patches=range(10))
 
 # c1l_prior = FoEFullPrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
 #                          filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,

@@ -13,8 +13,8 @@ class FoEPrior(FoEFullPrior):
                          mean_mode=mean_mode, sdev_mode=sdev_mode, load_tensor_names=load_tensor_names)
 
     @staticmethod
-    def score_matching_loss(x_mat, w_mat, alpha):
-        return student_full_score_matching_loss(x_mat, w_mat, alpha)
+    def score_matching_loss(x_mat, ica_w, ica_a):
+        return student_full_score_matching_loss(x_mat, ica_w, ica_a)
         # const_T = x_mat.get_shape()[0].value
         # xw_mat = tf.matmul(x_mat, w_mat)
         # xw_square_mat = tf.square(xw_mat)
@@ -31,8 +31,8 @@ class FoEPrior(FoEFullPrior):
         # return term_1 + term_2, term_1, term_2
 
     @staticmethod
-    def mrf_loss(xw, ica_a_squeezed):
-        return student_full_mrf_loss(xw, ica_a_squeezed)
+    def mrf_loss(xw, ica_a_flat):
+        return student_full_mrf_loss(xw, ica_a_flat)
         # neg_g_wx = tf.log(1.0 + 0.5 * tf.square(xw)) * ica_a_squeezed
         # neg_log_p_patches = tf.reduce_sum(neg_g_wx, axis=1)
         # return tf.reduce_mean(neg_log_p_patches, name='loss')

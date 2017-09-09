@@ -1,6 +1,6 @@
 import tensorflow as tf
-import os
-from modules.core_modules import Module
+
+from modules.core_modules import TrainedModule
 
 
 # spec1 = dict(op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1], op1_pad='SAME',
@@ -8,37 +8,6 @@ from modules.core_modules import Module
 #              hidden_channels=256, target_shape=[28, 28, 256],
 #              inv_input_name='pool3:0', inv_target_name='conv3_3/relu:0',
 #              rec_name='conv3_3_rec')
-
-
-class TrainedModule(Module):
-
-    def __init__(self, tensor_names, name, load_path, trainable):
-        super().__init__(tensor_names)
-        self.name = name
-        self.load_path = load_path
-        self.trainable = trainable
-        self.var_list = []
-
-    def load_weights(self, session):
-        loader = tf.train.Saver(var_list=self.var_list)
-        with open(os.path.join(self.load_path, 'checkpoint')) as f:
-            ckpt = f.readline().split('"')[1]
-            print('For module {0}: loading weights from {1}'.format(self.name, ckpt))
-        loader.restore(session, os.path.join(self.load_path, ckpt))
-
-    def save_weights(self, session, step):
-        if not os.path.exists(self.load_path):
-            os.makedirs(self.load_path)
-
-        saver = tf.train.Saver(var_list=self.var_list)
-        checkpoint_file = os.path.join(self.load_path, 'ckpt')
-        saver.save(session, checkpoint_file, global_step=step, write_meta_graph=False)
-
-    def build(self, scope_suffix=''):
-        raise NotImplementedError
-
-    def is_trainable(self):
-        return self.trainable
 
 
 class InversionModule(TrainedModule):

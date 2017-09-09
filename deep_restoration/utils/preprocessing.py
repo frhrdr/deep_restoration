@@ -51,7 +51,7 @@ def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_chann
 
 
 def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, n_channels,
-                                     whiten_mode='pca', batch_size=100,
+                                     whiten_mode='pca', batch_size=100, n_dims_to_drop=0,
                                      mean_mode='global_channel', sdev_mode='global_channel',
                                      raw_mat_load_path=''):
     """
@@ -79,7 +79,8 @@ def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, 
     cov = channel_independent_cov_acc(norm_mat, save_dir)
     print('cov done')
 
-    channel_whiten, channel_unwhiten = channel_independent_whitening_mats(cov, whiten_mode, save_dir)
+    channel_whiten, channel_unwhiten = channel_independent_whitening_mats(cov, whiten_mode, save_dir,
+                                                                          n_dims_to_drop=n_dims_to_drop)
     print('whitening mats done')
 
     data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_whitened_channelwise.npy', dtype=np.float32, mode='w+',
