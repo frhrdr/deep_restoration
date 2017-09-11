@@ -105,8 +105,14 @@ class NetInversion:
                     images.append(image)
                 mat = np.stack(images, axis=0)
             else:
-                batch_paths = [data_path + 'images_resized/' +
-                               k[:-len('JPEG')] + 'bmp' for k in batch_files]
+                if self.classifier.lower() == 'alexnet':
+                    subdir = 'images_resized_227/'
+                elif self.classifier.lower() == 'vgg16':
+                    subdir = 'images_resized_224/'
+                else:
+                    raise NotImplementedError
+
+                batch_paths = [data_path + subdir + k[:-len('JPEG')] + 'bmp' for k in batch_files]
                 images = []
                 for img_path in batch_paths:
                     image = load_image(img_path, resize=False)

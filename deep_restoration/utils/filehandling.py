@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-DATA_PATH = './data/imagenet2012-validationset/'
+DATA_PATH = '../data/imagenet2012-validationset/'
 # DATA_PATH = './data/selected/'
 
 
@@ -129,14 +129,14 @@ def save_dict(d, file_path):
         f.writelines(lines)
 
 
-def resize_all_images(img_file='images.txt', source_dir='images', target_dir='images_resized'):
+def resize_all_images(target_resolution, target_dir, img_file='images.txt', source_dir='images'):
     with open(DATA_PATH + img_file) as f:
         image_files = [k.rstrip() for k in f.readlines()]
         count = 0
         for img_file in image_files:
             target_file = DATA_PATH + target_dir + '/' + img_file[:-len('JPEG')] + 'bmp'
             if not os.path.isfile(target_file):
-                image = load_image(DATA_PATH + source_dir + '/' + img_file, resize=True)
+                image = load_image(DATA_PATH + source_dir + '/' + img_file, res=target_resolution, resize=True)
                 if len(image.shape) == 2:
                     image = grey2rgb(image)
                 with warnings.catch_warnings():

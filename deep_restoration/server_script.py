@@ -1,26 +1,29 @@
 from utils.preprocessing import make_flattened_patch_data, add_flattened_validation_set, \
     make_channel_separate_patch_data
+from utils.filehandling import resize_all_images
 from modules.foe_full_prior import FoEFullPrior
 from modules.foe_channelwise_prior import FoEChannelwisePrior
 
-make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv2/lin:0',
-                          n_channels=256,
-                          n_feats_white=16384, whiten_mode='pca', batch_size=100,
-                          mean_mode='gc', sdev_mode='gc',
-                          raw_mat_load_path='')
+resize_all_images((227, 227), 'images_resized_227')
 
-add_flattened_validation_set(num_patches=1000, ph=8, pw=8, classifier='alexnet', map_name='conv2/lin:0',
-                             n_channels=256, n_feats_white=16384, whiten_mode='pca', batch_size=100,
-                             mean_mode='gc', sdev_mode='gc')
-
-make_channel_separate_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv2/lin:0',
-                                 n_channels=256, whiten_mode='pca', batch_size=100,
-                                 mean_mode='gc', sdev_mode='gc',
-                                 raw_mat_load_path='')
-
-prior = FoEChannelwisePrior(tensor_names='conv2/lin:0', weighting=1e-10, classifier='alexnet',
-                            filter_dims=[8, 8], input_scaling=1.0, n_components=200, n_channels=256,
-                            n_features_white=63, dist='logistic', mean_mode='gc', sdev_mode='gc')
+# make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv2/lin:0',
+#                           n_channels=256,
+#                           n_feats_white=16384, whiten_mode='pca', batch_size=100,
+#                           mean_mode='gc', sdev_mode='gc',
+#                           raw_mat_load_path='')
+#
+# add_flattened_validation_set(num_patches=1000, ph=8, pw=8, classifier='alexnet', map_name='conv2/lin:0',
+#                              n_channels=256, n_feats_white=16384, whiten_mode='pca', batch_size=100,
+#                              mean_mode='gc', sdev_mode='gc')
+#
+# make_channel_separate_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv2/lin:0',
+#                                  n_channels=256, whiten_mode='pca', batch_size=100,
+#                                  mean_mode='gc', sdev_mode='gc',
+#                                  raw_mat_load_path='')
+#
+# prior = FoEChannelwisePrior(tensor_names='conv2/lin:0', weighting=1e-10, classifier='alexnet',
+#                             filter_dims=[8, 8], input_scaling=1.0, n_components=200, n_channels=256,
+#                             n_features_white=63, dist='logistic', mean_mode='gc', sdev_mode='gc')
 
 # prior = FoEFullPrior(tensor_names='conv2/lin:0', weighting=1e-10, classifier='alexnet',
 #                      filter_dims=[8, 8], input_scaling=1.0, n_components=1000, n_channels=3,
