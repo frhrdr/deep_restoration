@@ -1,5 +1,5 @@
 from utils.preprocessing import make_channel_separate_patch_data, make_flattened_patch_data, \
-    add_flattened_validation_set
+    add_flattened_validation_set, add_channelwise_validation_set
 from utils.temp_utils import show_patches_by_channel
 from modules.foe_separable_prior import FoESeparablePrior
 from modules.foe_full_prior import FoEFullPrior
@@ -50,7 +50,7 @@ from modules.loss_modules import VggScoreLoss
 #
 # img_prior.train_prior(10, 0, plot_filters=True, prev_ckpt=13000)
 hw = 9
-wmode = 'pca'
+wmode = 'zca'
 # make_flattened_patch_data(100000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_white=hw**2*3,
 #                           whiten_mode=wmode, batch_size=100,
 #                           mean_mode='gc', sdev_mode='gc')
@@ -59,29 +59,37 @@ wmode = 'pca'
 #                              n_channels=3, n_feats_white=hw**2*3, whiten_mode=wmode, batch_size=100,
 #                              mean_mode='gc', sdev_mode='gc')
 
-# p = FoEFullPrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=600, n_channels=3,
-#                  n_features_white=hw**2*3, dist='student', mean_mode='gc', sdev_mode='gc',
+# p = FoEFullPrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=500, n_channels=3,
+#                  n_features_white=hw**2*3-1, dist='student', mean_mode='gc', sdev_mode='gc',
 #                  trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
-p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=600, n_channels=3,
-                      n_features_white=hw**2*3, dim_multiplier=500, dist='student', mean_mode='gc', sdev_mode='gc',
-                      trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None)
+# make_channel_separate_patch_data(100000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_per_channel_white=hw*hw,
+#                                  whiten_mode=wmode, batch_size=100, mean_mode='gc', sdev_mode='gc')
+#
+# add_channelwise_validation_set(1000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_per_channel_white=hw*hw,
+#                                whiten_mode=wmode, batch_size=100,
+#                                mean_mode='global_channel', sdev_mode='global_channel')
 
-p.train_prior(batch_size=500, n_iterations=10000, lr=3e-5,
-              lr_lower_points=((0, 1e-0), (1000, 1e-1),
-                               (0, 3e-2),
-                               (1000, 1e-2), (3000, 3e-3), (5000, 1e-3),
-                               (0, 1e-4), (4000, 3e-5), (8000, 1e-5), (10000, 3e-6)),
-              grad_clip=1e+100,
-              whiten_mode=wmode, n_data_samples=100000, n_val_samples=1000,
-              log_freq=1000, summary_freq=10, print_freq=100,
-              prev_ckpt=0,
-              optimizer_name='adam', plot_filters=True, do_clip=True)
+p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=600, n_channels=3,
+                      n_features_white=hw**2*3, dim_multiplier=100,
+                      dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,
+                      name=None, load_name=None, dir_name=None, load_tensor_names=None)
+
+# p.train_prior(batch_size=500, n_iterations=10000, lr=3e-5,
+#               lr_lower_points=((0, 1e-0), (5000, 1e-1),
+#                                (6000, 3e-2),
+#                                (7000, 1e-2), (7500, 3e-3), (8000, 1e-3),
+#                                (9000, 1e-4), (9500, 3e-5), (10000, 1e-5), (11000, 3e-6)),
+#               grad_clip=1e+100,
+#               n_data_samples=100000, n_val_samples=1000,
+#               log_freq=1000, summary_freq=10, print_freq=100,
+#               prev_ckpt=0,
+#               optimizer_name='adam', plot_filters=True)
 
 # p.plot_filters_top_alphas(7, p.load_path + 'filter_vis/a_top/')
 # p.plot_channels_top_filters(range(7), p.load_path + 'filter_vis/c_top/')
 
-# p.validate_w_build(prev_ckpt=0)
+p.validate_w_build(prev_ckpt=0, whiten=True)
 
 # make_channel_separate_patch_data(10000, 13, 13, 'alexnet', 'rgb_scaled:0', 3, whiten_mode='pca',
 #                                  raw_mat_load_path='../data/patches/image/13x13_mean_gc_sdev_gc_channelwise/raw_mat.npy')

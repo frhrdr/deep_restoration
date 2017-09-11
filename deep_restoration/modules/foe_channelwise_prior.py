@@ -3,7 +3,7 @@ import numpy as np
 import time
 import os
 from modules.foe_full_prior import FoEFullPrior
-from utils.temp_utils import patch_batch_gen, plot_img_mats, get_optimizer
+from utils.temp_utils import plot_img_mats, get_optimizer
 from utils.preprocessing import make_data_dir
 from utils.patch_prior_losses import logistic_channelwise_mrf_loss, logistic_channelwise_score_matching_loss, \
     student_channelwise_mrf_loss, student_channelwise_score_matching_loss
@@ -16,13 +16,12 @@ class FoEChannelwisePrior(FoEFullPrior):
     """
 
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                 n_features_white, dist='logistic', mean_mode='gc', sdev_mode='gc',
-                 trainable=False, name=None, load_name=None, dir_name=None, load_tensor_names=None):
+                 n_features_white, dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
+                 name=None, load_name=None, dir_name=None, load_tensor_names=None):
 
         super().__init__(tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                         n_features_white, dist=dist, mean_mode=mean_mode, sdev_mode=sdev_mode, trainable=trainable,
+                         n_features_white, dist=dist, mean_mode=mean_mode, sdev_mode=sdev_mode, whiten_mode=whiten_mode,
                          name=name, load_name=load_name, dir_name=dir_name, load_tensor_names=load_tensor_names)
-
 
     @staticmethod
     def assign_names(dist, name, load_name, dir_name, load_tensor_names, tensor_names):
@@ -57,9 +56,11 @@ class FoEChannelwisePrior(FoEFullPrior):
 
     def make_normed_filters(self, trainable, squeeze_alpha, add_to_var_list=True):
         ica_a = tf.get_variable('ica_a', shape=[self.n_channels, self.n_components, 1],
-                                trainable=trainable, dtype=tf.float32)
+                                trainable=trainable, dtype=tf.float32,
+                                initializer=tf.random_normal_initializer())
         ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_white, self.n_components],
-                                trainable=trainable, dtype=tf.float32)
+                                trainable=trainable, dtype=tf.float32,
+                                initializer=tf.random_normal_initializer(stddev=0.00001))
         if add_to_var_list:
             self.var_list.extend([ica_a, ica_w])
         ica_w = ica_w / tf.stack([tf.norm(ica_w, ord=2, axis=1)] * self.n_features_white, axis=1)
@@ -71,15 +72,15 @@ class FoEChannelwisePrior(FoEFullPrior):
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
 
-            n_feats_per_channel = self.ph * self.pw
             whitening_tensor = tf.get_variable('whiten_mat',
-                                               shape=[self.n_channels, self.n_features_white, n_feats_per_channel],
+                                               shape=[self.n_channels, self.n_features_white, self.ph * self.pw],
                                                dtype=tf.float32, trainable=False)
-            ica_a = tf.get_variable('ica_a', shape=[self.n_channels, self.n_components, 1],
-                                    trainable=self.trainable, dtype=tf.float32)
-            ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_white, self.n_components],
-                                    trainable=self.trainable, dtype=tf.float32)
-            ica_a_squeezed = tf.squeeze(ica_a)
+            # ica_a = tf.get_variable('ica_a', shape=[self.n_channels, self.n_components, 1],
+            #                         trainable=self.trainable, dtype=tf.float32)
+            # ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_white, self.n_components],
+            #                         trainable=self.trainable, dtype=tf.float32)
+            # ica_a_squeezed = tf.squeeze(ica_a)
+            ica_a, ica_w = self.make_normed_filters(trainable=False, squeeze_alpha=True)
 
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
 
@@ -99,10 +100,10 @@ class FoEChannelwisePrior(FoEFullPrior):
                 xw = tf.transpose(xw, perm=[1, 0, 2])
 
             else:
-                normed_patches = self.shape_and_norm_tensor() # shape [n_patches, n_channels, n_feats_per_channel]
+                normed_patches = self.shape_and_norm_tensor()  # shape [n_patches, n_channels, n_feats_per_channel]
                 xw = tf.matmul(tf.transpose(normed_patches, perm=[1, 0, 2]), whitened_mixing)
 
-            self.loss = self.mrf_loss(xw, ica_a_squeezed)
+            self.loss = self.mrf_loss(xw, ica_a)
             self.var_list.extend([ica_a, ica_w, whitening_tensor])
 
     def score_matching_loss(self, x_mat, ica_w, ica_a):
@@ -114,7 +115,7 @@ class FoEChannelwisePrior(FoEFullPrior):
             raise NotImplementedError
 
     def train_prior(self, batch_size, n_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
-                    whiten_mode='pca', n_data_samples=100000,
+                    n_data_samples=100000,
                     n_val_samples=0,
                     log_freq=5000, summary_freq=10, print_freq=100, test_freq=0, prev_ckpt=0,
                     optimizer_name='adam',
@@ -127,29 +128,31 @@ class FoEChannelwisePrior(FoEFullPrior):
                                  n_features_white=self.n_features_white,
                                  classifier=self.classifier).rstrip('/') + '_channelwise/'
 
-        data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
-                                   data_shape=(n_data_samples, self.n_channels, self.n_features_white))
+        data_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_data_samples, data_mode='train')
+
+        val_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_data_samples, data_mode='validate')
 
         with tf.Graph().as_default() as graph:
             with tf.variable_scope(self.name):
-                self.add_preprocessing_to_graph(data_dir, whiten_mode)
+                self.add_preprocessing_to_graph(data_dir, self.whiten_mode)
 
                 x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_channels, self.n_features_white],
                                       name='x_pl')
                 x_tsr = tf.transpose(x_pl, perm=[1, 0, 2], name='x_mat')
                 lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
 
-                ica_w = tf.get_variable(shape=[self.n_channels, self.n_features_white, self.n_components],
-                                        dtype=tf.float32, name='ica_w',
-                                        initializer=tf.random_normal_initializer(stddev=0.00001))
-                ica_a = tf.get_variable(shape=[self.n_channels, self.n_components, 1], dtype=tf.float32,
-                                        name='ica_a', initializer=tf.random_normal_initializer())
+                # ica_w = tf.get_variable(shape=[self.n_channels, self.n_features_white, self.n_components],
+                #                         dtype=tf.float32, name='ica_w',
+                #                         initializer=tf.random_normal_initializer(stddev=0.00001))
+                # ica_a = tf.get_variable(shape=[self.n_channels, self.n_components, 1], dtype=tf.float32,
+                #                         name='ica_a', initializer=tf.random_normal_initializer())
+                ica_a, ica_w = self.make_normed_filters(trainable=True, squeeze_alpha=False)
 
                 loss, term_1, term_2 = self.score_matching_loss(x_mat=x_tsr, ica_w=ica_w, ica_a=ica_a)
 
-                w_norm = tf.norm(ica_w, ord=2, axis=1)
-                w_norm = tf.stack([tf.norm(ica_w, ord=2, axis=1)] * self.n_features_white, axis=1)
-                clip_op = tf.assign(ica_w, ica_w / w_norm)
+                # w_norm = tf.norm(ica_w, ord=2, axis=1)
+                # w_norm = tf.stack([tf.norm(ica_w, ord=2, axis=1)] * self.n_features_white, axis=1)
+                # clip_op = tf.assign(ica_w, ica_w / w_norm)
                 opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
 
                 tvars = tf.trainable_variables()
@@ -184,9 +187,7 @@ class FoEChannelwisePrior(FoEFullPrior):
                         prev_path = self.load_path + 'ckpt-' + str(prev_ckpt)
                         saver.restore(sess, prev_path)
 
-                    sess.run(clip_op)
-                    # plot_img_mats(whiten_mat[0, :, :].reshape([-1, 8, 8]), color=False, rescale=True)
-                    # print(whiten_mat[0, :, :] @ unwhiten_mat[0, :, :].T)
+                    # sess.run(clip_op)
                     start_time = time.time()
                     train_time = 0
                     for count in range(prev_ckpt + 1, prev_ckpt + n_iterations + 1):
@@ -200,7 +201,7 @@ class FoEChannelwisePrior(FoEFullPrior):
                         batch_start = time.time()
                         batch_loss, _, summary_string = sess.run(fetches=[loss, opt_op, train_summary_op],
                                                                  feed_dict={x_pl: data, lr_pl: lr})
-                        sess.run(clip_op)
+                        # sess.run(clip_op)
                         train_time += time.time() - batch_start
 
                         if count % summary_freq == 0:
@@ -227,7 +228,7 @@ class FoEChannelwisePrior(FoEFullPrior):
                     saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=n_iterations)
 
                     if plot_filters:
-                        unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
+                        unwhiten_mat = np.load(data_dir + 'unwhiten_' + self.whiten_mode + '.npy').astype(np.float32)
                         w_res, alp = sess.run([ica_w, ica_a])
                         print(alp)
                         comps = np.dot(w_res[0, :, :].T, unwhiten_mat[0, :, :])
@@ -285,3 +286,33 @@ class FoEChannelwisePrior(FoEFullPrior):
                 plottable_filters /= np.max(plottable_filters)
                 plot_img_mats(plottable_filters, rescale=False, show=False, save_path=save_path + file_name)
                 print('channel {} done'.format(channel_id))
+
+    def patch_batch_gen(self, batch_size, data_dir, n_samples, data_mode='train'):
+        assert data_mode in ('train', 'validate')
+
+        if data_mode == 'train':
+            data_mat = np.memmap(data_dir + 'data_mat_' + self.whiten_mode + '_whitened_channelwise.npy',
+                                 dtype=np.float32, mode='r', shape=(n_samples, self.n_channels, self.ph * self.pw))
+
+            idx = 0
+            while True:
+                if idx + batch_size < n_samples:
+                    batch = data_mat[idx:(idx + batch_size), :, :]
+                    idx += batch_size
+                else:
+                    last_bit = data_mat[idx:, :, :]
+                    idx = (idx + batch_size) % n_samples
+                    first_bit = data_mat[:idx, :, :]
+                    batch = np.concatenate((last_bit, first_bit), axis=0)
+                yield batch
+        else:
+            data_mat = np.load(data_dir + 'val_mat.npy')
+            assert data_mat.shape[0] == n_samples, 'expected {}, found {}'.format(n_samples, data_mat.shape[0])
+            assert n_samples % batch_size == 0
+
+            idx = 0
+            while True:
+                batch = data_mat[idx:(idx + batch_size), :, :]
+                idx += batch_size
+                idx = idx % n_samples
+                yield batch

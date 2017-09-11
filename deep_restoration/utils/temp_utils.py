@@ -61,7 +61,8 @@ def dep_make_cov_acc(data_dir='./data/patches_gray/8x8/'):
     np.save(data_dir + '/cov.npy', cov_acc)
 
 
-def dep_make_img_data_mats(num_patches, ph=8, pw=8, color=False, save_dir='./data/patches_gray/new8by8/', whiten_mode='pca'):
+def dep_make_img_data_mats(num_patches, ph=8, pw=8, color=False,
+                           save_dir='./data/patches_gray/new8by8/', whiten_mode='pca'):
     img_hw = 224
     max_h = img_hw - ph
     max_w = img_hw - pw
@@ -160,8 +161,8 @@ def patch_batch_gen(batch_size, data_dir, whiten_mode='pca',
     elif len(data_shape) == 2 and data_mode == 'validate':
         data_mat = np.load(data_dir + 'val_mat.npy')
         n_samples, n_features = data_shape
-        assert data_mat.shape[1] == n_features
-        assert data_mat.shape[0] == n_samples
+        assert data_mat.shape[1] == n_features, 'expected {}, found {}'.format(n_features, data_mat.shape[1])
+        assert data_mat.shape[0] == n_samples, 'expected {}, found {}'.format(n_samples, data_mat.shape[0])
         assert n_samples % batch_size == 0
 
         idx = 0
@@ -176,7 +177,6 @@ def patch_batch_gen(batch_size, data_dir, whiten_mode='pca',
         raise NotImplementedError
 
 
-
 def plot_img_mats(mat, color=False, rescale=False, show=True, save_path=''):
     """ plot l,m,n[,3] mats as l m by n gray-scale or color images """
     n = mat.shape[0]
@@ -185,7 +185,7 @@ def plot_img_mats(mat, color=False, rescale=False, show=True, save_path=''):
     if rescale:
         mat_min = np.min(mat.reshape([n, -1]), axis=1)
         mat_max = np.max(mat.reshape([n, -1]), axis=1)
-        mat = ((mat.transpose() - mat_min) / (mat_max- mat_min)).transpose()
+        mat = ((mat.transpose() - mat_min) / (mat_max - mat_min)).transpose()
     else:
         mat = np.maximum(mat, 0.0)
         mat = np.minimum(mat, 1.0)
@@ -246,7 +246,7 @@ def find_memmap_size(path, data_type=np.float32):
     ub = None
     lb = None
     size = 1
-    while ub == None:
+    while ub is None:
         try:
             np.memmap(path, dtype=data_type, mode='r',
                       shape=(size,))

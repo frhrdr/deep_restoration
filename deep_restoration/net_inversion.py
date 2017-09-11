@@ -48,7 +48,6 @@ class NetInversion:
 
         classifier.build_partial(in_tensor, in_tensor_name, rescale=1.0)
 
-
     def build_model(self):
         loss = 0
         for idx, mod in enumerate(self.modules):
@@ -119,7 +118,7 @@ class NetInversion:
                           range_b=80, jitter_t=0, optim_name='adam',
                           range_clip=False, save_as_plot=False, jitter_stop_point=-1, scale_pre_img=1.0,
                           pre_featmap_init=None, ckpt_offset=0,
-                          pre_featmap_name = 'input',
+                          pre_featmap_name='input',
                           tensor_names_to_save=(), featmap_names_to_plot=(), max_n_featmaps_to_plot=5):
         """
         like mahendran & vedaldi, optimizes pre-image based on a single other image
@@ -199,7 +198,8 @@ class NetInversion:
                         position_norm = tf.sqrt(tf.reduce_sum((pre_featmap - self.imagenet_mean) ** 2, axis=3))
                         box_rescale = tf.minimum(2 * range_b / position_norm, 1.)
                         box_rescale = tf.stack([box_rescale] * 3, axis=3)
-                        clip_op = tf.assign(pre_featmap, (pre_featmap - self.imagenet_mean) * box_rescale + self.imagenet_mean)
+                        clip_op = tf.assign(pre_featmap,
+                                            (pre_featmap - self.imagenet_mean) * box_rescale + self.imagenet_mean)
                     else:
                         clip_op = None
 
@@ -241,8 +241,7 @@ class NetInversion:
                             if save_as_plot:
                                 plot_mat = np.zeros(shape=(self.img_hw, 2 * self.img_hw, 3))
                                 plot_mat[:, :self.img_hw, :] = img_mat / 255.0
-                                rec_mat = (rec_mat - np.min(rec_mat)) / (
-                                np.max(rec_mat) - np.min(rec_mat))  # M&V just rescale
+                                rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))
                                 plot_mat[:, self.img_hw:, :] = rec_mat
 
                                 fig = plt.figure(frameon=False)
@@ -357,8 +356,7 @@ class NetInversion:
                             if isinstance(inv_mod, TrainedModule) and inv_mod.trainable is True:
                                 inv_mod.save_weights(sess, count)
 
-                    if test_freq > 0 and (count % test_freq == 0 or
-                                                         count == n_iterations):
+                    if test_freq > 0 and (count % test_freq == 0 or count == n_iterations):
                         val_batch_gen = self.get_batch_generator(batch_size, mode='validate')
                         val_loss_acc = 0.0
                         num_runs = test_set_size // batch_size + 1
@@ -380,86 +378,6 @@ class NetInversion:
                 sess_time = time.time() - start_time
                 train_ratio = 100.0 * train_time / sess_time
                 print('Session finished. {0:2.1f}% of the time spent in run calls'.format(train_ratio))
-
-    def visualize(self, num_images=7, rec_type='bgr_normed', file_name='img_vs_rec', ckpt_num=1000, add_diffs=True):
-        """
-        makes image file showing reconstrutions from a trained model
-        :param num_images: first n images from the data set are visualized
-        :param rec_type: details, which parts of network preprocessing need to be inverted
-        :param file_name: name of output file
-        :param ckpt_num: checkpoint to be loaded
-        :param add_diffs: if true, 2 extra visualizations are added
-        :return: None
-        """
-
-        actual_batch_size = None # batch_size
-        assert num_images <= actual_batch_size
-        batch_size = num_images
-
-        batch_gen = self.get_batch_generator(batch_size, mode='validate')
-
-        with tf.Graph().as_default() as graph:
-            with tf.Session() as sess:
-                img_pl = tf.placeholder(dtype=tf.float32,
-                                        shape=[batch_size, self.img_hw, self.img_hw, self.img_channels])
-                self.load_classifier(img_pl)
-                self.build_model()
-                saver = tf.train.Saver()
-
-                saver.restore(sess, self.log_path + 'ckpt-' + str(ckpt_num))
-                feed_dict = {img_pl: next(batch_gen)}
-                rec_tensor_name = 'module_' + str(len(self.inv_modules)) + '/reconstruction:0'
-                reconstruction = graph.get_tensor_by_name(rec_tensor_name)
-                rec_mat = sess.run(reconstruction, feed_dict=feed_dict)
-
-        batch_size = actual_batch_size
-
-        img_mat = feed_dict[img_pl] / 255.0
-
-        if rec_type == 'rgb_scaled':
-            rec_mat /= 255.0
-        elif rec_type == 'bgr_normed':
-            rec_mat = rec_mat[:, :, :, ::-1]
-            if self.classifier.lower() == 'vgg16':
-                rec_mat = rec_mat + self.imagenet_mean
-            elif self.classifier.lower() == 'alexnet':
-                rec_mat = rec_mat + np.mean(self.imagenet_mean)
-            else:
-                raise NotImplementedError
-            rec_mat /= 255.0
-        else:
-            raise NotImplementedError
-
-        print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
-        rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
-
-        if add_diffs:
-            cols = 4
-        else:
-            cols = 2
-
-        plot_mat = np.zeros(shape=(rec_mat.shape[0]*rec_mat.shape[1], rec_mat.shape[2]*cols, 3))
-        for idx in range(rec_mat.shape[0]):
-            h = rec_mat.shape[1]
-            w = rec_mat.shape[2]
-            plot_mat[idx * h:(idx + 1) * h, :w, :] = img_mat[idx, :, :, :]
-            plot_mat[idx * h:(idx + 1) * h, w:2 * w, :] = rec_mat[idx, :, :, :]
-            if add_diffs:
-                diff = img_mat[idx, :, :, :] - rec_mat[idx, :, :, :]
-                diff -= np.min(diff)
-                diff /= np.max(diff)
-                plot_mat[idx * h:(idx + 1) * h, 2 * w:3 * w, :] = diff
-                abs_diff = np.abs(rec_mat[idx, :, :, :] - img_mat[idx, :, :, :])
-                abs_diff /= np.max(abs_diff)
-                plot_mat[idx * h:(idx + 1) * h, 3 * w:, :] = abs_diff
-
-        fig = plt.figure(frameon=False)
-        fig.set_size_inches(cols, num_images)
-        ax = plt.Axes(fig, [0., 0., 1., 1.])
-        ax.set_axis_off()
-        fig.add_axes(ax)
-        ax.imshow(plot_mat, aspect='auto')
-        plt.savefig(self.log_path + file_name + '.png', format='png', dpi=224)
 
     def get_target_featmap(self, target_image_mat, target_map_name):
         if target_map_name == 'input':
@@ -494,3 +412,83 @@ class NetInversion:
                 fetched_mats = sess.run(tensors_to_fetch)
 
         return fetched_mats
+
+    # def visualize(self, num_images=7, rec_type='bgr_normed', file_name='img_vs_rec', ckpt_num=1000, add_diffs=True):
+    #     """
+    #     makes image file showing reconstrutions from a trained model
+    #     :param num_images: first n images from the data set are visualized
+    #     :param rec_type: details, which parts of network preprocessing need to be inverted
+    #     :param file_name: name of output file
+    #     :param ckpt_num: checkpoint to be loaded
+    #     :param add_diffs: if true, 2 extra visualizations are added
+    #     :return: None
+    #     """
+    #
+    #     actual_batch_size = None  # batch_size
+    #     assert num_images <= actual_batch_size
+    #     batch_size = num_images
+    #
+    #     batch_gen = self.get_batch_generator(batch_size, mode='validate')
+    #
+    #     with tf.Graph().as_default() as graph:
+    #         with tf.Session() as sess:
+    #             img_pl = tf.placeholder(dtype=tf.float32,
+    #                                     shape=[batch_size, self.img_hw, self.img_hw, self.img_channels])
+    #             self.load_classifier(img_pl)
+    #             self.build_model()
+    #             saver = tf.train.Saver()
+    #
+    #             saver.restore(sess, self.log_path + 'ckpt-' + str(ckpt_num))
+    #             feed_dict = {img_pl: next(batch_gen)}
+    #             rec_tensor_name = 'module_' + str(len(self.inv_modules)) + '/reconstruction:0'
+    #             reconstruction = graph.get_tensor_by_name(rec_tensor_name)
+    #             rec_mat = sess.run(reconstruction, feed_dict=feed_dict)
+    #
+    #     batch_size = actual_batch_size
+    #
+    #     img_mat = feed_dict[img_pl] / 255.0
+    #
+    #     if rec_type == 'rgb_scaled':
+    #         rec_mat /= 255.0
+    #     elif rec_type == 'bgr_normed':
+    #         rec_mat = rec_mat[:, :, :, ::-1]
+    #         if self.classifier.lower() == 'vgg16':
+    #             rec_mat = rec_mat + self.imagenet_mean
+    #         elif self.classifier.lower() == 'alexnet':
+    #             rec_mat = rec_mat + np.mean(self.imagenet_mean)
+    #         else:
+    #             raise NotImplementedError
+    #         rec_mat /= 255.0
+    #     else:
+    #         raise NotImplementedError
+    #
+    #     print('reconstruction min and max vals: ' + str(rec_mat.min()) + ', ' + str(rec_mat.max()))
+    #     rec_mat = np.minimum(np.maximum(rec_mat, 0.0), 1.0)
+    #
+    #     if add_diffs:
+    #         cols = 4
+    #     else:
+    #         cols = 2
+    #
+    #     plot_mat = np.zeros(shape=(rec_mat.shape[0]*rec_mat.shape[1], rec_mat.shape[2]*cols, 3))
+    #     for idx in range(rec_mat.shape[0]):
+    #         h = rec_mat.shape[1]
+    #         w = rec_mat.shape[2]
+    #         plot_mat[idx * h:(idx + 1) * h, :w, :] = img_mat[idx, :, :, :]
+    #         plot_mat[idx * h:(idx + 1) * h, w:2 * w, :] = rec_mat[idx, :, :, :]
+    #         if add_diffs:
+    #             diff = img_mat[idx, :, :, :] - rec_mat[idx, :, :, :]
+    #             diff -= np.min(diff)
+    #             diff /= np.max(diff)
+    #             plot_mat[idx * h:(idx + 1) * h, 2 * w:3 * w, :] = diff
+    #             abs_diff = np.abs(rec_mat[idx, :, :, :] - img_mat[idx, :, :, :])
+    #             abs_diff /= np.max(abs_diff)
+    #             plot_mat[idx * h:(idx + 1) * h, 3 * w:, :] = abs_diff
+    #
+    #     fig = plt.figure(frameon=False)
+    #     fig.set_size_inches(cols, num_images)
+    #     ax = plt.Axes(fig, [0., 0., 1., 1.])
+    #     ax.set_axis_off()
+    #     fig.add_axes(ax)
+    #     ax.imshow(plot_mat, aspect='auto')
+    #     plt.savefig(self.log_path + file_name + '.png', format='png', dpi=224)

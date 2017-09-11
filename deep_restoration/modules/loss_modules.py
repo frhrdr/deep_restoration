@@ -69,7 +69,7 @@ class VggScoreLoss(LossModule):
 
     def build(self, scope_suffix=''):
         with tf.variable_scope(self.name):
-            tgt, rec = self.get_in_tensors()
+            tgt, rec = self.get_tensors()
             print(tgt, rec)
             assert tuple(k.value for k in tgt.get_shape()) == (1, 224, 224, 3)
             assert tuple(k.value for k in rec.get_shape()) == (1, 224, 224, 3)

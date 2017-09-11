@@ -3,7 +3,7 @@ import numpy as np
 import time
 import os
 from modules.core_modules import LearnedPriorLoss
-from utils.temp_utils import flattening_filter, patch_batch_gen, plot_img_mats, get_optimizer
+from utils.temp_utils import flattening_filter, plot_img_mats, get_optimizer
 from utils.preprocessing import preprocess_patch_tensor, make_data_dir, preprocess_featmap_tensor
 from utils.patch_prior_losses import logistic_full_mrf_loss, logistic_full_score_matching_loss, \
     student_full_mrf_loss, student_full_score_matching_loss
@@ -13,10 +13,8 @@ from utils.patch_prior_losses import logistic_full_mrf_loss, logistic_full_score
 class FoEFullPrior(LearnedPriorLoss):
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling,
                  n_components, n_channels, n_features_white,
-                 dist='student', mean_mode='gc', sdev_mode='gc',
-                 trainable=False,
-                 name=None, load_name=None, dir_name=None,
-                 load_tensor_names=None):
+                 dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
+                 name=None, load_name=None, dir_name=None, load_tensor_names=None):
 
         name, load_name, dir_name, load_tensor_names = self.assign_names(dist, name, load_name, dir_name,
                                                                          load_tensor_names, tensor_names)
@@ -30,7 +28,7 @@ class FoEFullPrior(LearnedPriorLoss):
         load_path = self.get_load_path(dir_name, classifier, load_tensor_names, filter_dims,
                                        n_components, n_features_white, mean_mode, sdev_mode)
 
-        super().__init__(tensor_names, weighting, name, load_path, trainable, load_name)
+        super().__init__(tensor_names, weighting, name, load_path, load_name)
         # self.filter_dims = filter_dims  # tuple (height, width)
         self.ph = filter_dims[0]
         self.pw = filter_dims[1]
@@ -42,6 +40,7 @@ class FoEFullPrior(LearnedPriorLoss):
         self.classifier = classifier
         self.mean_mode = mean_mode
         self.sdev_mode = sdev_mode
+        self.whiten_mode = whiten_mode
         self.dist = dist
 
     @staticmethod
@@ -68,9 +67,11 @@ class FoEFullPrior(LearnedPriorLoss):
             raise NotImplementedError
 
     def make_normed_filters(self, trainable, squeeze_alpha, add_to_var_list=True):
-        ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=trainable, dtype=tf.float32)
+        ica_a = tf.get_variable('ica_a', shape=[self.n_components, 1], trainable=trainable, dtype=tf.float32,
+                                initializer=tf.random_normal_initializer())
         ica_w = tf.get_variable('ica_w', shape=[self.n_features_white, self.n_components],
-                                trainable=trainable, dtype=tf.float32)
+                                trainable=trainable, dtype=tf.float32,
+                                initializer=tf.random_normal_initializer(stddev=0.001))
         if add_to_var_list:
             self.var_list.extend([ica_a, ica_w])
         ica_w = ica_w / tf.norm(ica_w, ord=2, axis=0)
@@ -118,7 +119,7 @@ class FoEFullPrior(LearnedPriorLoss):
             return student_full_score_matching_loss(x_mat, ica_w, ica_a)
 
     def train_prior(self, batch_size, n_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
-                    whiten_mode='pca', n_data_samples=100000, n_val_samples=500,
+                    n_data_samples=100000, n_val_samples=500,
                     log_freq=5000, summary_freq=10, print_freq=100, test_freq=100,
                     prev_ckpt=0, optimizer_name='adam',
                     plot_filters=False, do_clip=True):
@@ -128,15 +129,13 @@ class FoEFullPrior(LearnedPriorLoss):
                                  mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
                                  n_features_white=self.n_features_white, classifier=self.classifier)
 
-        data_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
-                                   data_shape=(n_data_samples, self.n_features_white), data_mode='train')
+        data_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_data_samples, data_mode='train')
 
-        val_gen = patch_batch_gen(batch_size, whiten_mode=whiten_mode, data_dir=data_dir,
-                                  data_shape=(n_val_samples, self.n_features_white), data_mode='validate')
+        val_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_data_samples, data_mode='validate')
 
         with tf.Graph().as_default() as graph:
             with tf.variable_scope(self.name):
-                self.add_preprocessing_to_graph(data_dir, whiten_mode)
+                self.add_preprocessing_to_graph(data_dir, self.whiten_mode)
 
                 x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_features_white], name='x_pl')
                 lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
@@ -240,7 +239,7 @@ class FoEFullPrior(LearnedPriorLoss):
                     saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=n_iterations + prev_ckpt)
 
                     if plot_filters:
-                        unwhiten_mat = np.load(data_dir + 'unwhiten_' + whiten_mode + '.npy').astype(np.float32)
+                        unwhiten_mat = np.load(data_dir + 'unwhiten_' + self.whiten_mode + '.npy').astype(np.float32)
                         w_res, alp = sess.run([ica_w, ica_a])
                         comps = np.dot(w_res.T, unwhiten_mat)
                         # print(comps.shape)
@@ -486,3 +485,33 @@ class FoEFullPrior(LearnedPriorLoss):
         normed_featmap = tf.expand_dims(normed_featmap, axis=0)
         self.var_list.extend(mean_sdev_list)
         return normed_featmap
+
+    def patch_batch_gen(self, batch_size, data_dir, n_samples, data_mode='train'):
+        assert data_mode in ('train', 'validate')
+
+        if data_mode == 'train':
+            data_mat = np.memmap(data_dir + 'data_mat_' + self.whiten_mode + '_whitened.npy',
+                                 dtype=np.float32, mode='r', shape=(n_samples, self.n_features_white))
+
+            idx = 0
+            while True:
+                if idx + batch_size < n_samples:
+                    batch = data_mat[idx:(idx + batch_size), :]
+                    idx += batch_size
+                else:
+                    last_bit = data_mat[idx:, :]
+                    idx = (idx + batch_size) % n_samples
+                    first_bit = data_mat[:idx, :]
+                    batch = np.concatenate((last_bit, first_bit), axis=0)
+                yield batch
+        else:
+            data_mat = np.load(data_dir + 'val_mat.npy')
+            assert data_mat.shape[0] == n_samples, 'expected {}, found {}'.format(n_samples, data_mat.shape[0])
+            assert n_samples % batch_size == 0
+
+            idx = 0
+            while True:
+                batch = data_mat[idx:(idx + batch_size), :]
+                idx += batch_size
+                idx = idx % n_samples
+                yield batch

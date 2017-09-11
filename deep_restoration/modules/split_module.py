@@ -10,7 +10,7 @@ class SplitModule(Module):
         self.rec_slice_name = rec_slice_name
 
     def build(self, scope_suffix=''):
-        to_split = self.get_in_tensors()
+        to_split = self.get_tensors()
         # assert to_split.get_shape()[0].value == 2
         if len(to_split.get_shape()) == 2:
             to_split = tf.reshape(to_split, shape=[2, -1, 1, 1])

@@ -50,8 +50,8 @@ def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_chann
     print('whitened data done')
 
 
-def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, n_channels,
-                                     whiten_mode='pca', batch_size=100, n_dims_to_drop=0,
+def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, n_channels, n_feats_per_channel_white,
+                                     whiten_mode='pca', batch_size=100,
                                      mean_mode='global_channel', sdev_mode='global_channel',
                                      raw_mat_load_path=''):
     """
@@ -60,7 +60,7 @@ def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, 
     """
 
     save_dir = make_data_dir(map_name, ph, pw, mean_mode, sdev_mode,
-                             n_features_white=ph * pw - 1, classifier=classifier)
+                             n_features_white=n_feats_per_channel_white, classifier=classifier)
     save_dir = save_dir.rstrip('/') + '_channelwise/'
 
     if not os.path.exists(save_dir):
@@ -79,18 +79,20 @@ def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, 
     cov = channel_independent_cov_acc(norm_mat, save_dir)
     print('cov done')
 
+    n_dims_to_drop = ph * pw - n_feats_per_channel_white
     channel_whiten, channel_unwhiten = channel_independent_whitening_mats(cov, whiten_mode, save_dir,
                                                                           n_dims_to_drop=n_dims_to_drop)
     print('whitening mats done')
 
-    data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_whitened_channelwise.npy', dtype=np.float32, mode='w+',
-                         shape=(num_patches, n_channels, channel_whiten.shape[1]))
+    data_mat = np.memmap(save_dir + 'data_mat_' + whiten_mode + '_whitened_channelwise.npy', dtype=np.float32,
+                         mode='w+', shape=(num_patches, n_channels, channel_whiten.shape[1]))
 
     for idx in range(num_patches // batch_size):
         image = norm_mat[idx * batch_size:(idx + 1) * batch_size, :, :]  # [bs, n_c, n_fpc]
         # channel_whiten is [n_c, n_fpcw, n_fpc], target [bs, n_c, n_fpcw]
         image = np.expand_dims(image, axis=3)  # [bs, n_c, n_fpc, 1]
-        data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = np.squeeze(channel_whiten @ image)  # [n_c, n_fpcw, n_fpc] x [n_c, n_fpc, 1] = [n_c, n_fpcw]
+        # [n_c, n_fpcw, n_fpc] x [n_c, n_fpc, 1] = [n_c, n_fpcw]
+        data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = np.squeeze(channel_whiten @ image)
     print('whitened data done')
 
 
@@ -164,8 +166,7 @@ def normed_patch_data_mat(raw_mat, save_dir,
                           mean_mode='global_channel', sdev_mode='global_channel',
                           file_name='normed_mat.npy', batch_size=0):
 
-    modes =  ('global_channel', 'global_feature', 'local_channel', 'local_full',
-              'gc', 'gf', 'lc', 'lf', 'none')
+    modes = ('global_channel', 'global_feature', 'local_channel', 'local_full', 'gc', 'gf', 'lc', 'lf', 'none')
     assert mean_mode in modes
     assert sdev_mode in modes or isinstance(sdev_mode, float)
     num_patches, n_channels, n_feats_per_channel = raw_mat.shape
@@ -174,7 +175,7 @@ def normed_patch_data_mat(raw_mat, save_dir,
     data_mat = np.memmap(save_dir + file_name, dtype=np.float32, mode='w+',
                          shape=raw_mat.shape)
 
-    ###### MEAN treatment ######
+    # MEAN treatment ######
     if mean_mode in ('global_channel', 'gc'):
         channel_mean = np.mean(raw_mat, axis=(0, 2))
         for idx in range(num_patches // batch_size):
@@ -187,7 +188,7 @@ def normed_patch_data_mat(raw_mat, save_dir,
         np.save(save_dir + 'data_mean.npy', channel_mean)
 
     elif mean_mode in ('global_feature', 'gf'):
-        feature_mean= np.mean(raw_mat, axis=0)
+        feature_mean = np.mean(raw_mat, axis=0)
 
         for idx in range(num_patches // batch_size):
             batch = raw_mat[idx * batch_size:(idx + 1) * batch_size, :, :]
@@ -216,7 +217,7 @@ def normed_patch_data_mat(raw_mat, save_dir,
     else:  # mean_mode is 'none'
         pass
 
-    ###### SDEV treatment ######
+    # SDEV treatment ######
     if sdev_mode in ('global_channel', 'gc'):
         feat_sdev = np.std(raw_mat, axis=0)
         channel_sdev = np.mean(feat_sdev, axis=1)
@@ -236,7 +237,6 @@ def normed_patch_data_mat(raw_mat, save_dir,
             data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = batch
 
         np.save(save_dir + 'data_sdev.npy', feat_sdev)
-
 
     elif sdev_mode in ('local_channel', 'lc'):  # seems like a bad idea anyway
         raise NotImplementedError
@@ -316,11 +316,11 @@ def flattened_whitening_mats(cov, whiten_mode, save_dir, n_feats_white):
     return whiten, unwhiten
 
 
-def channel_independent_whitening_mats(cov, whiten_mode, save_dir, n_dims_to_drop=1):
+def channel_independent_whitening_mats(cov, whiten_mode, save_dir, n_dims_to_drop):
     n_channels, n_feats_per_channel = cov.shape[:2]
 
-    if whiten_mode == 'zca':
-        n_dims_to_drop = 0
+    if whiten_mode in ('zca', 'not'):
+        assert n_dims_to_drop == 0
 
     channel_whiten = np.zeros(shape=[n_channels, n_feats_per_channel - n_dims_to_drop, n_feats_per_channel])
     channel_unwhiten = np.zeros(shape=[n_channels, n_feats_per_channel - n_dims_to_drop, n_feats_per_channel])
@@ -345,15 +345,8 @@ def channel_independent_whitening_mats(cov, whiten_mode, save_dir, n_dims_to_dro
     return channel_whiten, channel_unwhiten
 
 
-def add_flattened_validation_set(num_patches, ph, pw, classifier, map_name, n_channels,
-                                 n_feats_white, whiten_mode='pca', batch_size=100,
-                                 mean_mode='global_channel', sdev_mode='global_channel'):
-
-    save_dir = make_data_dir(map_name, ph, pw, mean_mode, sdev_mode, n_feats_white, classifier='alexnet')
-    raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir,
-                                 file_name='raw_val_mat.npy')
-    print(1, raw_mat.shape)
-    ###### MEAN treatment ######
+def normed_small_patch_data_batch(raw_mat, mean_mode, sdev_mode, save_dir):
+    # MEAN treatment ######
     if mean_mode in ('global_channel', 'gc'):
         channel_mean = np.load(save_dir + 'data_mean.npy')
         raw_t = np.transpose(raw_mat, axes=(0, 2, 1))
@@ -377,18 +370,19 @@ def add_flattened_validation_set(num_patches, ph, pw, classifier, map_name, n_ch
         raw_centered = np.transpose(raw_t_centered)
 
     else:  # mean_mode is 'none'
+        assert mean_mode == 'none'
         raw_centered = raw_mat
 
-    ###### SDEV treatment ######
+    # SDEV treatment ######
     if sdev_mode in ('global_channel', 'gc'):
         channel_sdev = np.load(save_dir + 'data_sdev.npy')
         raw_t_centered = np.transpose(raw_centered, axes=(0, 2, 1))
         normed_t = raw_t_centered / channel_sdev
-        normed = np.transpose(normed_t, axes=(0, 2, 1))
+        return np.transpose(normed_t, axes=(0, 2, 1))
 
     elif sdev_mode in ('global_feature', 'gf'):
         feat_sdev = np.load(save_dir + 'data_sdev.npy')
-        normed = raw_centered / feat_sdev
+        return raw_centered / feat_sdev
 
     elif sdev_mode in ('local_channel', 'lc'):  # seems like a bad idea anyway
         raise NotImplementedError
@@ -397,17 +391,46 @@ def add_flattened_validation_set(num_patches, ph, pw, classifier, map_name, n_ch
         sample_sdev = np.std(raw_centered, axis=(1, 2))
         raw_t_centered = np.transpose(raw_centered)
         normed_t = raw_t_centered / sample_sdev
-        normed = np.transpose(normed_t)
+        return np.transpose(normed_t)
 
-    elif isinstance(sdev_mode, float):
-        normed = sdev_mode * raw_centered
+    else:
+        assert isinstance(sdev_mode, float)
+        return sdev_mode * raw_centered
 
-    flat_mat = normed.reshape([num_patches, -1])
+
+def add_flattened_validation_set(num_patches, ph, pw, classifier, map_name, n_channels,
+                                 n_feats_white, whiten_mode='pca', batch_size=100,
+                                 mean_mode='global_channel', sdev_mode='global_channel'):
+
+    save_dir = make_data_dir(map_name, ph, pw, mean_mode, sdev_mode, n_feats_white, classifier='alexnet')
+    raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir,
+                                 file_name='raw_val_mat.npy')
+
+    normed_mat = normed_small_patch_data_batch(raw_mat, mean_mode, sdev_mode, save_dir)
+
+    flat_mat = normed_mat.reshape([num_patches, -1])
 
     whiten_mat = np.load(save_dir + 'whiten_{}.npy'.format(whiten_mode))
 
     val_mat = flat_mat @ whiten_mat.T
-    print(val_mat.shape)
+    np.save(save_dir + 'val_mat.npy', val_mat)
+
+
+def add_channelwise_validation_set(num_patches, ph, pw, classifier, map_name, n_channels, n_feats_per_channel_white,
+                                   whiten_mode='pca', batch_size=100,
+                                   mean_mode='global_channel', sdev_mode='global_channel'):
+
+    save_dir = make_data_dir(map_name, ph, pw, mean_mode, sdev_mode,
+                             n_features_white=n_feats_per_channel_white, classifier=classifier)
+    save_dir = save_dir.rstrip('/') + '_channelwise/'
+
+    raw_mat = raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels, save_dir,
+                                 file_name='raw_val_mat.npy')
+
+    normed_mat = normed_small_patch_data_batch(raw_mat, mean_mode, sdev_mode, save_dir)
+    whiten_mat = np.load(save_dir + 'whiten_{}.npy'.format(whiten_mode))
+
+    val_mat = np.squeeze(whiten_mat @ np.expand_dims(normed_mat, axis=3))
     np.save(save_dir + 'val_mat.npy', val_mat)
 
 
@@ -433,7 +456,7 @@ def preprocess_patch_tensor(patch_tensor, mean_mode, sdev_mode):
     print('seeing tensor shape as n_p={}, n_fpc={}, n_c={}'.format(n_patches, n_feats_per_channel, n_channels))
     n_feats_raw = n_feats_per_channel * n_channels
 
-    ###### MEAN treatment ######
+    # MEAN treatment ######
     if mean_mode in ('global_channel', 'gc'):
         mean_tensor = tf.get_variable('centering_mean', shape=(n_channels,), trainable=False, dtype=tf.float32)
         init_list.append(mean_tensor)
@@ -462,7 +485,7 @@ def preprocess_patch_tensor(patch_tensor, mean_mode, sdev_mode):
     else:  # mean_mode == 'none'
         raise NotImplementedError
 
-    ###### SDEV treatment ######
+    # SDEV treatment ######
     if sdev_mode in ('global_channel', 'gc'):
         sdev_tensor = tf.get_variable('rescaling_sdev', shape=(n_channels,), trainable=False, dtype=tf.float32)
         init_list.append(sdev_tensor)
@@ -491,7 +514,6 @@ def preprocess_patch_tensor(patch_tensor, mean_mode, sdev_mode):
     else:  # sdev_mode == 'none'
         pass
 
-
     patch_tensor = tf.transpose(patch_tensor, perm=(0, 2, 1))
     return patch_tensor, init_list
 
@@ -514,9 +536,8 @@ def preprocess_featmap_tensor(patch_tensor, mean_mode, sdev_mode):
     init_list = []
     n_patches, n_feats_per_channel, n_channels = [k.value for k in patch_tensor.get_shape()]
     print('seeing tensor shape as n_p={}, n_fpc={}, n_c={}'.format(n_patches, n_feats_per_channel, n_channels))
-    n_feats_raw = n_feats_per_channel * n_channels
 
-    ###### MEAN treatment ######
+    # MEAN treatment ######
     if mean_mode in ('global_channel', 'gc'):
         mean_tensor = tf.get_variable('centering_mean', shape=(n_channels,), trainable=False, dtype=tf.float32)
         init_list.append(mean_tensor)
@@ -529,7 +550,7 @@ def preprocess_featmap_tensor(patch_tensor, mean_mode, sdev_mode):
         # patch_tensor = tf.reshape(patch_tensor, [n_patches, n_feats_raw]) - mean_tensor
         # patch_tensor = tf.reshape(patch_tensor, shape=(n_patches, n_feats_per_channel, n_channels))
 
-    ###### SDEV treatment ######
+    # SDEV treatment ######
     if sdev_mode in ('global_channel', 'gc'):
         sdev_tensor = tf.get_variable('rescaling_sdev', shape=(n_channels,), trainable=False, dtype=tf.float32)
         init_list.append(sdev_tensor)
@@ -565,5 +586,3 @@ def make_data_dir(in_tensor_name, ph, pw, mean_mode, sdev_mode, n_features_white
         subdir = classifier + '/' + t_str + '_' + d_str + '_' + str(n_features_white) + 'feats'
     data_dir = '../data/patches/' + subdir + mode_str + '/'
     return data_dir
-
-

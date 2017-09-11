@@ -1,59 +1,21 @@
 import tensorflow as tf
-
-from modules.core_modules import TrainedModule
-
-
-# spec1 = dict(op1_height=5, op1_width=5, op1_strides=[1, 2, 2, 1], op1_pad='SAME',
-#              op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1], op2_pad='SAME',
-#              hidden_channels=256, target_shape=[28, 28, 256],
-#              inv_input_name='pool3:0', inv_target_name='conv3_3/relu:0',
-#              rec_name='conv3_3_rec')
-
-
-class InversionModule(TrainedModule):
-
-    def __init__(self, inv_input_name, inv_target_name,
-                 hidden_channels, rec_name,
-                 op1_hw, op1_strides, op2_hw, op2_strides,
-                 op1_pad='SAME', op2_pad='SAME',
-                 name='InversionModule', subdir='', trainable=False):
-        load_path = self.get_load_path(name, inv_input_name, inv_target_name, subdir)
-        in_tensors = (inv_input_name, inv_target_name)
-        super().__init__(in_tensors, name, load_path, trainable)
-
-        self.hidden_channels = hidden_channels
-        self.rec_name = rec_name
-        self.op1_height = op1_hw[0]
-        self.op1_width = op1_hw[1]
-        self.op1_strides = op1_strides
-        self.op1_pad = op1_pad
-        self.op2_height = op2_hw[0]
-        self.op2_width = op2_hw[1]
-        self.op2_strides = op2_strides
-        self.op2_pad = op2_pad
-
-    @staticmethod
-    def get_load_path(name, inv_input_name, inv_target_name, subdir):
-        io_string = inv_input_name.replace('/', '_').rstrip(':0') + '_to_' + \
-                    inv_target_name.replace('/', '_').rstrip(':0')
-        if subdir:
-            subdir = subdir + '/'
-        return '../logs/cnn_modules/{}/{}/{}'.format(name, io_string, subdir)
+from modules.core_modules import InversionModule
 
 
 class ScaleConvConvModule(InversionModule):
 
     def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
                  op1_hw, op1_strides, op2_hw, op2_strides,
-                 op1_pad='SAME', op2_pad='SAME', name='ScaleConvConvModule', subdir='', trainable=False):
+                 op1_pad='SAME', op2_pad='SAME',
+                 name='ScaleConvConvModule', dir_name='scale_conv_conv_module', load_name='ScaleConvConvModule',
+                 subdir='', trainable=False):
         super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
                          op1_hw, op1_strides, op2_hw, op2_strides,
-                         op1_pad=op1_pad, op2_pad=op2_pad, name=name, subdir=subdir, trainable=trainable)
+                         op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
+                         subdir=subdir, trainable=trainable)
 
     def build(self, scope_suffix=''):
-        # in_tensor = graph.get_tensor_by_name(self.inv_input_name)
-        # inv_target = graph.get_tensor_by_name(self.inv_target_name)
-        in_tensor, inv_target = self.get_in_tensors()
+        in_tensor, inv_target = self.get_tensors()
         out_shape = [k.value for k in inv_target.get_shape()[1:]]
         with tf.variable_scope(self.name):
 
@@ -83,13 +45,16 @@ class ConvDeconvModule(InversionModule):
 
     def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
                  op1_hw, op1_strides, op2_hw, op2_strides,
-                 op1_pad='SAME', op2_pad='SAME', name='ConvDeconvModule', subdir='', trainable=False):
+                 op1_pad='SAME', op2_pad='SAME',
+                 name='ConvDeconvModule', dir_name='conv_deconv_module', load_name='ConvDeconvModule',
+                 subdir='', trainable=False):
         super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
                          op1_hw, op1_strides, op2_hw, op2_strides,
-                         op1_pad=op1_pad, op2_pad=op2_pad, name=name, subdir=subdir, trainable=trainable)
+                         op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
+                         subdir=subdir, trainable=trainable)
 
     def build(self, scope_suffix=''):
-        in_tensor, inv_target = self.get_in_tensors()
+        in_tensor, inv_target = self.get_tensors()
         out_shape = [k.value for k in inv_target.get_shape()[1:]]
         with tf.variable_scope(self.name):
 
@@ -118,13 +83,16 @@ class DeconvConvModule(InversionModule):
 
     def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
                  op1_hw, op1_strides, op2_hw, op2_strides,
-                 op1_pad='SAME', op2_pad='SAME', name='DeconvConvModule', subdir='', trainable=False):
+                 op1_pad='SAME', op2_pad='SAME',
+                 name='DeconvConvModule', dir_name='deconv_conv_module', load_name='DeconvConvModule',
+                 subdir='', trainable=False):
         super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
                          op1_hw, op1_strides, op2_hw, op2_strides,
-                         op1_pad=op1_pad, op2_pad=op2_pad, name=name, subdir=subdir, trainable=trainable)
+                         op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
+                         subdir=subdir, trainable=trainable)
 
     def build(self, scope_suffix=''):
-        in_tensor, inv_target = self.get_in_tensors()
+        in_tensor, inv_target = self.get_tensors()
         out_shape = [k.value for k in inv_target.get_shape()[1:]]
         with tf.variable_scope(self.name):
 
@@ -153,13 +121,16 @@ class DeconvDeconvModule(InversionModule):
 
     def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
                  op1_hw, op1_strides, op2_hw, op2_strides,
-                 op1_pad='SAME', op2_pad='SAME', name='DeconvDeconvModule', subdir='', trainable=False):
+                 op1_pad='SAME', op2_pad='SAME',
+                 name='DeconvDeconvModule', dir_name='deconv_deconv_module', load_name='DeconvDeconvModule',
+                 subdir='', trainable=False):
         super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
                          op1_hw, op1_strides, op2_hw, op2_strides,
-                         op1_pad=op1_pad, op2_pad=op2_pad, name=name, subdir=subdir, trainable=trainable)
+                         op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
+                         subdir=subdir, trainable=trainable)
 
     def build(self, scope_suffix=''):
-        in_tensor, inv_target = self.get_in_tensors()
+        in_tensor, inv_target = self.get_tensors()
         out_shape = [k.value for k in inv_target.get_shape()[1:]]
         with tf.variable_scope(self.name):
 

@@ -3,10 +3,8 @@ from modules.foe_full_prior import FoEFullPrior
 from modules.foe_channelwise_prior import FoEChannelwisePrior
 from modules.loss_modules import NormedMSELoss
 from modules.split_module import SplitModule
-from utils.parameter_defaults import mv_default_params
 from shutil import copyfile
 import os
-import numpy as np
 
 split2 = SplitModule(name_to_split='conv2/lin:0', img_slice_name='img_rep_c2l',
                      rec_slice_name='rec_rep_c2l', name='Split2')
@@ -61,7 +59,7 @@ pre_mse = NormedMSELoss(target='target_featmap/read:0', reconstruction='pre_feat
 pre_mse.add_loss = False
 
 modules = [split4, mse4, pre_mse, chanprior]
-log_path='../logs/opt_inversion/alexnet/pre_featmap/chan_5x5/'
+log_path = '../logs/opt_inversion/alexnet/pre_featmap/chan_5x5/'
 
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
@@ -83,7 +81,7 @@ pre_featmap_init = None
 ni.train_pre_featmap('../data/selected/images_resized/red-fox.bmp', n_iterations=10000, optim_name='adam',
                      lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
                      pre_featmap_init=pre_featmap_init, ckpt_offset=0,
-                     pre_featmap_name = 'conv1/lin',
+                     pre_featmap_name='conv1/lin',
                      featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=True)
 
 # pre_featmap_init = np.reshape(np.load(params['log_path'] + 'mats/rec_500.npy'), [1, 56, 56, 96])
