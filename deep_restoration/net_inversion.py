@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 class NetInversion:
 
     def __init__(self, modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500):
-        # check_params(params)
+        assert classifier in ('alexnet', 'vgg16')
         self.modules = modules
         self.log_path = log_path
         self.classifier = classifier
@@ -24,7 +24,10 @@ class NetInversion:
         self.log_freq = log_freq
         self.summary_freq = summary_freq
         self.imagenet_mean = np.asarray([123.68, 116.779, 103.939])  # in RGB order
-        self.img_hw = 224
+        if classifier == 'alexnet':
+            self.img_hw = 227
+        else:
+            self.img_hw = 224
         self.img_channels = 3
 
     def load_classifier(self, img_pl):
@@ -107,6 +110,7 @@ class NetInversion:
             else:
                 if self.classifier.lower() == 'alexnet':
                     subdir = 'images_resized_227/'
+                    print(subdir)
                 elif self.classifier.lower() == 'vgg16':
                     subdir = 'images_resized_224/'
                 else:
@@ -312,22 +316,6 @@ class NetInversion:
 
             train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
 
-            # if self.load_path:  # deprecated: weights are to be saved by the individual modules
-            #     print('Deprecated: weights are to be saved by the individual modules')
-            #     global_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-            #     train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-            #     opt_vars = [v for v in global_vars if v not in train_vars]
-            #
-            #     if self.load_opt_vars:
-            #         tf.train.Saver(var_list=opt_vars).restore(sess, self.load_path)
-            #     else:
-            #     sess.run(tf.variables_initializer(opt_vars))
-            #
-            #     load_vars = tf.trainable_variables()
-            #     loader = tf.train.Saver(var_list=load_vars)
-            #     loader.restore(sess, self.load_path)
-            #
-            # else:
             with tf.Session() as sess:
                 sess.run(tf.global_variables_initializer())
 

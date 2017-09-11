@@ -4,7 +4,7 @@ from utils.filehandling import resize_all_images
 from modules.foe_full_prior import FoEFullPrior
 from modules.foe_channelwise_prior import FoEChannelwisePrior
 
-resize_all_images((227, 227), 'images_resized_227')
+# resize_all_images((227, 227), 'images_resized_227')
 
 # make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv2/lin:0',
 #                           n_channels=256,

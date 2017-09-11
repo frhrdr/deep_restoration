@@ -82,7 +82,7 @@ class ConvDeconvModule(InversionModule):
 class DeconvConvModule(InversionModule):
 
     def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
-                 op1_hw, op1_strides, op2_hw, op2_strides,
+                 op1_hw, op1_strides, op2_hw, op2_strides, hid_hw=None, hid_pad=None,
                  op1_pad='SAME', op2_pad='SAME',
                  name='DeconvConvModule', dir_name='deconv_conv_module', load_name='DeconvConvModule',
                  subdir='', trainable=False):
@@ -90,6 +90,8 @@ class DeconvConvModule(InversionModule):
                          op1_hw, op1_strides, op2_hw, op2_strides,
                          op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
                          subdir=subdir, trainable=trainable)
+        self.hid_hw = hid_hw
+        self.hid_pad = hid_pad
 
     def build(self, scope_suffix=''):
         in_tensor, inv_target = self.get_tensors()
@@ -98,16 +100,20 @@ class DeconvConvModule(InversionModule):
 
             batch_size, in_h, in_w, in_c = [k.value for k in in_tensor.get_shape()]
             out_h, out_w, out_c = out_shape
+
+            hid_h, hid_w = (out_h, out_w) if self.hid_hw is None else self.hid_hw
+
             # assume for now that the hidden layer has the same dims as the output
             deconv_filter = tf.get_variable('deconv_filter', shape=[self.op1_height, self.op1_width,
                                                                     self.hidden_channels, in_c])
             deconv = tf.nn.conv2d_transpose(in_tensor, filter=deconv_filter,
-                                            output_shape=[batch_size, out_h, out_w, self.hidden_channels],
+                                            output_shape=[batch_size, hid_h, hid_w, self.hidden_channels],
                                             strides=self.op1_strides, padding=self.op1_pad)
             deconv_bias = tf.get_variable('deconv_bias', shape=[self.hidden_channels])
             biased_conv = tf.nn.bias_add(deconv, deconv_bias)
             relu = tf.nn.relu(biased_conv)
-
+            if self.hid_pad is not None:
+                relu = tf.pad(relu, self.hid_pad, mode='REFLECT')
             conv_filter = tf.get_variable('conv_filter', shape=[self.op2_height, self.op2_width,
                                                                 self.hidden_channels, out_c])
             conv = tf.nn.conv2d(relu, filter=conv_filter, strides=self.op2_strides, padding=self.op2_pad)

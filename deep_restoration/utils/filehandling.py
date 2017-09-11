@@ -187,39 +187,6 @@ def concat_mv_images(num=21):
     plt.close()
 
 
-def make_patches_data(num_patches, ph=8, pw=8, color=False, save_dir='./data/patches_color/8x8/', whiten_mode='pca'):
-    img_hw = 224
-    max_h = img_hw - ph
-    max_w = img_hw - pw
-    data_path = './data/imagenet2012-validationset/'
-    img_file = 'train_48k_images.txt'
-
-    mm = np.memmap(save_dir + '/data_mat_' + whiten_mode + '.npy', dtype=np.float32, mode='w+',
-                   shape=(num_patches, 63))
-    with open(data_path + img_file) as f:
-        image_files = [k.rstrip() for k in f.readlines()]
-
-    image_paths = [data_path + 'images_resized/' +
-                   k[:-len('JPEG')] + 'bmp' for k in image_files]
-
-    for idx in range(num_patches):
-        img_path = image_paths[idx % len(image_paths)]
-        h = np.random.randint(0, max_h)
-        w = np.random.randint(0, max_w)
-        image = load_image(img_path, resize=False)
-        image = image.astype(float)
-        image = image[h:h + ph, w:w + pw, :]
-        if not color:
-            image = skimage.color.rgb2gray(image)
-        # image = image.flatten()
-        image -= 0.01  # to avoid max > 1
-        image /= 255.0  # map to range [0,1]
-
-        # image -= image.mean()  # subtract image mean
-        target_file = save_dir + 'patch_' + str(idx) + '.bmp'
-        skimage.io.imsave(target_file, image)
-
-
 def mat_to_img(mat_file, rescale=True, cols=1, rows=1):
     plot_mat = np.load(mat_file)
     plot_mat = np.reshape(plot_mat, [224, 224, 3])

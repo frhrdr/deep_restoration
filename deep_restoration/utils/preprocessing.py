@@ -105,8 +105,10 @@ def raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_
 
     if classifier.lower() == 'vgg16':
         classifier = Vgg16()
+        image_subdir = 'images_resized_224/'
     elif classifier.lower() == 'alexnet':
         classifier = AlexNet()
+        image_subdir = 'images_resized_227/'
     else:
         raise NotImplementedError
 
@@ -134,7 +136,7 @@ def raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_
             with open(data_path + img_file) as f:
                 image_files = [k.rstrip() for k in f.readlines()]
 
-            image_paths = [data_path + 'images_resized/' + k[:-len('JPEG')] + 'bmp' for k in image_files]
+            image_paths = [data_path + image_subdir + k[:-len('JPEG')] + 'bmp' for k in image_files]
             img_mat = np.zeros(shape=[batch_size, 224, 224, 3])
 
             for count in range(num_patches // batch_size):
