@@ -26,7 +26,7 @@ from modules.foe_channelwise_prior import FoEChannelwisePrior
 #                             n_features_white=63, dist='logistic', mean_mode='gc', sdev_mode='gc')
 
 prior = FoEFullPrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
-                     filter_dims=[8, 8], input_scaling=1.0, n_components=1000, n_channels=96,
+                     filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
                      n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
                      load_name=None)
 #
