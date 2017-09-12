@@ -106,9 +106,11 @@ def raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_
     if classifier.lower() == 'vgg16':
         classifier = Vgg16()
         image_subdir = 'images_resized_224/'
+        img_dims = [batch_size, 224, 224, 3]
     elif classifier.lower() == 'alexnet':
         classifier = AlexNet()
         image_subdir = 'images_resized_227/'
+        img_dims = [batch_size, 227, 227, 3]
     else:
         raise NotImplementedError
 
@@ -117,7 +119,7 @@ def raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_
     with tf.Graph().as_default() as graph:
         with tf.Session() as sess:
 
-            img_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, 224, 224, 3], name='img_pl')
+            img_pl = tf.placeholder(dtype=tf.float32, shape=img_dims, name='img_pl')
             classifier.build(img_pl, rescale=1.0)
             feat_map = graph.get_tensor_by_name(map_name)
             map_dims = [d.value for d in feat_map.get_shape()]
@@ -137,7 +139,7 @@ def raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_
                 image_files = [k.rstrip() for k in f.readlines()]
 
             image_paths = [data_path + image_subdir + k[:-len('JPEG')] + 'bmp' for k in image_files]
-            img_mat = np.zeros(shape=[batch_size, 224, 224, 3])
+            img_mat = np.zeros(shape=img_dims)
 
             for count in range(num_patches // batch_size):
 
