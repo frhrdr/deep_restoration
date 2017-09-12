@@ -182,9 +182,9 @@ class FoEFullPrior(LearnedPriorLoss):
                     sess.run(tf.global_variables_initializer())
 
                     if prev_ckpt:
-                        prev_path = self.load_path + 'ckpt-' + str(prev_ckpt)
-                        saver.restore(sess, prev_path)
-
+                        # prev_path = self.load_path + 'ckpt-' + str(prev_ckpt)
+                        # saver.restore(sess, prev_path)
+                        self.load_weights(sess, prev_ckpt)
                     start_time = time.time()
                     train_time = 0
                     for count in range(prev_ckpt + 1, prev_ckpt + n_iterations + 1):
