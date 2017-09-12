@@ -55,15 +55,17 @@ class LearnedPriorLoss(LossModule):
         self.var_list = []
         self.load_name = load_name
 
-    def load_weights(self, session, ckpt=None):
+    def load_weights(self, session, ckpt_id=None):
         to_load = self.tensor_load_dict_by_name(self.var_list)
         loader = tf.train.Saver(var_list=to_load)
 
-        if ckpt is None:
+        if ckpt_id is None:
             with open(os.path.join(self.load_path, 'checkpoint')) as f:
                 ckpt = f.readline().split('"')[1]
+        else:
+            ckpt = 'ckpt-' + str(ckpt_id)
         print('For module {0}: loading weights from {1}'.format(self.name, ckpt))
-        loader.restore(session, os.path.join(self.load_path, str(ckpt)))
+        loader.restore(session, os.path.join(self.load_path, ckpt))
 
     def save_weights(self, session, step):
         saver = tf.train.Saver(var_list=self.var_list)
