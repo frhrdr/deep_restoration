@@ -10,7 +10,7 @@ from modules.foe_full_prior import FoEFullPrior
 class FoESeparablePrior(FoEFullPrior):
 
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                 n_features_white, dim_multiplier,
+                 n_features_white, dim_multiplier, share_weights=False,
                  dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
                  name=None, load_name=None, dir_name=None, load_tensor_names=None):
 
@@ -19,6 +19,7 @@ class FoESeparablePrior(FoEFullPrior):
                          name=name, load_name=load_name, dir_name=dir_name, load_tensor_names=load_tensor_names)
 
         self.dim_multiplier = dim_multiplier
+        self.share_weights = share_weights
 
     @staticmethod
     def assign_names(dist, name, load_name, dir_name, load_tensor_names, tensor_names):
@@ -38,16 +39,22 @@ class FoESeparablePrior(FoEFullPrior):
 
     @staticmethod
     def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
-                      n_features_white, mean_mode, sdev_mode):
+                      n_features_white, mean_mode, sdev_mode, whiten_mode):
         path = FoEFullPrior.get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
-                                          n_features_white, mean_mode, sdev_mode)
+                                          n_features_white, mean_mode, sdev_mode, whiten_mode)
         return path.rstrip('/') + '_separable/'
 
     def make_normed_filters(self, trainable, squeeze_alpha, add_to_var_list=True):
 
-        depth_filter = tf.get_variable('depth_filter', dtype=tf.float32,
-                                       shape=[self.ph, self.pw, self.n_channels, self.dim_multiplier],
-                                       initializer=tf.random_normal_initializer())
+        if self.share_weights:
+            depth_filter = tf.get_variable('depth_filter', dtype=tf.float32,
+                                           shape=[self.ph, self.pw, 1, self.dim_multiplier],
+                                           initializer=tf.random_normal_initializer())
+
+        else:
+            depth_filter = tf.get_variable('depth_filter', dtype=tf.float32,
+                                           shape=[self.ph, self.pw, self.n_channels, self.dim_multiplier],
+                                           initializer=tf.random_normal_initializer())
 
         point_filter = tf.get_variable('point_filter', dtype=tf.float32,
                                        shape=[1, 1, self.n_channels * self.dim_multiplier, self.n_components],
@@ -59,15 +66,13 @@ class FoESeparablePrior(FoEFullPrior):
         if add_to_var_list:
             self.var_list.extend([ica_a, depth_filter, point_filter])
 
-        # flat_depth_filter = tf.reshape(depth_filter, shape=(self.n_features_white, self.dim_multiplier))
-        # flat_point_filter = tf.squeeze(point_filter)
+        if self.share_weights:
+            depth_filter = tf.concat([depth_filter]*self.n_channels, axis=2)
 
-        # depth_filter_normed = depth_filter / tf.norm(flat_depth_filter, ord=2, axis=0)
-        # point_filter_normed = point_filter / tf.norm(flat_point_filter, ord=2, axis=0)
-        # ica_w = self.get_w_tensor(depth_filter_normed, point_filter_normed)
         ica_w = self.get_w_tensor(depth_filter, point_filter)
         w_norm = tf.norm(ica_w, ord=2, axis=0)
         ica_w = ica_w / w_norm
+
         if squeeze_alpha:
             ica_a = tf.squeeze(ica_a)
 

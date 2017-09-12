@@ -26,7 +26,7 @@ class FoEFullPrior(LearnedPriorLoss):
             sdev_mode = mode_abbreviatons[sdev_mode]
 
         load_path = self.get_load_path(dir_name, classifier, load_tensor_names, filter_dims,
-                                       n_components, n_features_white, mean_mode, sdev_mode)
+                                       n_components, n_features_white, mean_mode, sdev_mode, whiten_mode)
 
         super().__init__(tensor_names, weighting, name, load_path, load_name)
         # self.filter_dims = filter_dims  # tuple (height, width)
@@ -403,7 +403,7 @@ class FoEFullPrior(LearnedPriorLoss):
 
     @staticmethod
     def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
-                      n_features_white, mean_mode, sdev_mode):
+                      n_features_white, mean_mode, sdev_mode, whiten_mode):
         d_str = str(filter_dims[0]) + 'x' + str(filter_dims[1])
         if 'img' in tensor_name or 'image' in tensor_name:
             subdir = 'image/color'

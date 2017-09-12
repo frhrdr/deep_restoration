@@ -25,21 +25,20 @@ from modules.foe_channelwise_prior import FoEChannelwisePrior
 #                             filter_dims=[8, 8], input_scaling=1.0, n_components=200, n_channels=256,
 #                             n_features_white=63, dist='logistic', mean_mode='gc', sdev_mode='gc')
 
-# prior = FoEFullPrior(tensor_names='conv2/lin:0', weighting=1e-10, classifier='alexnet',
-#                      filter_dims=[8, 8], input_scaling=1.0, n_components=1000, n_channels=3,
-#                      n_features_white=432, dist='student', mean_mode='gc', sdev_mode='gc',
-#                      load_name='FoEPrior')
+prior = FoEFullPrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
+                     filter_dims=[8, 8], input_scaling=1.0, n_components=1000, n_channels=96,
+                     n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
+                     load_name=None)
 #
-# prior.train_prior(batch_size=500, num_iterations=13000, lr=3e-5,
-#                   lr_lower_points=((0, 1e-0), (6000, 1e-1), (6500, 3e-2),
-#                                    (7000, 1e-2), (7500, 3e-3), (8000, 1e-3),
-#                                    (8500, 1e-4), (9000, 1e-4), (10000, 1e-5)),
-#                   grad_clip=100.0,
-#                   whiten_mode='pca', num_data_samples=100000,
-#                   log_freq=1000, summary_freq=10, print_freq=100,
-#                   test_freq=100, n_val_samples=1000,
-#                   prev_ckpt=0,
-#                   optimizer_name='adam')
+prior.train_prior(batch_size=500, n_iterations=3000,
+                  lr_lower_points=(# (0, 1e-0), (6000, 1e-1), (6500, 3e-2),
+                                   # (7000, 1e-2), (7500, 3e-3), (8000, 1e-3),
+                                   (28000, 1e-2), (29000, 1e-4), (30000, 1e-5)),
+                  grad_clip=100.0,
+                  n_data_samples=100000,
+                  log_freq=1000, summary_freq=10, print_freq=100, test_freq=100, n_val_samples=1000,
+                  prev_ckpt=28010,
+                  optimizer_name='adam')
 
 # prior.plot_filters_all_channels(range(7), prior.load_path + 'filter_vis/')
 # prior.plot_channels_top_filters(range(7), prior.load_path + 'filter_vis/top/')
