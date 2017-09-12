@@ -133,16 +133,19 @@ class FoESeparablePrior(FoEFullPrior):
                     plot_filters=False, do_clip=True):
         log_path = self.load_path
 
-        data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=self.ph, pw=self.pw,
-                                 mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
-                                 n_features_white=self.n_features_per_channel_white, classifier=self.classifier)
         if self.channelwise_data:
+            data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=self.ph, pw=self.pw,
+                                     mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
+                                     n_features_white=self.n_features_per_channel_white, classifier=self.classifier)
             data_dir = data_dir.rstrip('/') + '_channelwise/'
 
             data_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_data_samples, data_mode='train')
 
             val_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_val_samples, data_mode='validate')
         else:
+            data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=self.ph, pw=self.pw,
+                                     mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
+                                     n_features_white=self.n_features_white, classifier=self.classifier)
             data_gen = patch_batch_gen(batch_size, whiten_mode=self.whiten_mode, data_dir=data_dir,
                                        data_shape=(n_data_samples, self.n_features_white), data_mode='train')
 

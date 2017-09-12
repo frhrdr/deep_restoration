@@ -6,15 +6,15 @@ from modules.foe_channelwise_prior import FoEChannelwisePrior
 from modules.foe_separable_prior import FoESeparablePrior
 # resize_all_images((227, 227), 'images_resized_227')
 
-make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv1/lin:0',
-                          n_channels=96,
-                          n_feats_white=6144, whiten_mode='zca', batch_size=100,
-                          mean_mode='gc', sdev_mode='gc',
-                          raw_mat_load_path='')
+# make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv1/lin:0',
+#                           n_channels=96,
+#                           n_feats_white=6144, whiten_mode='zca', batch_size=100,
+#                           mean_mode='gc', sdev_mode='gc',
+#                           raw_mat_load_path='')
 
-add_flattened_validation_set(num_patches=1000, ph=8, pw=8, classifier='alexnet', map_name='conv1/lin:0',
-                             n_channels=96, n_feats_white=6144, whiten_mode='zca', batch_size=100,
-                             mean_mode='gc', sdev_mode='gc')
+# add_flattened_validation_set(num_patches=1000, ph=8, pw=8, classifier='alexnet', map_name='conv1/lin:0',
+#                              n_channels=96, n_feats_white=6144, whiten_mode='zca', batch_size=100,
+#                              mean_mode='gc', sdev_mode='gc')
 #
 # make_channel_separate_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv1/lin:0',
 #                                  n_channels=96, n_feats_per_channel_white=8*8, whiten_mode='zca', batch_size=100,
