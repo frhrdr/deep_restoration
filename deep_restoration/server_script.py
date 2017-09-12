@@ -28,7 +28,7 @@ from modules.foe_channelwise_prior import FoEChannelwisePrior
 prior = FoEFullPrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
                      filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
                      n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
-                     load_name=None)
+                     load_name='FoEPrior')
 #
 prior.train_prior(batch_size=500, n_iterations=3000,
                   lr_lower_points=(# (0, 1e-0), (6000, 1e-1), (6500, 3e-2),
