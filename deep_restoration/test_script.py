@@ -70,7 +70,7 @@ wmode = 'zca'
 #                                whiten_mode=wmode, batch_size=100,
 #                                mean_mode='global_channel', sdev_mode='global_channel')
 
-p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=500, n_channels=3,
+p = FoESeparablePrior('conv1/lin:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=500, n_channels=3,
                       n_features_white=hw**2*3, dim_multiplier=20, share_weights=True,
                       dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,
                       name=None, load_name=None, dir_name=None, load_tensor_names=None)

@@ -10,14 +10,16 @@ from modules.foe_full_prior import FoEFullPrior
 class FoESeparablePrior(FoEFullPrior):
 
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                 n_features_white, dim_multiplier, share_weights=False,
+                 n_features_per_channel_white, dim_multiplier, share_weights=False,
                  dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
                  name=None, load_name=None, dir_name=None, load_tensor_names=None):
 
+        n_features_white = n_features_per_channel_white * n_channels
         super().__init__(tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
                          n_features_white, dist=dist, mean_mode=mean_mode, sdev_mode=sdev_mode, whiten_mode=whiten_mode,
                          name=name, load_name=load_name, dir_name=dir_name, load_tensor_names=load_tensor_names)
 
+        self.n_features_per_channel_white = n_features_per_channel_white
         self.dim_multiplier = dim_multiplier
         self.share_weights = share_weights
 
