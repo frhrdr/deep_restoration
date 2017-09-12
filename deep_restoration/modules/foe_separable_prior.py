@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import time
 import os
-from utils.temp_utils import patch_batch_gen, plot_img_mats, get_optimizer
+from utils.temp_utils import plot_img_mats, get_optimizer, patch_batch_gen
 from utils.preprocessing import make_data_dir
 from modules.foe_full_prior import FoEFullPrior
 
@@ -10,7 +10,7 @@ from modules.foe_full_prior import FoEFullPrior
 class FoESeparablePrior(FoEFullPrior):
 
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                 n_features_per_channel_white, dim_multiplier, share_weights=False,
+                 n_features_per_channel_white, dim_multiplier, share_weights=False, channelwise_data=True,
                  dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
                  name=None, load_name=None, dir_name=None, load_tensor_names=None):
 
@@ -24,6 +24,7 @@ class FoESeparablePrior(FoEFullPrior):
         self.n_features_white = n_features_white
         self.dim_multiplier = dim_multiplier
         self.share_weights = share_weights
+        self.channelwise_data = channelwise_data
 
     @staticmethod
     def assign_names(dist, name, load_name, dir_name, load_tensor_names, tensor_names):
@@ -87,7 +88,8 @@ class FoESeparablePrior(FoEFullPrior):
         with tf.variable_scope(self.name):
 
             whitening_tensor = tf.get_variable('whiten_mat',
-                                               shape=[self.n_channels, self.n_features_white, self.ph * self.pw],
+                                               shape=[self.n_channels, self.n_features_per_channel_white,
+                                                      self.ph * self.pw],
                                                dtype=tf.float32, trainable=False)
             w_norm = tf.get_variable('w_norm', shape=[self.n_components], dtype=tf.float32, trainable=False)
 
@@ -95,7 +97,8 @@ class FoESeparablePrior(FoEFullPrior):
                 ica_a, _, _, depth_filter, point_filter = self.make_normed_filters(trainable=False, squeeze_alpha=True)
 
                 df_temp = tf.transpose(depth_filter, perm=(2, 3, 0, 1))
-                df_temp = tf.reshape(df_temp, shape=[self.n_channels, self.dim_multiplier, self.n_features_white])
+                df_temp = tf.reshape(df_temp, shape=[self.n_channels, self.dim_multiplier,
+                                                     self.n_features_per_channel_white])
                 df_temp = tf.matmul(df_temp, whitening_tensor)
                 df_temp = tf.transpose(df_temp, perm=(2, 0, 1))
                 df_temp = tf.reshape(df_temp, shape=(self.ph, self.pw, self.n_channels, self.dim_multiplier))
@@ -132,13 +135,19 @@ class FoESeparablePrior(FoEFullPrior):
 
         data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=self.ph, pw=self.pw,
                                  mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
-                                 n_features_white=self.n_features_white, classifier=self.classifier)
+                                 n_features_white=self.n_features_per_channel_white, classifier=self.classifier)
+        if self.channelwise_data:
+            data_dir = data_dir.rstrip('/') + '_channelwise/'
 
-        data_gen = patch_batch_gen(batch_size, whiten_mode=self.whiten_mode, data_dir=data_dir,
-                                   data_shape=(n_data_samples, self.n_features_white), data_mode='train')
+            data_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_data_samples, data_mode='train')
 
-        val_gen = patch_batch_gen(batch_size, whiten_mode=self.whiten_mode, data_dir=data_dir,
-                                  data_shape=(n_val_samples, self.n_features_white), data_mode='validate')
+            val_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_val_samples, data_mode='validate')
+        else:
+            data_gen = patch_batch_gen(batch_size, whiten_mode=self.whiten_mode, data_dir=data_dir,
+                                       data_shape=(n_data_samples, self.n_features_white), data_mode='train')
+
+            val_gen = patch_batch_gen(batch_size, whiten_mode=self.whiten_mode, data_dir=data_dir,
+                                      data_shape=(n_val_samples, self.n_features_white), data_mode='validate')
 
         with tf.Graph().as_default() as graph:
             with tf.variable_scope(self.name):
@@ -153,14 +162,6 @@ class FoESeparablePrior(FoEFullPrior):
                 norm_store_op = tf.assign(w_norm_store_var, w_norm)
 
                 loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, ica_w=ica_w, ica_a=ica_a)
-
-                # flat_depth_filter = tf.reshape(depth_filter, shape=(self.n_features_white, self.dim_multiplier))
-                # flat_point_filter = tf.squeeze(point_filter)
-                #
-                # # clip_op = tf.assign(w_mat, w_mat / tf.norm(w_mat, ord=2, axis=0))
-                # # clip_op1 = tf.assign(depth_filter, depth_filter/ tf.norm(depth_filter, ord=2, axis=None))
-                # clip_op1 = tf.assign(depth_filter, depth_filter / tf.norm(flat_depth_filter, ord=2, axis=0))
-                # clip_op2 = tf.assign(point_filter, point_filter / tf.norm(flat_point_filter, ord=2, axis=0))
 
                 opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
                 tvars = tf.trainable_variables()
@@ -260,12 +261,22 @@ class FoESeparablePrior(FoEFullPrior):
                     if plot_filters:
                         unwhiten_mat = np.load(data_dir + 'unwhiten_' + self.whiten_mode + '.npy').astype(np.float32)
                         w_res, alp = sess.run([ica_w, ica_a])
-                        comps = np.dot(w_res.T, unwhiten_mat)
-                        # print(comps.shape)
-                        comps -= np.min(comps)
-                        comps /= np.max(comps)
-                        # co = np.reshape(comps[:n_vis, :], [n_vis, ph, pw, 3])
-                        co = np.reshape(comps[:n_vis, :], [n_vis, 3, self.ph, self.pw])
+
+                        w_res_t = w_res.T.reshape((self.n_components, self.n_channels, 1, self.ph * self.pw))
+                        print(unwhiten_mat.shape)
+                        print(w_res.shape)
+                        print(w_res_t.shape)
+                        if self.channelwise_data:
+                            comps = np.matmul(w_res_t, unwhiten_mat).squeeze()
+                            comps -= np.min(comps)
+                            comps /= np.max(comps)
+                            co = np.reshape(comps[:n_vis, :, :], [n_vis, self.n_channels, self.ph, self.pw])
+                        else:
+                            comps = np.dot(w_res.T, unwhiten_mat)
+                            comps -= np.min(comps)
+                            comps /= np.max(comps)
+                            co = np.reshape(comps[:n_vis, :], [n_vis, 3, self.ph, self.pw])
+
                         co = np.transpose(co, axes=[0, 2, 3, 1])
                         plot_img_mats(co, color=True, rescale=True)
 
@@ -294,13 +305,6 @@ class FoESeparablePrior(FoEFullPrior):
                 x_patch = tf.constant(x_init, dtype=tf.float32, name='x_flat')
                 x_flat = tf.reshape(tf.transpose(x_patch, perm=(0, 3, 1, 2)), shape=(1, self.n_features_white))
 
-                # depth_filter = tf.get_variable('depth_filter', shape=[self.ph, self.pw,
-                #                                                       self.n_channels, self.dim_multiplier])
-                #
-                # point_filter = tf.get_variable('point_filter', shape=[1, 1, self.n_channels * self.dim_multiplier,
-                #                                                       self.n_components])
-                #
-                # w_mat = self.get_w_tensor(depth_filter, point_filter)
                 ica_a, ica_w, w_norm, depth_filter, point_filter = self.make_normed_filters(trainable=False,
                                                                                             squeeze_alpha=True)
                 if not whiten:
@@ -360,8 +364,10 @@ class FoESeparablePrior(FoEFullPrior):
         with tf.Graph().as_default():
 
             with tf.variable_scope(self.name):
-                n_features_raw = self.ph * self.pw * self.n_channels
-                unwhitening_tensor = tf.get_variable('unwhiten_mat', shape=[self.n_features_white, n_features_raw],
+                n_features_raw = self.ph * self.pw
+                unwhitening_tensor = tf.get_variable('unwhiten_mat',
+                                                     shape=[self.n_channels, self.n_features_per_channel_white,
+                                                            n_features_raw],
                                                      dtype=tf.float32, trainable=False)
                 depth_filter = tf.get_variable('depth_filter', shape=[self.ph, self.pw,
                                                                       self.n_channels, self.dim_multiplier])

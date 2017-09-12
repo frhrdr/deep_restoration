@@ -12,16 +12,21 @@ from utils.patch_prior_losses import logistic_channelwise_mrf_loss, logistic_cha
 
 class FoEChannelwisePrior(FoEFullPrior):
     """
-    ICA prior which views each channel as independent
+    FoE prior which views each channel as independent
     """
 
     def __init__(self, tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                 n_features_white, dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
+                 n_features_per_channel_white, dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
                  name=None, load_name=None, dir_name=None, load_tensor_names=None):
 
+        n_features_white = n_features_per_channel_white * n_channels
         super().__init__(tensor_names, weighting, classifier, filter_dims, input_scaling, n_components, n_channels,
-                         n_features_white, dist=dist, mean_mode=mean_mode, sdev_mode=sdev_mode, whiten_mode=whiten_mode,
+                         n_features_per_channel_white, dist=dist,
+                         mean_mode=mean_mode, sdev_mode=sdev_mode, whiten_mode=whiten_mode,
                          name=name, load_name=load_name, dir_name=dir_name, load_tensor_names=load_tensor_names)
+
+        self.n_features_per_channel_white = n_features_per_channel_white
+        self.n_features_white = n_features_white
 
     @staticmethod
     def assign_names(dist, name, load_name, dir_name, load_tensor_names, tensor_names):
@@ -41,9 +46,9 @@ class FoEChannelwisePrior(FoEFullPrior):
 
     @staticmethod
     def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
-                      n_features_white, mean_mode, sdev_mode):
+                      n_features_per_channel_white, mean_mode, sdev_mode, whiten_mode):
         path = FoEFullPrior.get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
-                                          n_features_white, mean_mode, sdev_mode)
+                                          n_features_per_channel_white, mean_mode, sdev_mode, whiten_mode)
         return path.rstrip('/') + '_channelwise/'
 
     def mrf_loss(self, xw, ica_a_flat):
@@ -58,12 +63,12 @@ class FoEChannelwisePrior(FoEFullPrior):
         ica_a = tf.get_variable('ica_a', shape=[self.n_channels, self.n_components, 1],
                                 trainable=trainable, dtype=tf.float32,
                                 initializer=tf.random_normal_initializer())
-        ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_white, self.n_components],
+        ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_per_channel_white, self.n_components],
                                 trainable=trainable, dtype=tf.float32,
                                 initializer=tf.random_normal_initializer(stddev=0.00001))
         if add_to_var_list:
             self.var_list.extend([ica_a, ica_w])
-        ica_w = ica_w / tf.stack([tf.norm(ica_w, ord=2, axis=1)] * self.n_features_white, axis=1)
+        ica_w = ica_w / tf.stack([tf.norm(ica_w, ord=2, axis=1)] * self.n_features_per_channel_white, axis=1)
         if squeeze_alpha:
             ica_a = tf.squeeze(ica_a)
 
@@ -73,11 +78,12 @@ class FoEChannelwisePrior(FoEFullPrior):
         with tf.variable_scope(self.name):
 
             whitening_tensor = tf.get_variable('whiten_mat',
-                                               shape=[self.n_channels, self.n_features_white, self.ph * self.pw],
+                                               shape=[self.n_channels, self.n_features_per_channel_white, self.ph * self.pw],
                                                dtype=tf.float32, trainable=False)
             # ica_a = tf.get_variable('ica_a', shape=[self.n_channels, self.n_components, 1],
             #                         trainable=self.trainable, dtype=tf.float32)
-            # ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_white, self.n_components],
+            # ica_w = tf.get_variable('ica_w', shape=[self.n_channels, self.n_features_per_channel_white,
+            # self.n_components],
             #                         trainable=self.trainable, dtype=tf.float32)
             # ica_a_squeezed = tf.squeeze(ica_a)
             ica_a, ica_w = self.make_normed_filters(trainable=False, squeeze_alpha=True)
@@ -125,7 +131,7 @@ class FoEChannelwisePrior(FoEFullPrior):
 
         data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=self.ph, pw=self.pw,
                                  mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
-                                 n_features_white=self.n_features_white,
+                                 n_features_white=self.n_features_per_channel_white,
                                  classifier=self.classifier).rstrip('/') + '_channelwise/'
 
         data_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_data_samples, data_mode='train')
@@ -136,23 +142,16 @@ class FoEChannelwisePrior(FoEFullPrior):
             with tf.variable_scope(self.name):
                 self.add_preprocessing_to_graph(data_dir, self.whiten_mode)
 
-                x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_channels, self.n_features_white],
+                x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_channels,
+                                                               self.n_features_per_channel_white],
                                       name='x_pl')
                 x_tsr = tf.transpose(x_pl, perm=[1, 0, 2], name='x_mat')
                 lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
 
-                # ica_w = tf.get_variable(shape=[self.n_channels, self.n_features_white, self.n_components],
-                #                         dtype=tf.float32, name='ica_w',
-                #                         initializer=tf.random_normal_initializer(stddev=0.00001))
-                # ica_a = tf.get_variable(shape=[self.n_channels, self.n_components, 1], dtype=tf.float32,
-                #                         name='ica_a', initializer=tf.random_normal_initializer())
                 ica_a, ica_w = self.make_normed_filters(trainable=True, squeeze_alpha=False)
 
                 loss, term_1, term_2 = self.score_matching_loss(x_mat=x_tsr, ica_w=ica_w, ica_a=ica_a)
 
-                # w_norm = tf.norm(ica_w, ord=2, axis=1)
-                # w_norm = tf.stack([tf.norm(ica_w, ord=2, axis=1)] * self.n_features_white, axis=1)
-                # clip_op = tf.assign(ica_w, ica_w / w_norm)
                 opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
 
                 tvars = tf.trainable_variables()
@@ -242,9 +241,10 @@ class FoEChannelwisePrior(FoEFullPrior):
     def load_filters_for_plotting(self):
         with tf.Graph().as_default():
             with tf.variable_scope(self.name):
-                n_features_raw = self.ph * self.pw * self.n_channels
+                n_features_raw = self.ph * self.pw
                 unwhitening_tensor = tf.get_variable('unwhiten_mat',
-                                                     shape=[self.n_channels, self.n_features_white, n_features_raw],
+                                                     shape=[self.n_channels, self.n_features_per_channel_white,
+                                                            n_features_raw],
                                                      dtype=tf.float32, trainable=False)
                 self.var_list = [unwhitening_tensor]
                 ica_a, ica_w = self.make_normed_filters(trainable=False, squeeze_alpha=True)
@@ -292,7 +292,8 @@ class FoEChannelwisePrior(FoEFullPrior):
 
         if data_mode == 'train':
             data_mat = np.memmap(data_dir + 'data_mat_' + self.whiten_mode + '_whitened_channelwise.npy',
-                                 dtype=np.float32, mode='r', shape=(n_samples, self.n_channels, self.ph * self.pw))
+                                 dtype=np.float32, mode='r', shape=(n_samples, self.n_channels,
+                                                                    self.n_features_per_channel_white))
 
             idx = 0
             while True:

@@ -49,8 +49,8 @@ from modules.loss_modules import VggScoreLoss
 #                          load_tensor_names = 'image')
 #
 # img_prior.train_prior(10, 0, plot_filters=True, prev_ckpt=13000)
-hw = 9
-wmode = 'zca'
+hw = 8
+wmode = 'pca'
 # make_flattened_patch_data(100000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_white=hw**2*3,
 #                           whiten_mode=wmode, batch_size=100,
 #                           mean_mode='gc', sdev_mode='gc')
@@ -70,12 +70,19 @@ wmode = 'zca'
 #                                whiten_mode=wmode, batch_size=100,
 #                                mean_mode='global_channel', sdev_mode='global_channel')
 
-p = FoESeparablePrior('conv1/lin:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=500, n_channels=3,
-                      n_features_white=hw**2*3, dim_multiplier=20, share_weights=True,
-                      dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,
-                      name=None, load_name=None, dir_name=None, load_tensor_names=None)
+p = FoEChannelwisePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=200, n_channels=3,
+                        n_features_per_channel_white=hw**2-1, dist='logistic', mean_mode='gc', sdev_mode='gc',
+                        whiten_mode=wmode,
+                        name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
-p.validate_w_build(prev_ckpt=0, whiten=True)
+
+# p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=500, n_channels=3,
+#                       n_features_per_channel_white=hw**2,
+#                       dim_multiplier=50, share_weights=False, channelwise_data=False,
+#                       dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,
+#                       name=None, load_name=None, dir_name=None, load_tensor_names=None)
+
+# p.validate_w_build(prev_ckpt=0, whiten=True)
 
 p.train_prior(batch_size=500, n_iterations=10000, lr=3e-5,
               lr_lower_points=((0, 1e-0), (5000, 1e-1),

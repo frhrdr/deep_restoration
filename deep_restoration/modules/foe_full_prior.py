@@ -416,9 +416,9 @@ class FoEFullPrior(LearnedPriorLoss):
         cf_str = str(n_components) + 'comps_' + str(n_features_white) + 'feats'
         target_dir = '_' + d_str + '_' + cf_str
         if isinstance(sdev_mode, float):
-            mode_str = '_mean_' + mean_mode + '_sdev_rescaled'
+            mode_str = '_mean_' + mean_mode + '_sdev_rescaled' + 'whiten_' + whiten_mode
         else:
-            mode_str = '_mean_' + mean_mode + '_sdev_' + sdev_mode
+            mode_str = '_mean_' + mean_mode + '_sdev_' + sdev_mode + '_whiten_' + whiten_mode
         load_path = '../logs/foe_priors/' + dir_name + '/' + subdir + target_dir + mode_str + '/'
 
         return load_path
