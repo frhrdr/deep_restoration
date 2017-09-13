@@ -114,7 +114,7 @@ class FoEFullPrior(LearnedPriorLoss):
                 xw = tf.matmul(normed_patches, whitened_mixing)
 
             self.loss = self.mrf_loss(xw, ica_a)
-            self.var_list.extend([ica_a, ica_w, whitening_tensor])
+            self.var_list.append(whitening_tensor)
 
     def score_matching_loss(self, x_mat, ica_w, ica_a):
         if self.dist == 'logistic':
