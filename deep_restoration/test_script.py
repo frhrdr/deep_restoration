@@ -1,6 +1,6 @@
 from utils.preprocessing import make_channel_separate_patch_data, make_flattened_patch_data, \
     add_flattened_validation_set, add_channelwise_validation_set
-from utils.temp_utils import show_patches_by_channel
+from utils.temp_utils import show_patches_by_channel, plot_alexnet_filters
 from modules.foe_separable_prior import FoESeparablePrior
 from modules.foe_full_prior import FoEFullPrior
 from modules.foe_channelwise_prior import FoEChannelwisePrior
@@ -52,7 +52,7 @@ from modules.loss_modules import VggScoreLoss
 hw = 3
 wmode = 'pca'
 nchan = 96
-# make_flattened_patch_data(100000, hw, hw, 'alexnet', 'conv1/lin:0', nchan, n_feats_white=hw**2*nchan,
+# make_flattened_patch_data(100000, hw, hw, 'alexnet', 'conv1/relu:0', nchan, n_feats_white=hw**2*nchan,
 #                           whiten_mode=wmode, batch_size=100,
 #                           mean_mode='gc', sdev_mode='gc', n_val_patches=1000)
 
@@ -76,17 +76,17 @@ p = FoEFullPrior('conv1/lin:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=20
 #                       dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,
 #                       name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
-p.train_prior(batch_size=500, n_iterations=25000, lr=3e-5,
-              lr_lower_points=((0, 1e-0), (20000, 1e-1),
-                               (21000, 3e-2),
-                               (22000, 1e-2), (22500, 3e-3), (23000, 1e-3),
-                               (24000, 1e-4), (24500, 3e-5)),
-              grad_clip=1e-3,
-              n_data_samples=100000, n_val_samples=1000,
-              log_freq=1000, summary_freq=10, print_freq=100,
-              prev_ckpt=0,
-              optimizer_name='adam', plot_filters=False)
-
+# p.train_prior(batch_size=500, n_iterations=3000, lr=3e-5,
+#               lr_lower_points=((0, 1e-0), (20000, 1e-1),
+#                                (21000, 3e-2),
+#                                (22000, 1e-2), (22500, 3e-3), (23000, 1e-3),
+#                                (24000, 1e-4), (24500, 3e-5)),
+#               grad_clip=1e-3,
+#               n_data_samples=100000, n_val_samples=1000,
+#               log_freq=1000, summary_freq=10, print_freq=100,
+#               prev_ckpt=0,
+#               optimizer_name='adam', plot_filters=False)
+#
 # p.plot_filters_top_alphas(7, p.load_path + 'filter_vis/a_top/')
 # p.plot_channels_top_filters(range(7), p.load_path + 'filter_vis/c_top/')
 
@@ -114,7 +114,7 @@ p.train_prior(batch_size=500, n_iterations=25000, lr=3e-5,
 # show_patches_by_channel(raw_mat_dir, raw_mat_name, 100000, 8, 8, 96, plot_patches=range(10, 15))
 
 
-# plot_alexnet_filters('./', filter_name='conv1', filter_ids=range(10))
+# plot_alexnet_filters('./', filter_name='conv1', filter_ids=(15, 31, 39, 44, 51, 55, 78, 83))
 
 # make_channel_separate_patch_data(100000, 5, 5, 'alexnet', 'conv2/lin:0', 256,
 #                                  save_dir='../data/patches/alexnet/conv2_lin_5x5_24feats_mean_gc_sdev_gc_channelwise/',

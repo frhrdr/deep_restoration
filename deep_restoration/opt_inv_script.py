@@ -49,18 +49,22 @@ chanprior = FoEChannelwisePrior('pre_featmap/read:0', 1e-6, 'alexnet', [5, 5], i
                                 load_name='ChannelICAPrior',
                                 load_tensor_names='conv1/lin:0')
 
-fullprior = FoEFullPrior(tensor_names='pre_featmap/read:0', weighting=1e-10, classifier='alexnet',
+fullprior = FoEFullPrior(tensor_names='pre_featmap/read:0', weighting=1e-9, classifier='alexnet',
                          filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
                          n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
                          load_name='FoEPrior',
                          load_tensor_names='conv1/lin:0')
+
+slimprior = FoEFullPrior('pre_featmap/read:0', 1e-8, 'alexnet', [3, 3], 1.0, n_components=2000, n_channels=96,
+                         n_features_white=3**2*96, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
+                         name=None, load_name=None, dir_name=None, load_tensor_names='conv1/lin:0')
 
 
 pre_mse = NormedMSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
 pre_mse.add_loss = False
 
 modules = [split2, mse2, fullprior, pre_mse]
-log_path = '../logs/opt_inversion/alexnet/c2l_to_c1l/full_prior/adam/run3/'
+log_path = '../logs/opt_inversion/alexnet/c2l_to_c1l/full_prior/adam/run4/'
 
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 

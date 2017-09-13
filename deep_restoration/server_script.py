@@ -36,7 +36,6 @@ prior = FoEChannelwisePrior(tensor_names='conv1/lin:0', weighting=1e-10, classif
                             n_features_per_channel_white=64,
                             dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='zca')
 
-
 prior.train_prior(batch_size=500, n_iterations=20000,
                   lr_lower_points=((0, 1e-0), (10000, 1e-1), (12000, 3e-2),
                                    (13000, 1e-2), (14500, 3e-3), (15000, 1e-3),
