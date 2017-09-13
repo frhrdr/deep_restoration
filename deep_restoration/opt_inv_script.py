@@ -59,8 +59,8 @@ fullprior = FoEFullPrior(tensor_names='pre_featmap/read:0', weighting=1e-10, cla
 pre_mse = NormedMSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
 pre_mse.add_loss = False
 
-modules = [split2, mse2, pre_mse]
-log_path = '../logs/opt_inversion/alexnet/c2l_to_c1l/mse/adam/run3/'
+modules = [split2, mse2, fullprior, pre_mse]
+log_path = '../logs/opt_inversion/alexnet/c2l_to_c1l/full_prior/adam/run1/'
 
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
@@ -80,7 +80,7 @@ pre_featmap_init = None
 # pre_featmap_init = np.random.normal(loc=0, scale=0.1, size=(1, 56, 56, 96)).astype(np.float32)
 
 ni.train_pre_featmap('../data/selected/images_resized_227/red-fox.bmp', n_iterations=20000, optim_name='adam',
-                     lr_lower_points=((1e+0, 1e-0),), grad_clip=10000.,
+                     lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
                      pre_featmap_init=pre_featmap_init, ckpt_offset=0000,
                      pre_featmap_name='conv1/lin',
                      featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=False)

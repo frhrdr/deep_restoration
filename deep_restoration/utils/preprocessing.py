@@ -10,7 +10,7 @@ from utils.whitening import pca_whiten_mats, zca_whiten_mats, not_whiten_mats
 def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_channels,
                               n_feats_white, whiten_mode='pca', batch_size=100,
                               mean_mode='local_full', sdev_mode='global_feature',
-                              raw_mat_load_path=''):
+                              raw_mat_load_path='', n_val_patches=0):
     """
     creates whitening, covariance, raw and whitened feature matrices for separate channels.
     all data is saved as [n_patches, n_channels, n_features_per_channel]
@@ -49,11 +49,15 @@ def make_flattened_patch_data(num_patches, ph, pw, classifier, map_name, n_chann
         data_mat[idx * batch_size:(idx + 1) * batch_size, :] = image @ whiten.T  # [bs, n_f] x [n_f, n_fw] = [bs, n_fw]
     print('whitened data done')
 
+    if n_val_patches > 0:
+        add_flattened_validation_set(n_val_patches, ph, pw, classifier, map_name, n_channels,
+                                     n_feats_white, whiten_mode, batch_size, mean_mode, sdev_mode)
+
 
 def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, n_channels, n_feats_per_channel_white,
                                      whiten_mode='pca', batch_size=100,
                                      mean_mode='global_channel', sdev_mode='global_channel',
-                                     raw_mat_load_path=''):
+                                     raw_mat_load_path='', n_val_patches=0):
     """
     creates whitening, covariance, raw and whitened feature matrices for separate channels.
     They are saved as 3d matrices where the first dimension is the channel index
@@ -94,6 +98,10 @@ def make_channel_separate_patch_data(num_patches, ph, pw, classifier, map_name, 
         # [n_c, n_fpcw, n_fpc] x [n_c, n_fpc, 1] = [n_c, n_fpcw]
         data_mat[idx * batch_size:(idx + 1) * batch_size, :, :] = np.squeeze(channel_whiten @ image)
     print('whitened data done')
+
+    if n_val_patches > 0:
+        add_channelwise_validation_set(n_val_patches, ph, pw, classifier, map_name, n_channels,
+                                       n_feats_per_channel_white, whiten_mode, batch_size, mean_mode, sdev_mode)
 
 
 def raw_patch_data_mat(map_name, classifier, num_patches, ph, pw, batch_size, n_channels,
