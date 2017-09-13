@@ -38,7 +38,7 @@ def logistic_channelwise_mrf_loss(xw, ica_a_flat):
 
 def logistic_channelwise_score_matching_loss(x_tsr, ica_w, ica_a):
     ica_a_pos = tf.nn.softplus(ica_a)
-    const_t = x_tsr.get_shape()[0].value
+    const_t = x_tsr.get_shape()[1].value
     xw_mat = tf.matmul(x_tsr, ica_w)
     g_mat = -tf.tanh(xw_mat)
     gp_mat = -4.0 / tf.square(tf.exp(xw_mat) + tf.exp(-xw_mat))  # d/dx tanh(x) = 4 / (exp(x) + exp(-x))^2

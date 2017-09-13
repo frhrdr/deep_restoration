@@ -5,6 +5,7 @@ from modules.loss_modules import NormedMSELoss
 from modules.split_module import SplitModule
 from shutil import copyfile
 import os
+import numpy as np
 
 split2 = SplitModule(name_to_split='conv2/lin:0', img_slice_name='img_rep_c2l',
                      rec_slice_name='rec_rep_c2l', name='Split2')
@@ -43,7 +44,7 @@ mse1.add_loss = False
 
 chanprior = FoEChannelwisePrior('pre_featmap/read:0', 1e-6, 'alexnet', [5, 5], input_scaling=1.0,
                                 n_components=150, n_channels=96,
-                                n_features_white=24,
+                                n_features_per_channel_white=24,
                                 mean_mode='gc', sdev_mode='gc',
                                 load_name='ChannelICAPrior',
                                 load_tensor_names='conv1/lin:0')
@@ -58,8 +59,8 @@ fullprior = FoEFullPrior(tensor_names='pre_featmap/read:0', weighting=1e-10, cla
 pre_mse = NormedMSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
 pre_mse.add_loss = False
 
-modules = [split4, mse4, pre_mse, chanprior]
-log_path = '../logs/opt_inversion/alexnet/pre_featmap/chan_5x5/'
+modules = [split2, mse2, pre_mse]
+log_path = '../logs/opt_inversion/alexnet/c2l_to_c1l/mse/adam/run3/'
 
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
@@ -74,15 +75,15 @@ copyfile('./opt_inv_script.py', log_path + 'script.py')
 # pre_img_init = np.load('../logs/net_inversion/alexnet/c1l_tests_16_08/init_helper.npy')
 
 pre_featmap_init = None
-# pre_featmap_init = np.reshape(np.load(ni.log_path + 'mats/rec_500.npy'), [1, 224, 224, 3])
+# pre_featmap_init = np.reshape(np.load(ni.log_path + 'mats/rec_20000.npy'), [1, 55, 55, 96])
 
 # pre_featmap_init = np.random.normal(loc=0, scale=0.1, size=(1, 56, 56, 96)).astype(np.float32)
 
-ni.train_pre_featmap('../data/selected/images_resized/red-fox.bmp', n_iterations=10000, optim_name='adam',
-                     lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
-                     pre_featmap_init=pre_featmap_init, ckpt_offset=0,
+ni.train_pre_featmap('../data/selected/images_resized_227/red-fox.bmp', n_iterations=20000, optim_name='adam',
+                     lr_lower_points=((1e+0, 1e-0),), grad_clip=10000.,
+                     pre_featmap_init=pre_featmap_init, ckpt_offset=0000,
                      pre_featmap_name='conv1/lin',
-                     featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=True)
+                     featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=False)
 
 # pre_featmap_init = np.reshape(np.load(params['log_path'] + 'mats/rec_500.npy'), [1, 56, 56, 96])
 # ni.params['num_iterations'] = 10000

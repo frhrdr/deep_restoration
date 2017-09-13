@@ -1,9 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import time
-import os
-from utils.temp_utils import plot_img_mats, get_optimizer, patch_batch_gen
-from utils.preprocessing import make_data_dir
+from utils.temp_utils import plot_img_mats
 from modules.foe_full_prior import FoEFullPrior
 
 
@@ -77,11 +74,14 @@ class FoESeparablePrior(FoEFullPrior):
         ica_w = self.get_w_tensor(depth_filter, point_filter)
         w_norm = tf.norm(ica_w, ord=2, axis=0)
         ica_w = ica_w / w_norm
+        w_norm_store_var = tf.get_variable('w_norm', shape=[self.n_components], dtype=tf.float32)
+        extra_op = tf.assign(w_norm_store_var, w_norm)
 
         if squeeze_alpha:
             ica_a = tf.squeeze(ica_a)
 
-        return ica_a, ica_w, w_norm, depth_filter, point_filter
+        extra_vals = depth_filter, point_filter, w_norm
+        return ica_a, ica_w, extra_op, extra_vals
 
     def build(self, scope_suffix=''):
 
@@ -94,8 +94,8 @@ class FoESeparablePrior(FoEFullPrior):
             w_norm = tf.get_variable('w_norm', shape=[self.n_components], dtype=tf.float32, trainable=False)
 
             if self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf'):
-                ica_a, _, _, depth_filter, point_filter = self.make_normed_filters(trainable=False, squeeze_alpha=True)
-
+                ica_a, _, _, extra_filters = self.make_normed_filters(trainable=False, squeeze_alpha=True)
+                depth_filter, point_filter, _ = extra_filters
                 df_temp = tf.transpose(depth_filter, perm=(2, 3, 0, 1))
                 df_temp = tf.reshape(df_temp, shape=[self.n_channels, self.dim_multiplier,
                                                      self.n_features_per_channel_white])
@@ -112,7 +112,7 @@ class FoESeparablePrior(FoEFullPrior):
                 xw = xw_flat / w_norm
 
             else:
-                ica_a, ica_w, _, _, _ = self.make_normed_filters(trainable=False, squeeze_alpha=True)
+                ica_a, ica_w, _, _ = self.make_normed_filters(trainable=False, squeeze_alpha=True)
 
                 w_temp = tf.reshape(ica_w, shape=(self.n_channels, self.ph * self.pw, self.n_components))
 
@@ -126,162 +126,32 @@ class FoESeparablePrior(FoEFullPrior):
             self.loss = self.mrf_loss(xw, ica_a)
             self.var_list.extend([ica_a, whitening_tensor])
 
-    def train_prior(self, batch_size, n_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
-                    n_data_samples=100000, n_val_samples=500,
-                    log_freq=5000, summary_freq=10, print_freq=100, test_freq=100,
-                    prev_ckpt=0, optimizer_name='adam',
-                    plot_filters=False, do_clip=True):
-        log_path = self.load_path
+    def make_data_dir(self):
+        if self.channelwise_data:
+            n_features_white = self.n_features_white
+            self.n_features_white = self.n_features_per_channel_white
+            data_dir = super().make_data_dir()
+            self.n_features_white = n_features_white
+            return data_dir.rstrip('/') + '_channelwise/'
+        else:
+            return super().make_data_dir()
+
+    def plot_filters_after_training(self, w_res, unwhiten_mat, n_vis):
+        w_res_t = w_res.T.reshape((self.n_components, self.n_channels, 1, self.ph * self.pw))
 
         if self.channelwise_data:
-            data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=self.ph, pw=self.pw,
-                                     mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
-                                     n_features_white=self.n_features_per_channel_white, classifier=self.classifier)
-            data_dir = data_dir.rstrip('/') + '_channelwise/'
-
-            data_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_data_samples, data_mode='train')
-
-            val_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_val_samples, data_mode='validate')
+            comps = np.matmul(w_res_t, unwhiten_mat).squeeze()
+            comps -= np.min(comps)
+            comps /= np.max(comps)
+            co = np.reshape(comps[:n_vis, :, :], [n_vis, self.n_channels, self.ph, self.pw])
         else:
-            data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=self.ph, pw=self.pw,
-                                     mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
-                                     n_features_white=self.n_features_white, classifier=self.classifier)
-            data_gen = patch_batch_gen(batch_size, whiten_mode=self.whiten_mode, data_dir=data_dir,
-                                       data_shape=(n_data_samples, self.n_features_white), data_mode='train')
+            comps = np.dot(w_res.T, unwhiten_mat)
+            comps -= np.min(comps)
+            comps /= np.max(comps)
+            co = np.reshape(comps[:n_vis, :], [n_vis, 3, self.ph, self.pw])
 
-            val_gen = patch_batch_gen(batch_size, whiten_mode=self.whiten_mode, data_dir=data_dir,
-                                      data_shape=(n_val_samples, self.n_features_white), data_mode='validate')
-
-        with tf.Graph().as_default() as graph:
-            with tf.variable_scope(self.name):
-                self.add_preprocessing_to_graph(data_dir, self.whiten_mode)
-
-                x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_features_white], name='x_pl')
-                lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
-
-                ica_a, ica_w, w_norm, _, _ = self.make_normed_filters(trainable=True, squeeze_alpha=False)
-
-                w_norm_store_var = tf.get_variable('w_norm', shape=[self.n_components], dtype=tf.float32)
-                norm_store_op = tf.assign(w_norm_store_var, w_norm)
-
-                loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, ica_w=ica_w, ica_a=ica_a)
-
-                opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
-                tvars = tf.trainable_variables()
-                grads = tf.gradients(loss, tvars)
-                tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
-                tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
-                              for k in tg_pairs]
-                opt_op = opt.apply_gradients(tg_clipped)
-
-                if self.load_name != self.name and prev_ckpt:
-                    to_load = self.tensor_load_dict_by_name(tf.global_variables())
-                    saver = tf.train.Saver(var_list=to_load)
-                else:
-                    saver = tf.train.Saver()
-
-                checkpoint_file = os.path.join(log_path, 'ckpt')
-
-                if not os.path.exists(log_path):
-                    os.makedirs(log_path)
-
-                tf.summary.scalar('total_loss', loss)
-                tf.summary.scalar('term_1', term_1)
-                tf.summary.scalar('term_2', term_2)
-                train_summary_op = tf.summary.merge_all()
-                summary_writer = tf.summary.FileWriter(log_path + '/summaries')
-
-                val_loss = tf.placeholder(dtype=tf.float32, shape=[], name='val_loss')
-                val_summary_op = tf.summary.scalar('validation_loss', val_loss)
-
-                with tf.Session() as sess:
-                    # print(tf.trainable_variables())
-                    sess.run(tf.global_variables_initializer())
-
-                    if prev_ckpt:
-                        prev_path = self.load_path + 'ckpt-' + str(prev_ckpt)
-                        saver.restore(sess, prev_path)
-
-                    # sess.run([clip_op1, clip_op2])
-
-                    start_time = time.time()
-                    train_time = 0
-                    for count in range(prev_ckpt + 1, prev_ckpt + n_iterations + 1):
-                        data = next(data_gen)
-
-                        if lr_lower_points and lr_lower_points[0][0] <= count:
-                            lr = lr_lower_points[0][1]
-                            print('new learning rate: ', lr)
-                            lr_lower_points = lr_lower_points[1:]
-
-                        batch_start = time.time()
-                        batch_loss, _, summary_string = sess.run(fetches=[loss, opt_op, train_summary_op],
-                                                                 feed_dict={x_pl: data, lr_pl: lr})
-
-                        # if do_clip:
-                        #     sess.run([clip_op1, clip_op2])
-
-                        train_time += time.time() - batch_start
-
-                        if count % summary_freq == 0:
-                            summary_writer.add_summary(summary_string, count)
-
-                        if count % print_freq == 0:
-                            print(batch_loss)
-
-                        if count % (print_freq * 10) == 0:
-                            term_1 = graph.get_tensor_by_name(self.name + '/t1:0')
-                            term_2 = graph.get_tensor_by_name(self.name + '/t2:0')
-                            w_res, alp, t1, t2 = sess.run([ica_w, ica_a, term_1, term_2], feed_dict={x_pl: data})
-                            print('it: ', count, ' / ', n_iterations + prev_ckpt)
-                            print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
-                            print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
-                            print('term_1: ', t1, ' term_2: ', t2)
-
-                            train_ratio = 100.0 * train_time / (time.time() - start_time)
-                            print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
-
-                        if test_freq > 0 and count % test_freq == 0:
-                            val_loss_acc = 0.0
-                            num_runs = n_val_samples // batch_size
-                            for val_count in range(num_runs):
-                                val_feed_dict = {x_pl: next(val_gen)}
-                                val_batch_loss = sess.run(loss, feed_dict=val_feed_dict)
-                                val_loss_acc += val_batch_loss
-                            val_loss_acc /= num_runs
-                            val_summary_string = sess.run(val_summary_op, feed_dict={val_loss: val_loss_acc})
-                            summary_writer.add_summary(val_summary_string, count)
-                            print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
-                                   'Time: {2:5.1f} min').format(count, val_loss_acc,
-                                                                (time.time() - start_time) / 60))
-
-                        if count % log_freq == 0:
-                            sess.run(norm_store_op)
-                            saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=count)
-
-                    saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=n_iterations + prev_ckpt)
-
-                    if plot_filters:
-                        unwhiten_mat = np.load(data_dir + 'unwhiten_' + self.whiten_mode + '.npy').astype(np.float32)
-                        w_res, alp = sess.run([ica_w, ica_a])
-
-                        w_res_t = w_res.T.reshape((self.n_components, self.n_channels, 1, self.ph * self.pw))
-                        print(unwhiten_mat.shape)
-                        print(w_res.shape)
-                        print(w_res_t.shape)
-                        if self.channelwise_data:
-                            comps = np.matmul(w_res_t, unwhiten_mat).squeeze()
-                            comps -= np.min(comps)
-                            comps /= np.max(comps)
-                            co = np.reshape(comps[:n_vis, :, :], [n_vis, self.n_channels, self.ph, self.pw])
-                        else:
-                            comps = np.dot(w_res.T, unwhiten_mat)
-                            comps -= np.min(comps)
-                            comps /= np.max(comps)
-                            co = np.reshape(comps[:n_vis, :], [n_vis, 3, self.ph, self.pw])
-
-                        co = np.transpose(co, axes=[0, 2, 3, 1])
-                        plot_img_mats(co, color=True, rescale=True)
+        co = np.transpose(co, axes=[0, 2, 3, 1])
+        plot_img_mats(co, color=True, rescale=True)
 
     def get_w_tensor(self, depth_filter, point_filter):
 
@@ -308,8 +178,8 @@ class FoESeparablePrior(FoEFullPrior):
                 x_patch = tf.constant(x_init, dtype=tf.float32, name='x_flat')
                 x_flat = tf.reshape(tf.transpose(x_patch, perm=(0, 3, 1, 2)), shape=(1, self.n_features_white))
 
-                ica_a, ica_w, w_norm, depth_filter, point_filter = self.make_normed_filters(trainable=False,
-                                                                                            squeeze_alpha=True)
+                ica_a, ica_w, _, extra_vals = self.make_normed_filters(trainable=False, squeeze_alpha=True)
+                depth_filter, point_filter, w_norm = extra_vals
                 if not whiten:
                     xw_mat_based = tf.squeeze(tf.matmul(x_flat, ica_w))
 
@@ -393,32 +263,152 @@ class FoESeparablePrior(FoEFullPrior):
 
     def patch_batch_gen(self, batch_size, data_dir, n_samples, data_mode='train'):
         assert data_mode in ('train', 'validate')
+        if self.channelwise_data:
+            if data_mode == 'train':
+                data_mat = np.memmap(data_dir + 'data_mat_' + self.whiten_mode + '_whitened_channelwise.npy',
+                                     dtype=np.float32, mode='r', shape=(n_samples, self.n_channels, self.ph * self.pw))
 
-        if data_mode == 'train':
-            data_mat = np.memmap(data_dir + 'data_mat_' + self.whiten_mode + '_whitened_channelwise.npy',
-                                 dtype=np.float32, mode='r', shape=(n_samples, self.n_channels, self.ph * self.pw))
+                idx = 0
+                while True:
+                    if idx + batch_size < n_samples:
+                        batch = data_mat[idx:(idx + batch_size), :, :]
+                        idx += batch_size
+                    else:
+                        last_bit = data_mat[idx:, :, :]
+                        idx = (idx + batch_size) % n_samples
+                        first_bit = data_mat[:idx, :, :]
+                        batch = np.concatenate((last_bit, first_bit), axis=0)
+                    batch = np.reshape(batch, (batch_size, self.n_features_white))
+                    yield batch
+            else:
+                data_mat = np.load(data_dir + 'val_mat.npy')
+                assert data_mat.shape[0] == n_samples, 'expected {}, found {}'.format(n_samples, data_mat.shape[0])
+                assert n_samples % batch_size == 0
 
-            idx = 0
-            while True:
-                if idx + batch_size < n_samples:
+                idx = 0
+                while True:
                     batch = data_mat[idx:(idx + batch_size), :, :]
                     idx += batch_size
-                else:
-                    last_bit = data_mat[idx:, :, :]
-                    idx = (idx + batch_size) % n_samples
-                    first_bit = data_mat[:idx, :, :]
-                    batch = np.concatenate((last_bit, first_bit), axis=0)
-                batch = np.reshape(batch, (batch_size, self.n_features_white))
-                yield batch
+                    idx = idx % n_samples
+                    batch = np.reshape(batch, (batch_size, self.n_features_white))
+                    yield batch
         else:
-            data_mat = np.load(data_dir + 'val_mat.npy')
-            assert data_mat.shape[0] == n_samples, 'expected {}, found {}'.format(n_samples, data_mat.shape[0])
-            assert n_samples % batch_size == 0
+            super().patch_batch_gen(batch_size, data_dir, n_samples, data_mode)
 
-            idx = 0
-            while True:
-                batch = data_mat[idx:(idx + batch_size), :, :]
-                idx += batch_size
-                idx = idx % n_samples
-                batch = np.reshape(batch, (batch_size, self.n_features_white))
-                yield batch
+    # def train_prior(self, batch_size, n_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
+    #                 n_data_samples=100000, n_val_samples=500,
+    #                 log_freq=5000, summary_freq=10, print_freq=100, test_freq=100,
+    #                 prev_ckpt=0, optimizer_name='adam',
+    #                 plot_filters=False, do_clip=True):
+    #
+    #     if not os.path.exists(self.load_path):
+    #         os.makedirs(self.load_path)
+    #
+    #     data_dir = self.make_data_dir()
+    #     data_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_data_samples, data_mode='train')
+    #     val_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_val_samples, data_mode='validate')
+    #
+    #     with tf.Graph().as_default() as graph:
+    #         with tf.variable_scope(self.name):
+    #             self.add_preprocessing_to_graph(data_dir, self.whiten_mode)
+    #
+    #             ica_a, ica_w, extra_op, _ = self.make_normed_filters(trainable=True, squeeze_alpha=False)
+    #
+    #             x_pl = self.get_x_placeholder(batch_size)
+    #             loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, ica_w=ica_w, ica_a=ica_a)
+    #
+    #             lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
+    #             opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
+    #             tvars = tf.trainable_variables()
+    #             grads = tf.gradients(loss, tvars)
+    #             tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
+    #             tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
+    #                           for k in tg_pairs]
+    #             opt_op = opt.apply_gradients(tg_clipped)
+    #
+    #             if self.load_name != self.name and prev_ckpt:
+    #                 to_load = self.tensor_load_dict_by_name(tf.global_variables())
+    #                 saver = tf.train.Saver(var_list=to_load)
+    #             else:
+    #                 saver = tf.train.Saver()
+    #
+    #             checkpoint_file = os.path.join(self.load_path, 'ckpt')
+    #
+    #             if not os.path.exists(self.load_path):
+    #                 os.makedirs(self.load_path)
+    #
+    #             tf.summary.scalar('total_loss', loss)
+    #             tf.summary.scalar('term_1', term_1)
+    #             tf.summary.scalar('term_2', term_2)
+    #             train_summary_op = tf.summary.merge_all()
+    #             summary_writer = tf.summary.FileWriter(self.load_path + '/summaries')
+    #
+    #             val_loss = tf.placeholder(dtype=tf.float32, shape=[], name='val_loss')
+    #             val_summary_op = tf.summary.scalar('validation_loss', val_loss)
+    #
+    #             with tf.Session() as sess:
+    #                 sess.run(tf.global_variables_initializer())
+    #
+    #                 if prev_ckpt:
+    #                     self.load_weights(sess, prev_ckpt)
+    #
+    #                 start_time = time.time()
+    #                 train_time = 0
+    #                 for count in range(prev_ckpt + 1, prev_ckpt + n_iterations + 1):
+    #                     data = next(data_gen)
+    #
+    #                     if lr_lower_points and lr_lower_points[0][0] <= count:
+    #                         lr = lr_lower_points[0][1]
+    #                         print('new learning rate: ', lr)
+    #                         lr_lower_points = lr_lower_points[1:]
+    #
+    #                     batch_start = time.time()
+    #                     batch_loss, _, summary_string = sess.run(fetches=[loss, opt_op, train_summary_op],
+    #                                                              feed_dict={x_pl: data, lr_pl: lr})
+    #
+    #                     train_time += time.time() - batch_start
+    #
+    #                     if count % summary_freq == 0:
+    #                         summary_writer.add_summary(summary_string, count)
+    #
+    #                     if count % print_freq == 0:
+    #                         print(batch_loss)
+    #
+    #                     if count % (print_freq * 10) == 0:
+    #                         term_1 = graph.get_tensor_by_name(self.name + '/t1:0')
+    #                         term_2 = graph.get_tensor_by_name(self.name + '/t2:0')
+    #                         w_res, alp, t1, t2 = sess.run([ica_w, ica_a, term_1, term_2], feed_dict={x_pl: data})
+    #                         print('it: ', count, ' / ', n_iterations + prev_ckpt)
+    #                         print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
+    #                         print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
+    #                         print('term_1: ', t1, ' term_2: ', t2)
+    #
+    #                         train_ratio = 100.0 * train_time / (time.time() - start_time)
+    #                         print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
+    #
+    #                     if test_freq > 0 and count % test_freq == 0:
+    #                         val_loss_acc = 0.0
+    #                         num_runs = n_val_samples // batch_size
+    #                         for val_count in range(num_runs):
+    #                             val_feed_dict = {x_pl: next(val_gen)}
+    #                             val_batch_loss = sess.run(loss, feed_dict=val_feed_dict)
+    #                             val_loss_acc += val_batch_loss
+    #                         val_loss_acc /= num_runs
+    #                         val_summary_string = sess.run(val_summary_op, feed_dict={val_loss: val_loss_acc})
+    #                         summary_writer.add_summary(val_summary_string, count)
+    #                         print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
+    #                                'Time: {2:5.1f} min').format(count, val_loss_acc,
+    #                                                             (time.time() - start_time) / 60))
+    #
+    #                     if count % log_freq == 0:
+    #                         if extra_op is not None:
+    #                             sess.run(extra_op)
+    #                         saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=count)
+    #
+    #                 saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=n_iterations + prev_ckpt)
+    #
+    #                 if plot_filters:
+    #                     unwhiten_mat = np.load(data_dir + 'unwhiten_' + self.whiten_mode + '.npy').astype(np.float32)
+    #                     w_res = sess.run(ica_w)
+    #
+    #                     self.plot_filters_after_training(w_res, unwhiten_mat, n_vis)

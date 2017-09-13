@@ -248,17 +248,13 @@ class NetInversion:
                             np.save(self.log_path + 'mats/rec_' + str(count) + '.npy', rec_mat)
 
                             if save_as_plot:
-                                plot_mat = np.zeros(shape=(self.img_hw, 2 * self.img_hw, 3))
-                                plot_mat[:, :self.img_hw, :] = img_mat / 255.0
                                 rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))
-                                plot_mat[:, self.img_hw:, :] = rec_mat
-
                                 fig = plt.figure(frameon=False)
                                 fig.set_size_inches(2, 1)
                                 ax = plt.Axes(fig, [0., 0., 1., 1.])
                                 ax.set_axis_off()
                                 fig.add_axes(ax)
-                                ax.imshow(plot_mat, aspect='auto')
+                                ax.imshow(rec_mat, aspect='auto')
                                 plt.savefig(self.log_path + 'imgs/rec_' + str(count) + '.png',
                                             format='png', dpi=self.img_hw)
                                 plt.close()

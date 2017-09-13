@@ -4,10 +4,9 @@ import time
 import os
 from modules.core_modules import LearnedPriorLoss
 from utils.temp_utils import flattening_filter, plot_img_mats, get_optimizer
-from utils.preprocessing import preprocess_patch_tensor, make_data_dir, preprocess_featmap_tensor
+from utils.preprocessing import preprocess_patch_tensor, preprocess_featmap_tensor
 from utils.patch_prior_losses import logistic_full_mrf_loss, logistic_full_score_matching_loss, \
     student_full_mrf_loss, student_full_score_matching_loss
-# _mean_lf_sdev_none
 
 
 class FoEFullPrior(LearnedPriorLoss):
@@ -74,11 +73,16 @@ class FoEFullPrior(LearnedPriorLoss):
                                 initializer=tf.random_normal_initializer(stddev=0.001))
         if add_to_var_list:
             self.var_list.extend([ica_a, ica_w])
-        ica_w = ica_w / tf.norm(ica_w, ord=2, axis=0)
+
+        w_norm = tf.norm(ica_w, ord=2, axis=0)
+        ica_w = ica_w / w_norm
+
         if squeeze_alpha:
             ica_a = tf.squeeze(ica_a)
 
-        return ica_a, ica_w
+        extra_op = None
+        extra_vals = None
+        return ica_a, ica_w, extra_op, extra_vals
 
     def build(self, scope_suffix=''):
 
@@ -88,7 +92,7 @@ class FoEFullPrior(LearnedPriorLoss):
             whitening_tensor = tf.get_variable('whiten_mat', shape=[self.n_features_white, n_features_raw],
                                                dtype=tf.float32, trainable=False)
 
-            ica_a, ica_w = self.make_normed_filters(trainable=False, squeeze_alpha=True)
+            ica_a, ica_w, _, _ = self.make_normed_filters(trainable=False, squeeze_alpha=True)
 
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
 
@@ -118,31 +122,47 @@ class FoEFullPrior(LearnedPriorLoss):
         if self.dist == 'student':
             return student_full_score_matching_loss(x_mat, ica_w, ica_a)
 
-    def train_prior(self, batch_size, n_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0, n_vis=144,
+    def make_data_dir(self):
+        d_str = str(self.ph) + 'x' + str(self.pw)
+        if isinstance(self.sdev_mode, float):
+            mode_str = '_mean_{0}_sdev_rescaled_{1}'.format(self.mean_mode, self.sdev_mode)
+        else:
+            mode_str = '_mean_{0}_sdev_{1}'.format(self.mean_mode, self.sdev_mode)
+
+        if 'pre_img' in self.in_tensor_names or 'rgb_scaled' in self.in_tensor_names:
+            subdir = 'image/' + d_str
+        else:
+            t_str = self.in_tensor_names[:-len(':0')].replace('/', '_')
+            subdir = self.classifier + '/' + t_str + '_' + d_str + '_' + str(self.n_features_white) + 'feats'
+        data_dir = '../data/patches/' + subdir + mode_str + '/'
+        return data_dir
+
+    def get_x_placeholder(self, batch_size):
+        return tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_features_white], name='x_pl')
+
+    def train_prior(self, batch_size, n_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0,
                     n_data_samples=100000, n_val_samples=500,
                     log_freq=5000, summary_freq=10, print_freq=100, test_freq=100,
                     prev_ckpt=0, optimizer_name='adam',
-                    plot_filters=False, do_clip=True):
-        log_path = self.load_path
+                    plot_filters=False, n_vis=144):
 
-        data_dir = make_data_dir(in_tensor_name=self.in_tensor_names, ph=self.ph, pw=self.pw,
-                                 mean_mode=self.mean_mode, sdev_mode=self.sdev_mode,
-                                 n_features_white=self.n_features_white, classifier=self.classifier)
+        if not os.path.exists(self.load_path):
+            os.makedirs(self.load_path)
 
+        data_dir = self.make_data_dir()
         data_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_data_samples, data_mode='train')
-
         val_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_val_samples, data_mode='validate')
 
         with tf.Graph().as_default() as graph:
             with tf.variable_scope(self.name):
                 self.add_preprocessing_to_graph(data_dir, self.whiten_mode)
 
-                x_pl = tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_features_white], name='x_pl')
-                lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
+                ica_a, ica_w, extra_op, _ = self.make_normed_filters(trainable=True, squeeze_alpha=False)
 
-                ica_a, ica_w = self.make_normed_filters(trainable=True, squeeze_alpha=False)
+                x_pl = self.get_x_placeholder(batch_size)
                 loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, ica_w=ica_w, ica_a=ica_a)
 
+                lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
                 opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
                 tvars = tf.trainable_variables()
                 grads = tf.gradients(loss, tvars)
@@ -152,41 +172,31 @@ class FoEFullPrior(LearnedPriorLoss):
                 opt_op = opt.apply_gradients(tg_clipped)
 
                 if self.load_name != self.name and prev_ckpt:
-                    # names = [k.name.split('/') for k in tf.global_variables()]
-                    # prev_load_name = names[0][0]
-                    # names = [[l if l != prev_load_name else self.load_name for l in k] for k in names]
-                    # names = ['/'.join(k) for k in names]
-                    # names = [k.split(':')[0] for k in names]
-                    # to_load = dict(zip(names, tf.global_variables()))
                     to_load = self.tensor_load_dict_by_name(tf.global_variables())
                     saver = tf.train.Saver(var_list=to_load)
                 else:
                     saver = tf.train.Saver()
 
-                checkpoint_file = os.path.join(log_path, 'ckpt')
-
-                if not os.path.exists(log_path):
-                    os.makedirs(log_path)
+                checkpoint_file = os.path.join(self.load_path, 'ckpt')
 
                 tf.summary.scalar('total_loss', loss)
                 tf.summary.scalar('term_1', term_1)
                 tf.summary.scalar('term_2', term_2)
                 train_summary_op = tf.summary.merge_all()
-                summary_writer = tf.summary.FileWriter(log_path + '/summaries')
+                summary_writer = tf.summary.FileWriter(self.load_path + '/summaries')
 
                 val_loss = tf.placeholder(dtype=tf.float32, shape=[], name='val_loss')
                 val_summary_op = tf.summary.scalar('validation_loss', val_loss)
 
                 with tf.Session() as sess:
-                    # print(tf.trainable_variables())
                     sess.run(tf.global_variables_initializer())
 
                     if prev_ckpt:
-                        # prev_path = self.load_path + 'ckpt-' + str(prev_ckpt)
-                        # saver.restore(sess, prev_path)
                         self.load_weights(sess, prev_ckpt)
+
                     start_time = time.time()
                     train_time = 0
+
                     for count in range(prev_ckpt + 1, prev_ckpt + n_iterations + 1):
                         data = next(data_gen)
 
@@ -212,8 +222,9 @@ class FoEFullPrior(LearnedPriorLoss):
                             term_2 = graph.get_tensor_by_name(self.name + '/t2:0')
                             w_res, alp, t1, t2 = sess.run([ica_w, ica_a, term_1, term_2], feed_dict={x_pl: data})
                             print('it: ', count, ' / ', n_iterations + prev_ckpt)
-                            print('mean a: ', np.mean(alp), ' max a: ', np.max(alp), ' min a: ', np.min(alp))
-                            print('mean w: ', np.mean(w_res), ' max w: ', np.max(w_res), ' min w: ', np.min(w_res))
+                            print('max a: ', np.max(alp), ' min a: ', np.min(alp), ' mean a: ', np.mean(alp))
+                            print('max w: ', np.max(w_res), ' min w: ', np.min(w_res),
+                                  'mean abs w: ', np.mean(np.abs(w_res)))
                             print('term_1: ', t1, ' term_2: ', t2)
 
                             train_ratio = 100.0 * train_time / (time.time() - start_time)
@@ -234,21 +245,24 @@ class FoEFullPrior(LearnedPriorLoss):
                                                                 (time.time() - start_time) / 60))
 
                         if count % log_freq == 0:
+                            if extra_op is not None:
+                                sess.run(extra_op)
                             saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=count)
 
                     saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=n_iterations + prev_ckpt)
 
                     if plot_filters:
                         unwhiten_mat = np.load(data_dir + 'unwhiten_' + self.whiten_mode + '.npy').astype(np.float32)
-                        w_res, alp = sess.run([ica_w, ica_a])
-                        comps = np.dot(w_res.T, unwhiten_mat)
-                        # print(comps.shape)
-                        comps -= np.min(comps)
-                        comps /= np.max(comps)
-                        # co = np.reshape(comps[:n_vis, :], [n_vis, ph, pw, 3])
-                        co = np.reshape(comps[:n_vis, :], [n_vis, 3, self.ph, self.pw])
-                        co = np.transpose(co, axes=[0, 2, 3, 1])
-                        plot_img_mats(co, color=True, rescale=True)
+                        w_res = sess.run(ica_w)
+                        self.plot_filters_after_training(w_res, unwhiten_mat, n_vis)
+
+    def plot_filters_after_training(self, w_res, unwhiten_mat, n_vis):
+        comps = np.dot(w_res.T, unwhiten_mat)
+        comps -= np.min(comps)
+        comps /= np.max(comps)
+        co = np.reshape(comps[:n_vis, :], [n_vis, 3, self.ph, self.pw])
+        co = np.transpose(co, axes=[0, 2, 3, 1])
+        plot_img_mats(co, color=True, rescale=True)
 
     def load_filters_for_plotting(self):
         with tf.Graph().as_default():
@@ -258,7 +272,7 @@ class FoEFullPrior(LearnedPriorLoss):
                 unwhitening_tensor = tf.get_variable('unwhiten_mat', shape=[self.n_features_white, n_features_raw],
                                                      dtype=tf.float32, trainable=False)
                 self.var_list = [unwhitening_tensor]
-                ica_a, ica_w = self.make_normed_filters(trainable=False, squeeze_alpha=True)
+                ica_a, ica_w, _, _ = self.make_normed_filters(trainable=False, squeeze_alpha=True)
 
             with tf.Session() as sess:
                 self.load_weights(sess)

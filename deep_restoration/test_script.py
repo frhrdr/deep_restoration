@@ -49,8 +49,8 @@ from modules.loss_modules import VggScoreLoss
 #                          load_tensor_names = 'image')
 #
 # img_prior.train_prior(10, 0, plot_filters=True, prev_ckpt=13000)
-hw = 8
-wmode = 'pca'
+hw = 9
+wmode = 'zca'
 # make_flattened_patch_data(100000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_white=hw**2*3,
 #                           whiten_mode=wmode, batch_size=100,
 #                           mean_mode='gc', sdev_mode='gc')
@@ -66,12 +66,12 @@ wmode = 'pca'
 # make_channel_separate_patch_data(100000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_per_channel_white=hw*hw,
 #                                  whiten_mode=wmode, batch_size=100, mean_mode='gc', sdev_mode='gc')
 #
-# add_channelwise_validation_set(1000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_per_channel_white=hw*hw,
+# add_channelwise_validation_set(1000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_per_channel_white=hw*hw-1,
 #                                whiten_mode=wmode, batch_size=100,
 #                                mean_mode='global_channel', sdev_mode='global_channel')
 
-p = FoEChannelwisePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=200, n_channels=3,
-                        n_features_per_channel_white=hw**2-1, dist='logistic', mean_mode='gc', sdev_mode='gc',
+p = FoEChannelwisePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=150, n_channels=3,
+                        n_features_per_channel_white=hw**2, dist='logistic', mean_mode='gc', sdev_mode='gc',
                         whiten_mode=wmode,
                         name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
@@ -84,12 +84,12 @@ p = FoEChannelwisePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_compo
 
 # p.validate_w_build(prev_ckpt=0, whiten=True)
 
-p.train_prior(batch_size=500, n_iterations=10000, lr=3e-5,
-              lr_lower_points=((0, 1e-0), (5000, 1e-1),
-                               (6000, 3e-2),
-                               (7000, 1e-2), (7500, 3e-3), (8000, 1e-3),
-                               (9000, 1e-4), (9500, 3e-5), (10000, 1e-5), (11000, 3e-6)),
-              grad_clip=1e+100,
+p.train_prior(batch_size=500, n_iterations=25000, lr=3e-5,
+              lr_lower_points=((0, 1e-0), (20000, 1e-1),
+                               (21000, 3e-2),
+                               (22000, 1e-2), (22500, 3e-3), (23000, 1e-3),
+                               (24000, 1e-4), (24500, 3e-5)),
+              grad_clip=1e-3,
               n_data_samples=100000, n_val_samples=1000,
               log_freq=1000, summary_freq=10, print_freq=100,
               prev_ckpt=0,
@@ -206,8 +206,6 @@ p.train_prior(batch_size=500, n_iterations=10000, lr=3e-5,
 #                      n_features_white=2400, mean_mode='gc', sdev_mode='gc')
 #
 
-
-
 # 5x5 flat mean: global channel, sdev: global channel 2400f
 # make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',
 #                           n_channels=96,
@@ -219,37 +217,3 @@ p.train_prior(batch_size=500, n_iterations=10000, lr=3e-5,
 # add_flattened_validation_set(num_patches=500, ph=8, pw=8, classifier='alexnet', map_name='rgb_scaled:0',
 #                              n_channels=3, n_feats_white=64*3-1, whiten_mode='pca', batch_size=100,
 #                              mean_mode='global_channel', sdev_mode='global_channel')
-
-# some tests for separable foe prior
-# c = 3
-# dm = 2
-# k = 500
-# h = 4
-# w = 4
-# f = h * w
-#
-# X = np.ones((h, w, c))
-# D = np.ones((h, w, c * dm))
-# P = np.ones((c * dm, k))
-#
-# D[2, 1, 4] = 10
-# P[4, 100] = 7
-#
-# # D_prime = np.expand_dims(D, axis=3)
-# D_prime = D.reshape((f, c * dm, 1))
-# P_prime = np.expand_dims(P, axis=2)
-#
-# Q = D_prime.transpose((1, 0, 2)) @ P_prime.transpose((0, 2, 1))
-#
-# print(Q.shape)
-# print(Q[4, 9, 100])
-# Q_prime = Q.reshape(c, dm, f, k)
-#
-# print(Q_prime.shape)
-# print(Q_prime[2, 0, 9, 100])
-#
-# W = np.sum(Q_prime, axis=1)
-# print(W.shape)
-# W = W.reshape((c * f, k))
-# print(W.shape)
-# print(W[h * w * 2 + w * 2 + 1, 100])
