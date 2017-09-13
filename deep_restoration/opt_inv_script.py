@@ -74,14 +74,14 @@ copyfile('./opt_inv_script.py', log_path + 'script.py')
 # pre_featmap_init = np.load('../logs/opt_inversion/alexnet/pre_featmap/mse_init_1500.npy')
 # pre_img_init = np.load('../logs/net_inversion/alexnet/c1l_tests_16_08/init_helper.npy')
 
-pre_featmap_init = None
-# pre_featmap_init = np.reshape(np.load(ni.log_path + 'mats/rec_20000.npy'), [1, 55, 55, 96])
+# pre_featmap_init = None
+pre_featmap_init = np.load(ni.log_path + 'mats/rec_500.npy')
 
 # pre_featmap_init = np.random.normal(loc=0, scale=0.1, size=(1, 56, 56, 96)).astype(np.float32)
 
-ni.train_pre_featmap('../data/selected/images_resized_227/red-fox.bmp', n_iterations=20000, optim_name='adam',
+ni.train_pre_featmap('../data/selected/images_resized_227/red-fox.bmp', n_iterations=19500, optim_name='adam',
                      lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
-                     pre_featmap_init=pre_featmap_init, ckpt_offset=0000,
+                     pre_featmap_init=pre_featmap_init, ckpt_offset=500,
                      pre_featmap_name='conv1/lin',
                      featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=False)
 
