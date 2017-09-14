@@ -71,7 +71,7 @@ pre_mse = NormedMSELoss(target='target_featmap/read:0', reconstruction='pre_feat
 pre_mse.add_loss = False
 
 modules = [split2, mse2, chanprior, slimprior, pre_mse]
-log_path = '../logs/opt_inversion/alexnet/c2l_to_c1l/dual_prior/adam/run1/'
+log_path = '../logs/opt_inversion/alexnet/c2l_to_c1l/dual_prior/adam/run2/'
 
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
