@@ -6,11 +6,11 @@ from modules.foe_channelwise_prior import FoEChannelwisePrior
 from modules.foe_separable_prior import FoESeparablePrior
 # resize_all_images((227, 227), 'images_resized_227')
 
-# make_flattened_patch_data(num_patches=100000, ph=8, pw=8, classifier='alexnet', map_name='conv1/lin:0',
-#                           n_channels=96,
-#                           n_feats_white=6144, whiten_mode='zca', batch_size=100,
-#                           mean_mode='gc', sdev_mode='gc',
-#                           raw_mat_load_path='')
+make_flattened_patch_data(num_patches=100000, ph=5, pw=5, classifier='alexnet', map_name='conv1/lin:0',
+                          n_channels=96,
+                          n_feats_white=2400, whiten_mode='zca', batch_size=100,
+                          mean_mode='gc', sdev_mode='gc',
+                          raw_mat_load_path='')
 
 # add_flattened_validation_set(num_patches=1000, ph=8, pw=8, classifier='alexnet', map_name='conv1/lin:0',
 #                              n_channels=96, n_feats_white=6144, whiten_mode='zca', batch_size=100,
@@ -26,9 +26,9 @@ from modules.foe_separable_prior import FoESeparablePrior
 #                                batch_size=100, mean_mode='gc', sdev_mode='gc')
 
 prior = FoESeparablePrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
-                          filter_dims=[8, 8], input_scaling=1.0, n_components=9000, n_channels=96,
-                          dim_multiplier=100, share_weights=False, channelwise_data=False,
-                          n_features_per_channel_white=64,
+                          filter_dims=[5, 5], input_scaling=1.0, n_components=4000, n_channels=96,
+                          dim_multiplier=50, share_weights=False, channelwise_data=False,
+                          n_features_per_channel_white=25,
                           dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='zca')
 
 # prior = FoEChannelwisePrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
