@@ -59,7 +59,7 @@ slimprior = FoEFullPrior('pre_featmap/read:0', 1e-8, 'alexnet', [3, 3], 1.0, n_c
                          n_features_white=3**2*96, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
                          name=None, load_name=None, dir_name=None, load_tensor_names='conv1/lin:0')
 
-chanprior = FoEChannelwisePrior(tensor_names='pre_featmap/read:0', weighting=1e-10, classifier='alexnet',
+chanprior = FoEChannelwisePrior(tensor_names='pre_featmap/read:0', weighting=1e-4, classifier='alexnet',
                                 filter_dims=[8, 8], input_scaling=1.0, n_components=150, n_channels=96,
                                 n_features_per_channel_white=64,
                                 dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='zca',
@@ -71,7 +71,7 @@ pre_mse = NormedMSELoss(target='target_featmap/read:0', reconstruction='pre_feat
 pre_mse.add_loss = False
 
 modules = [split2, mse2, chanprior, pre_mse]
-log_path = '../logs/opt_inversion/alexnet/c2l_to_c1l/chan_prior/adam/run1/'
+log_path = '../logs/opt_inversion/alexnet/c2l_to_c1l/chan_prior/adam/run2/'
 
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
