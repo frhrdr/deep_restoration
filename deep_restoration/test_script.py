@@ -52,9 +52,6 @@ from modules.loss_modules import VggScoreLoss
 hw = 3
 wmode = 'pca'
 nchan = 96
-# make_flattened_patch_data(100000, hw, hw, 'alexnet', 'conv1/relu:0', nchan, n_feats_white=hw**2*nchan,
-#                           whiten_mode=wmode, batch_size=100,
-#                           mean_mode='gc', sdev_mode='gc', n_val_patches=1000)
 
 p = FoEFullPrior('conv1/lin:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=2000, n_channels=nchan,
                  n_features_white=hw**2*nchan, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,

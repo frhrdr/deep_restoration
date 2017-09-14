@@ -25,16 +25,16 @@ from modules.foe_separable_prior import FoESeparablePrior
 #                                n_channels=96, n_feats_per_channel_white=64, whiten_mode='zca',
 #                                batch_size=100, mean_mode='gc', sdev_mode='gc')
 
-# prior = FoESeparablePrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
-#                           filter_dims=[8, 8], input_scaling=1.0, n_components=9000, n_channels=96,
-#                           dim_multiplier=500, share_weights=True, channelwise_data=False,
-#                           n_features_per_channel_white=64,
-#                           dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='zca')
+prior = FoESeparablePrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
+                          filter_dims=[8, 8], input_scaling=1.0, n_components=9000, n_channels=96,
+                          dim_multiplier=100, share_weights=False, channelwise_data=False,
+                          n_features_per_channel_white=64,
+                          dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='zca')
 
-prior = FoEChannelwisePrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
-                            filter_dims=[8, 8], input_scaling=1.0, n_components=150, n_channels=96,
-                            n_features_per_channel_white=64,
-                            dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='zca')
+# prior = FoEChannelwisePrior(tensor_names='conv1/lin:0', weighting=1e-10, classifier='alexnet',
+#                             filter_dims=[8, 8], input_scaling=1.0, n_components=150, n_channels=96,
+#                             n_features_per_channel_white=64,
+#                             dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='zca')
 
 prior.train_prior(batch_size=500, n_iterations=20000,
                   lr_lower_points=((0, 1e-0), (10000, 1e-1), (12000, 3e-2),
