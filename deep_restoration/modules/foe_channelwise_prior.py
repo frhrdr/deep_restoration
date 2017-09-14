@@ -109,7 +109,7 @@ class FoEChannelwisePrior(FoEFullPrior):
                 xw = tf.matmul(tf.transpose(normed_patches, perm=[1, 0, 2]), whitened_mixing)
 
             self.loss = self.mrf_loss(xw, ica_a)
-            self.var_list.extend([ica_a, ica_w, whitening_tensor])
+            self.var_list.append(whitening_tensor)
 
     def score_matching_loss(self, x_mat, ica_w, ica_a):
         x_mat = tf.transpose(x_mat, perm=[1, 0, 2], name='x_mat')
