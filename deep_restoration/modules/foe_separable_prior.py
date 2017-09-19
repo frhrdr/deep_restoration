@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from utils.temp_utils import plot_img_mats
 from modules.foe_full_prior import FoEFullPrior
+from utils.patch_prior_losses import logistic_separable_score_matching_map_fun
 
 
 class FoESeparablePrior(FoEFullPrior):
@@ -70,14 +71,19 @@ class FoESeparablePrior(FoEFullPrior):
         if add_to_var_list:
             self.var_list.extend([ica_a, depth_filter, point_filter])
 
-        if self.share_weights:
-            depth_filter = tf.concat([depth_filter]*self.n_channels, axis=2)
+        if self.loop_loss:
+            ica_w = None
+            w_norm = None
+            extra_op = None
+        else:
+            if self.share_weights:
+                depth_filter = tf.concat([depth_filter]*self.n_channels, axis=2)
+            ica_w = self.get_w_tensor(depth_filter, point_filter)
 
-        ica_w = self.get_w_tensor(depth_filter, point_filter)
-        w_norm = tf.norm(ica_w, ord=2, axis=0)
-        ica_w = ica_w / w_norm
-        w_norm_store_var = tf.get_variable('w_norm', shape=[self.n_components], dtype=tf.float32)
-        extra_op = tf.assign(w_norm_store_var, w_norm)
+            w_norm = tf.norm(ica_w, ord=2, axis=0)
+            ica_w = ica_w / w_norm
+            w_norm_store_var = tf.get_variable('w_norm', shape=[self.n_components], dtype=tf.float32)
+            extra_op = tf.assign(w_norm_store_var, w_norm)
 
         if squeeze_alpha:
             ica_a = tf.squeeze(ica_a)
@@ -159,58 +165,70 @@ class FoESeparablePrior(FoEFullPrior):
         term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
         return term_1 + term_2, term_1, term_2
 
-    @staticmethod
-    def get_single_filter(depth_filter, point_filter, index):
-        # sum over dm(df [DM, 1, F] x pf [DM, C, 1]) = jk [C, F]
-        filter_k = tf.matmul(point_filter, depth_filter)
-        filter_k = tf.reduce_sum(filter_k, axis=0)
-        norm_k = tf.norm(filter_k, ord=2)
-        return filter_k / norm_k
+    # @staticmethod
+    # def get_single_separable_filter(depth_filter, point_filter, index):
+    #     # sum over dm(df [DM, 1, F] x pf [DM, C, 1]) = jk [C, F]
+    #     filter_k = tf.matmul(point_filter, depth_filter)
+    #     filter_k = tf.reduce_sum(filter_k, axis=0)
+    #     norm_k = tf.norm(filter_k, ord=2)
+    #     return filter_k / norm_k
 
-    def score_matching_map_fun(self, loss_acc, index, x_tsr, depth_filter, point_filter, ica_a):
-        w_k = self.get_single_filter(depth_filter, point_filter, index)
-        a_k = tf.slice(ica_a, [index], [1])
-        xw_mat = tf.reduce_sum(x_tsr * w_k, axis=(1, 2))  # needs reviewing
-        g_patch = tf.reduce_sum(-tf.tanh(xw_mat))
-        term_1 = a_k * g_patch
-
-        term_acc_init = 0.
-        term_2 = tf.foldl(lambda x, y: self.term_2_nested_map_fun(x, y, x_tsr, a_k, w_k, depth_filter,
-                                                                  point_filter, ica_a),
-                          range(self.n_components), initializer=term_acc_init)
-        term_1_acc, term_2_acc = loss_acc
-        return term_1 + term_1_acc, term_2 + term_2_acc
-
-    def term_2_nested_map_fun(self, term_acc, index, x_tsr, a_k, w_k, depth_filter, point_filter, ica_a):
-        w_l = self.get_single_filter(depth_filter, point_filter, index)
-        a_l = tf.slice(ica_a, [index], [1])
-        # xw_l = tf.matmul(x_tsr, w_l)  # needs reviewing
-        xw_l = tf.reduce_sum(x_tsr * w_l, axis=(1, 2))
-        gp_l = -4.0 / tf.square(tf.exp(xw_l) + tf.exp(-xw_l))
-        xw_k = tf.reduce_sum(x_tsr * w_k, axis=(1, 2))
-        # xw_k = tf.matmul(x_tsr, w_k)  # needs reviewing
-        gp_k = -4.0 / tf.square(tf.exp(xw_k) + tf.exp(-xw_k))
-
-        ww_prod = tf.reduce_sum(w_k * w_l)
-        gg_prod = tf.reduce_sum(gp_k * gp_l)
-        term = a_k * a_l * ww_prod * ww_prod * gg_prod
-
-        return term_acc + term
+    # @staticmethod
+    # def logistic_separable_score_matching_map_fun(loss_acc, index, x_tsr, depth_filter, point_filter, ica_a):
+    #     w_k = get_single_separable_filter(depth_filter, point_filter, index)
+    #     a_k = tf.slice(ica_a, [index], [1])
+    #     xw_mat = tf.reduce_sum(x_tsr * w_k, axis=(1, 2))  # needs reviewing
+    #     g_patch = tf.reduce_sum(-tf.tanh(xw_mat))
+    #     term_1 = a_k * g_patch
+    #
+    #     term_acc_init = 0.
+    #     term_2 = tf.foldl(lambda x, y: logistic_separable_nested_sm_map_fun(x, y, x_tsr, a_k, w_k, depth_filter,
+    #                                                                         point_filter, ica_a),
+    #                       range(ica_a.get_shape()[0].value), initializer=term_acc_init)
+    #     term_1_acc, term_2_acc = loss_acc
+    #     return term_1 + term_1_acc, term_2 + term_2_acc
+    #
+    # @staticmethod
+    # def logistic_separable_nested_sm_map_fun(term_acc, index, x_tsr, a_k, w_k, depth_filter, point_filter, ica_a):
+    #     w_l = get_single_separable_filter(depth_filter, point_filter, index)
+    #     a_l = tf.slice(ica_a, [index], [1])
+    #     # xw_l = tf.matmul(x_tsr, w_l)  # needs reviewing
+    #     xw_l = tf.reduce_sum(x_tsr * w_l, axis=(1, 2))
+    #     gp_l = -4.0 / tf.square(tf.exp(xw_l) + tf.exp(-xw_l))
+    #     xw_k = tf.reduce_sum(x_tsr * w_k, axis=(1, 2))
+    #     # xw_k = tf.matmul(x_tsr, w_k)  # needs reviewing
+    #     gp_k = -4.0 / tf.square(tf.exp(xw_k) + tf.exp(-xw_k))
+    #
+    #     ww_prod = tf.reduce_sum(w_k * w_l)
+    #     gg_prod = tf.reduce_sum(gp_k * gp_l)
+    #     term = a_k * a_l * ww_prod * ww_prod * gg_prod
+    #
+    #     return term_acc + term
 
     def looped_score_matching_loss(self, x_tsr, depth_filter, point_filter, ica_a):
-        ica_a_pos = tf.nn.softplus(ica_a)
-        point_by_dm = tf.reshape(point_filter, shape=(self.n_channels, 1, self.dim_multiplier, self.n_components))
+        x_tsr = tf.reshape(x_tsr, shape=(-1, self.n_channels, self.n_features_per_channel_white))
+        point_by_dm = tf.reshape(point_filter, shape=(1, self.n_channels, self.dim_multiplier, self.n_components))
         point_by_dm = tf.transpose(point_by_dm, perm=(3, 2, 1, 0))
-        depth_flat = tf.reshape(depth_filter, shape=(1, self.ph * self.pw, self.dim_multiplier))
+        depth_flat = tf.reshape(depth_filter, shape=(self.ph * self.pw, 1, self.dim_multiplier))
         depth_flat = tf.transpose(depth_flat, perm=(2, 1, 0))
+        ica_a_pos = tf.nn.softplus(ica_a)
 
         loss_acc_init = (0., 0.)
-        term_1, term_2 = tf.foldl(lambda x, y: self.score_matching_map_fun(x, y, x_tsr, depth_flat,
-                                                                           point_by_dm, ica_a_pos),
-                                  range(self.n_components), initializer=loss_acc_init)
+
+        if self.dist == 'logistic':
+            term_12 = tf.foldl(lambda x, y: logistic_separable_score_matching_map_fun(x, y, x_tsr, depth_flat,
+                                                                                      point_by_dm, ica_a_pos),
+                               list(range(self.n_components)), initializer=loss_acc_init, parallel_iterations=1)
+        else:
+            raise NotImplementedError
+            # term_1, term_2 = tf.foldl(lambda x, y: logistic_separable_score_matching_map_fun(x, y, x_tsr, depth_flat,
+            #                                                                                  point_by_dm, ica_a_pos),
+            #                           range(self.n_components), initializer=loss_acc_init)
         const_t = x_tsr.get_shape()[0].value
-        term_1 /= const_t
-        term_2 /= 2 * const_t
+
+        term_12 /= const_t
+        term_1 = term_12[0]
+        term_2 = term_12[1] / 2
         loss = term_1 + term_2
         return loss, term_1, term_2
 
