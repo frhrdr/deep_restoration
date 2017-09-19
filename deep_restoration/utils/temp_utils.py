@@ -238,6 +238,8 @@ def get_optimizer(name, lr_pl, momentum=0.9):
         return tf.train.MomentumOptimizer(lr_pl, momentum=momentum)
     elif name.lower() == 'adagrad':
         return tf.train.AdagradOptimizer(lr_pl)
+    elif name.lower() == 'sgd':
+        return tf.train.GradientDescentOptimizer(lr_pl)
     else:
         raise NotImplementedError
 

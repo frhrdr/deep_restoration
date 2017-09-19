@@ -140,6 +140,13 @@ class FoEFullPrior(LearnedPriorLoss):
     def get_x_placeholder(self, batch_size):
         return tf.placeholder(dtype=tf.float32, shape=[batch_size, self.n_features_white], name='x_pl')
 
+    def score_matching_graph(self, batch_size):
+        ica_a, ica_w, extra_op, _ = self.make_normed_filters(trainable=True, squeeze_alpha=False)
+
+        x_pl = self.get_x_placeholder(batch_size)
+        loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, ica_w=ica_w, ica_a=ica_a)
+        return loss, term_1, term_2, x_pl, ica_a, ica_w, extra_op
+
     def train_prior(self, batch_size, n_iterations, lr=3.0e-6, lr_lower_points=(), grad_clip=100.0,
                     n_data_samples=100000, n_val_samples=500,
                     log_freq=5000, summary_freq=10, print_freq=100, test_freq=100,
@@ -153,23 +160,13 @@ class FoEFullPrior(LearnedPriorLoss):
         data_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_data_samples, data_mode='train')
         val_gen = self.patch_batch_gen(batch_size, data_dir=data_dir, n_samples=n_val_samples, data_mode='validate')
 
-        with tf.Graph().as_default() as graph:
+        with tf.Graph().as_default():
             with tf.variable_scope(self.name):
                 self.add_preprocessing_to_graph(data_dir, self.whiten_mode)
 
-                ica_a, ica_w, extra_op, _ = self.make_normed_filters(trainable=True, squeeze_alpha=False)
+                loss, term_1, term_2, x_pl, ica_a, ica_w, extra_op = self.score_matching_graph(batch_size)
 
-                x_pl = self.get_x_placeholder(batch_size)
-                loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, ica_w=ica_w, ica_a=ica_a)
-
-                lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
-                opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
-                tvars = tf.trainable_variables()
-                grads = tf.gradients(loss, tvars)
-                tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
-                tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
-                              for k in tg_pairs]
-                opt_op = opt.apply_gradients(tg_clipped)
+                train_op, lr_pl = self.get_train_op(self, loss, optimizer_name, grad_clip)
 
                 if self.load_name != self.name and prev_ckpt:
                     to_load = self.tensor_load_dict_by_name(tf.global_variables())
@@ -206,7 +203,7 @@ class FoEFullPrior(LearnedPriorLoss):
                             lr_lower_points = lr_lower_points[1:]
 
                         batch_start = time.time()
-                        batch_loss, _, summary_string = sess.run(fetches=[loss, opt_op, train_summary_op],
+                        batch_loss, _, summary_string = sess.run(fetches=[loss, train_op, train_summary_op],
                                                                  feed_dict={x_pl: data, lr_pl: lr})
 
                         train_time += time.time() - batch_start
@@ -218,31 +215,12 @@ class FoEFullPrior(LearnedPriorLoss):
                             print(batch_loss)
 
                         if count % (print_freq * 10) == 0:
-                            term_1 = graph.get_tensor_by_name(self.name + '/t1:0')
-                            term_2 = graph.get_tensor_by_name(self.name + '/t2:0')
-                            w_res, alp, t1, t2 = sess.run([ica_w, ica_a, term_1, term_2], feed_dict={x_pl: data})
-                            print('it: ', count, ' / ', n_iterations + prev_ckpt)
-                            print('max a: ', np.max(alp), ' min a: ', np.min(alp), ' mean a: ', np.mean(alp))
-                            print('max w: ', np.max(w_res), ' min w: ', np.min(w_res),
-                                  'mean abs w: ', np.mean(np.abs(w_res)))
-                            print('term_1: ', t1, ' term_2: ', t2)
-
-                            train_ratio = 100.0 * train_time / (time.time() - start_time)
-                            print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
+                            self.print_verbose(data, x_pl, ica_a, ica_w, term_1, term_2, sess,
+                                               count, n_iterations, prev_ckpt, train_time, start_time)
 
                         if test_freq > 0 and count % test_freq == 0:
-                            val_loss_acc = 0.0
-                            num_runs = n_val_samples // batch_size
-                            for val_count in range(num_runs):
-                                val_feed_dict = {x_pl: next(val_gen)}
-                                val_batch_loss = sess.run(loss, feed_dict=val_feed_dict)
-                                val_loss_acc += val_batch_loss
-                            val_loss_acc /= num_runs
-                            val_summary_string = sess.run(val_summary_op, feed_dict={val_loss: val_loss_acc})
-                            summary_writer.add_summary(val_summary_string, count)
-                            print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
-                                   'Time: {2:5.1f} min').format(count, val_loss_acc,
-                                                                (time.time() - start_time) / 60))
+                            self.run_validation(val_gen, x_pl, loss, val_loss, val_summary_op, summary_writer, sess,
+                                                n_val_samples, batch_size, count, start_time)
 
                         if count % log_freq == 0:
                             if extra_op is not None:
@@ -255,6 +233,47 @@ class FoEFullPrior(LearnedPriorLoss):
                         unwhiten_mat = np.load(data_dir + 'unwhiten_' + self.whiten_mode + '.npy').astype(np.float32)
                         w_res = sess.run(ica_w)
                         self.plot_filters_after_training(w_res, unwhiten_mat, n_vis)
+
+    @staticmethod
+    def get_train_op(self, loss, optimizer_name, grad_clip):
+        lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
+        opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
+        tvars = tf.trainable_variables()
+        grads = tf.gradients(loss, tvars)
+        tg_pairs = [k for k in zip(grads, tvars) if k[0] is not None]
+        tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
+                      for k in tg_pairs]
+        opt_op = opt.apply_gradients(tg_clipped)
+        return opt_op, lr_pl
+
+    @staticmethod
+    def print_verbose(data, x_pl, ica_a, ica_w, term_1, term_2, sess,
+                      count, n_iterations, prev_ckpt, train_time, start_time):
+        w_res, alp, t1, t2 = sess.run([ica_w, ica_a, term_1, term_2], feed_dict={x_pl: data})
+        print('it: ', count, ' / ', n_iterations + prev_ckpt)
+        print('max a: ', np.max(alp), ' min a: ', np.min(alp), ' mean a: ', np.mean(alp))
+        print('max w: ', np.max(w_res), ' min w: ', np.min(w_res),
+              'mean abs w: ', np.mean(np.abs(w_res)))
+        print('term_1: ', t1, ' term_2: ', t2)
+
+        train_ratio = 100.0 * train_time / (time.time() - start_time)
+        print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
+
+    @staticmethod
+    def run_validation(val_gen, x_pl, loss, val_loss, val_summary_op, summary_writer, sess,
+                       n_val_samples, batch_size, count, start_time):
+        val_loss_acc = 0.0
+        num_runs = n_val_samples // batch_size
+        for val_count in range(num_runs):
+            val_feed_dict = {x_pl: next(val_gen)}
+            val_batch_loss = sess.run(loss, feed_dict=val_feed_dict)
+            val_loss_acc += val_batch_loss
+        val_loss_acc /= num_runs
+        val_summary_string = sess.run(val_summary_op, feed_dict={val_loss: val_loss_acc})
+        summary_writer.add_summary(val_summary_string, count)
+        print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
+               'Time: {2:5.1f} min').format(count, val_loss_acc,
+                                            (time.time() - start_time) / 60))
 
     def plot_filters_after_training(self, w_res, unwhiten_mat, n_vis):
         comps = np.dot(w_res.T, unwhiten_mat)

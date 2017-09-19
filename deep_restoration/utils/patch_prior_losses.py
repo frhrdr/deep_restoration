@@ -20,9 +20,9 @@ def logistic_full_score_matching_loss(x_tsr, ica_w, ica_a):
     gg_mat = tf.matmul(g_mat, g_mat, transpose_a=True) / const_t
     aa_mat = tf.matmul(ica_a_pos, ica_a_pos, transpose_b=True)
     ww_mat = tf.matmul(ica_w, ica_w, transpose_a=True)
-    w_norm = tf.diag_part(ww_mat, name='w_norm')
+    # w_norm = tf.diag_part(ww_mat, name='w_norm')
 
-    term_1 = tf.reduce_sum(ica_a_pos * w_norm * gp_vec, name='t1')
+    term_1 = tf.reduce_sum(ica_a_pos * gp_vec, name='t1')
     term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
     return term_1 + term_2, term_1, term_2
 
@@ -47,11 +47,11 @@ def logistic_channelwise_score_matching_loss(x_tsr, ica_w, ica_a):
     aa_mat = tf.matmul(ica_a_pos, ica_a_pos, transpose_b=True)
     ww_mat = tf.matmul(ica_w, ica_w, transpose_a=True)
 
-    ww_list = tf.split(ww_mat, num_or_size_splits=ww_mat.get_shape()[0].value, axis=0)
-    w_norm_list = [tf.diag_part(tf.squeeze(k)) for k in ww_list]
-    w_norm = tf.stack(w_norm_list, axis=0, name='w_norm')
+    # ww_list = tf.split(ww_mat, num_or_size_splits=ww_mat.get_shape()[0].value, axis=0)
+    # w_norm_list = [tf.diag_part(tf.squeeze(k)) for k in ww_list]
+    # w_norm = tf.stack(w_norm_list, axis=0, name='w_norm')
 
-    term_1 = tf.reduce_sum(tf.squeeze(ica_a_pos) * w_norm * gp_vec, name='t1')
+    term_1 = tf.reduce_sum(tf.squeeze(ica_a_pos) * gp_vec, name='t1')
     term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
     return term_1 + term_2, term_1, term_2
 
@@ -74,9 +74,9 @@ def student_full_score_matching_loss(x_tsr, ica_w, ica_a):
     gg_mat = tf.matmul(g_mat, g_mat, transpose_a=True) / const_t
     aa_mat = tf.matmul(ica_a_pos, ica_a_pos, transpose_b=True)
     ww_mat = tf.matmul(ica_w, ica_w, transpose_a=True)
-    w_norm = tf.diag_part(ww_mat, name='w_norm')
+    # w_norm = tf.diag_part(ww_mat, name='w_norm')
 
-    term_1 = tf.reduce_sum(ica_a_pos * w_norm * gp_vec, name='t1')
+    term_1 = tf.reduce_sum(ica_a_pos * gp_vec, name='t1')
     term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
     return term_1 + term_2, term_1, term_2
 
@@ -101,10 +101,10 @@ def student_channelwise_score_matching_loss(x_tsr, ica_w, ica_a):
     aa_mat = tf.matmul(ica_a_pos, ica_a_pos, transpose_b=True)
     ww_mat = tf.matmul(ica_w, ica_w, transpose_a=True)
 
-    ww_list = tf.split(ww_mat, num_or_size_splits=ww_mat.get_shape()[0].value, axis=0)
-    w_norm_list = [tf.diag_part(tf.squeeze(k)) for k in ww_list]
-    w_norm = tf.stack(w_norm_list, axis=0, name='w_norm')
+    # ww_list = tf.split(ww_mat, num_or_size_splits=ww_mat.get_shape()[0].value, axis=0)
+    # w_norm_list = [tf.diag_part(tf.squeeze(k)) for k in ww_list]
+    # w_norm = tf.stack(w_norm_list, axis=0, name='w_norm')
 
-    term_1 = tf.reduce_sum(tf.squeeze(ica_a_pos) * w_norm * gp_vec, name='t1')
+    term_1 = tf.reduce_sum(tf.squeeze(ica_a_pos) * gp_vec, name='t1')
     term_2 = 0.5 * tf.reduce_sum(aa_mat * ww_mat * gg_mat, name='t2')
     return term_1 + term_2, term_1, term_2

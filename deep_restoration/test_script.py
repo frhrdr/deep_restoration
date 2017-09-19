@@ -49,40 +49,39 @@ from modules.loss_modules import VggScoreLoss
 #                          load_tensor_names = 'image')
 #
 # img_prior.train_prior(10, 0, plot_filters=True, prev_ckpt=13000)
-hw = 3
-wmode = 'pca'
-nchan = 96
+hw = 9
+wmode = 'zca'
+nchan = 3
 
-p = FoEFullPrior('conv1/lin:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=2000, n_channels=nchan,
-                 n_features_white=hw**2*nchan, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,
-                 name=None, load_name=None, dir_name=None, load_tensor_names=None)
+# p = FoEFullPrior('conv1/lin:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=2000, n_channels=nchan,
+#                  n_features_white=hw**2*nchan, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,
+#                  name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
 # make_channel_separate_patch_data(100000, hw, hw, 'alexnet', 'rgb_scaled:0', 3, n_feats_per_channel_white=hw*hw,
 #                                  whiten_mode=wmode, batch_size=100, mean_mode='gc', sdev_mode='gc')
 
 
-# p = FoEChannelwisePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=150, n_channels=3,
-#                         n_features_per_channel_white=hw**2, dist='logistic', mean_mode='gc', sdev_mode='gc',
-#                         whiten_mode=wmode,
-#                         name=None, load_name=None, dir_name=None, load_tensor_names=None)
-
+p = FoEChannelwisePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=150, n_channels=3,
+                        n_features_per_channel_white=hw**2, dist='logistic', mean_mode='gc', sdev_mode='gc',
+                        whiten_mode=wmode,
+                        name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
 # p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=500, n_channels=3,
 #                       n_features_per_channel_white=hw**2,
-#                       dim_multiplier=50, share_weights=False, channelwise_data=False,
+#                       dim_multiplier=50, share_weights=False, channelwise_data=True,
 #                       dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,
 #                       name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
-# p.train_prior(batch_size=500, n_iterations=3000, lr=3e-5,
-#               lr_lower_points=((0, 1e-0), (20000, 1e-1),
-#                                (21000, 3e-2),
-#                                (22000, 1e-2), (22500, 3e-3), (23000, 1e-3),
-#                                (24000, 1e-4), (24500, 3e-5)),
-#               grad_clip=1e-3,
-#               n_data_samples=100000, n_val_samples=1000,
-#               log_freq=1000, summary_freq=10, print_freq=100,
-#               prev_ckpt=0,
-#               optimizer_name='adam', plot_filters=False)
+p.train_prior(batch_size=500, n_iterations=3000, lr=3e-5,
+              lr_lower_points=((0, 1e-0), (20000, 1e-1),
+                               (21000, 3e-2),
+                               (22000, 1e-2), (22500, 3e-3), (23000, 1e-3),
+                               (24000, 1e-4), (24500, 3e-5)),
+              grad_clip=1e-3,
+              n_data_samples=100000, n_val_samples=1000,
+              log_freq=1000, summary_freq=10, print_freq=100,
+              prev_ckpt=0,
+              optimizer_name='adam', plot_filters=True)
 #
 # p.plot_filters_top_alphas(7, p.load_path + 'filter_vis/a_top/')
 # p.plot_channels_top_filters(range(7), p.load_path + 'filter_vis/c_top/')

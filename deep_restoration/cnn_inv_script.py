@@ -19,7 +19,6 @@ dc1 = DeconvConvModule(inv_input_name='conv2/lin:0', inv_target_name='pool1:0',
 dc2 = DeconvConvModule(inv_input_name='DC1/pool1_rec:0', inv_target_name='lrn1:0',
                        hidden_channels=96, rec_name='lrn1_rec',
                        op1_hw=[3, 3], op1_strides=[1, 2, 2, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
-                       # hid_hw=[54, 54], hid_pad=[(0, 0), (0, 1), (0, 1), (0, 0)],
                        op1_pad='VALID', op2_pad='SAME',
                        name='DC2',
                        subdir='run1', trainable=True)
@@ -43,7 +42,6 @@ mse2 = MSELoss(target='lrn1:0', reconstruction='DC2/lrn1_rec:0', name='MSE_lrn1'
 mse3 = MSELoss(target='conv1/lin:0', reconstruction='DC3/c1l_rec:0', name='MSE_c1l')
 mse4 = MSELoss(target='rgb_scaled:0', reconstruction='DC4/rgb_rec:0', name='MSE_rgb')
 
-# modules = [dc1, dc2, dc3, mse1, mse2, mse3, dc4, mse4]
 modules = [dc1, dc2, dc3, mse1, mse2, mse3, dc4, mse4]
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=10, log_freq=500)
 
