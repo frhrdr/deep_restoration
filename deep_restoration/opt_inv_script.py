@@ -2,7 +2,7 @@ from net_inversion import NetInversion
 from modules.foe_full_prior import FoEFullPrior
 from modules.foe_channelwise_prior import FoEChannelwisePrior
 from modules.foe_separable_prior import FoESeparablePrior
-from modules.loss_modules import NormedMSELoss, TotalVariationLoss
+from modules.loss_modules import MSELoss, TotalVariationLoss
 from modules.split_module import SplitModule
 from shutil import copyfile
 import os
@@ -10,25 +10,25 @@ import numpy as np
 
 split1 = SplitModule(name_to_split='conv1/lin:0', img_slice_name='img_rep_c1l',
                      rec_slice_name='conv1_lin', name='Split1')
-mse1 = NormedMSELoss(target='img_rep_c1l:0', reconstruction='conv1_lin:0', name='MSE_conv1_tracker')
+mse1 = MSELoss(target='img_rep_c1l:0', reconstruction='conv1_lin:0', name='MSE_conv1_tracker')
 mse1.add_loss = False
 
 split2 = SplitModule(name_to_split='conv2/lin:0', img_slice_name='img_rep_c2l',
                      rec_slice_name='rec_rep_c2l', name='Split2')
-mse2 = NormedMSELoss(target='img_rep_c2l:0', reconstruction='rec_rep_c2l:0', name='MSE_conv2')
+mse2 = MSELoss(target='img_rep_c2l:0', reconstruction='rec_rep_c2l:0', name='MSE_conv2')
 mse2.add_loss = True
 
 split3 = SplitModule(name_to_split='conv3/lin:0', img_slice_name='img_rep_c3l',
                      rec_slice_name='rec_rep_c3l', name='Split2')
-mse3 = NormedMSELoss(target='img_rep_c3l:0', reconstruction='rec_rep_c3l:0', name='MSE_conv3')
+mse3 = MSELoss(target='img_rep_c3l:0', reconstruction='rec_rep_c3l:0', name='MSE_conv3')
 mse3.add_loss = True
 
 split4 = SplitModule(name_to_split='conv4/lin:0', img_slice_name='img_rep_c4l',
                      rec_slice_name='rec_rep_c4l', name='Split4')
-mse4 = NormedMSELoss(target='img_rep_c4l:0', reconstruction='rec_rep_c4l:0', name='MSE_c4l')
+mse4 = MSELoss(target='img_rep_c4l:0', reconstruction='rec_rep_c4l:0', name='MSE_c4l')
 mse4.add_loss = True
 
-pre_mse = NormedMSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
+pre_mse = MSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
 pre_mse.add_loss = False
 
 # fullprior = FoEFullPrior(tensor_names='pre_featmap/read:0', weighting=1e-8, classifier='alexnet',
@@ -57,7 +57,7 @@ p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [9, 9], 1.0, n_component
 tv_prior = TotalVariationLoss(tensor='pre_featmap/read:0', beta=2, weighting=1e-10)
 
 modules = [split4, mse4, slimprior, pre_mse]
-log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/slim_prior/1e-10'
+log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/slim_prior/1e-10/'
 # log_path = '../logs/opt_inversion/alexnet/sep_prior_on_img/channelwise/'
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
