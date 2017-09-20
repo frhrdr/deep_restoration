@@ -72,7 +72,7 @@ copyfile('./opt_inv_script.py', log_path + 'script.py')
 
 pre_featmap_init = None
 
-ni.train_pre_featmap('../data/selected/images_resized_227/red-fox.bmp', n_iterations=500, optim_name='sgd',
+ni.train_pre_featmap('../data/selected/images_resized_227/red-fox.bmp', n_iterations=500, optim_name='adam',
                      lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
                      pre_featmap_init=pre_featmap_init, ckpt_offset=0,
                      pre_featmap_name='conv3/lin',
