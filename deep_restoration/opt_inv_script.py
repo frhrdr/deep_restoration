@@ -20,15 +20,16 @@ mse2.add_loss = True
 
 split3 = SplitModule(name_to_split='conv3/lin:0', img_slice_name='img_rep_c3l',
                      rec_slice_name='rec_rep_c3l', name='Split2')
-mse3 = MSELoss(target='img_rep_c3l:0', reconstruction='rec_rep_c3l:0', name='MSE_conv3')
-mse3.add_loss = True
+# mse3 = MSELoss(target='img_rep_c3l:0', reconstruction='rec_rep_c3l:0', name='MSE_conv3')
+mse3 = MSELoss(target='img_rep_c3l:0', reconstruction='rec_rep_c3l:0', name='MSE_Reconstruction')
+mse3.add_loss = False
 
 split4 = SplitModule(name_to_split='conv4/lin:0', img_slice_name='img_rep_c4l',
                      rec_slice_name='rec_rep_c4l', name='Split4')
 mse4 = MSELoss(target='img_rep_c4l:0', reconstruction='rec_rep_c4l:0', name='MSE_c4l')
 mse4.add_loss = True
 
-pre_mse = MSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
+pre_mse = MSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Image')
 pre_mse.add_loss = False
 
 # fullprior = FoEFullPrior(tensor_names='pre_featmap/read:0', weighting=1e-8, classifier='alexnet',
@@ -56,8 +57,8 @@ p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [9, 9], 1.0, n_component
 
 tv_prior = TotalVariationLoss(tensor='pre_featmap/read:0', beta=2, weighting=1e-10)
 
-modules = [split4, mse4, pre_mse]
-log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/no_prior/'
+modules = [split4, mse4, split3, mse3, pre_mse]
+log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/pre_image_no_prior/'
 # log_path = '../logs/opt_inversion/alexnet/sep_prior_on_img/channelwise/'
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
@@ -75,7 +76,7 @@ pre_featmap_init = None
 ni.train_pre_featmap('../data/selected/images_resized_227/red-fox.bmp', n_iterations=500, optim_name='adam',
                      lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
                      pre_featmap_init=pre_featmap_init, ckpt_offset=0,
-                     pre_featmap_name='conv3/lin',
+                     pre_featmap_name='rgb_scaled',
                      featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=False)
 
 pre_featmap_init = np.load(ni.log_path + 'mats/rec_500.npy')
@@ -83,5 +84,5 @@ pre_featmap_init = np.load(ni.log_path + 'mats/rec_500.npy')
 ni.train_pre_featmap('../data/selected/images_resized_227/red-fox.bmp', n_iterations=9500, optim_name='adam',
                      lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
                      pre_featmap_init=pre_featmap_init, ckpt_offset=500,
-                     pre_featmap_name='conv3/lin',
+                     pre_featmap_name='rgb_scaled',
                      featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=False)
