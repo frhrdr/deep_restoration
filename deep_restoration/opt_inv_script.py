@@ -83,5 +83,5 @@ pre_featmap_init = np.load(ni.log_path + 'mats/rec_500.npy')
 ni.train_pre_featmap('../data/selected/images_resized_227/red-fox.bmp', n_iterations=9500, optim_name='adam',
                      lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
                      pre_featmap_init=pre_featmap_init, ckpt_offset=500,
-                     pre_featmap_name='rgb_scaled',
-                     featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=True)
+                     pre_featmap_name='conv3/lin',
+                     featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=False)
