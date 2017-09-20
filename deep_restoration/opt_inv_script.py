@@ -56,8 +56,8 @@ p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [9, 9], 1.0, n_component
 
 tv_prior = TotalVariationLoss(tensor='pre_featmap/read:0', beta=2, weighting=1e-10)
 
-modules = [split4, mse4, slimprior, pre_mse]
-log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/slim_prior/1e-9/'
+modules = [split4, mse4, pre_mse]
+log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/no_prior/'
 # log_path = '../logs/opt_inversion/alexnet/sep_prior_on_img/channelwise/'
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
