@@ -42,6 +42,9 @@ class FoEFullPrior(LearnedPriorLoss):
         self.whiten_mode = whiten_mode
         self.dist = dist
 
+        self.min_val_loss = float('inf')
+        self.increasing_val_flag = 0
+
     @staticmethod
     def assign_names(dist, name, load_name, dir_name, load_tensor_names, tensor_names):
         dist_options = ('student', 'logistic')
@@ -166,7 +169,7 @@ class FoEFullPrior(LearnedPriorLoss):
 
                 loss, term_1, term_2, x_pl, ica_a, ica_w, extra_op = self.score_matching_graph(batch_size)
 
-                train_op, lr_pl = self.get_train_op(self, loss, optimizer_name, grad_clip)
+                train_op, lr_pl = self.get_train_op(loss, optimizer_name, grad_clip)
 
                 if self.load_name != self.name and prev_ckpt:
                     to_load = self.tensor_load_dict_by_name(tf.global_variables())
@@ -220,7 +223,9 @@ class FoEFullPrior(LearnedPriorLoss):
 
                         if test_freq > 0 and count % test_freq == 0:
                             self.run_validation(val_gen, x_pl, loss, val_loss, val_summary_op, summary_writer, sess,
-                                                n_val_samples, batch_size, count, start_time)
+                                                n_val_samples, batch_size, count, start_time, saver, checkpoint_file)
+                            if self.decide_break(test_freq, log_freq):
+                                break
 
                         if count % log_freq == 0:
                             if extra_op is not None:
@@ -235,7 +240,7 @@ class FoEFullPrior(LearnedPriorLoss):
                         self.plot_filters_after_training(w_res, unwhiten_mat, n_vis)
 
     @staticmethod
-    def get_train_op(self, loss, optimizer_name, grad_clip):
+    def get_train_op(loss, optimizer_name, grad_clip):
         lr_pl = tf.placeholder(dtype=tf.float32, shape=[], name='lr')
         opt = get_optimizer(name=optimizer_name, lr_pl=lr_pl)
         tvars = tf.trainable_variables()
@@ -259,9 +264,8 @@ class FoEFullPrior(LearnedPriorLoss):
         train_ratio = 100.0 * train_time / (time.time() - start_time)
         print('{0:2.1f}% of the time spent in run calls'.format(train_ratio))
 
-    @staticmethod
-    def run_validation(val_gen, x_pl, loss, val_loss, val_summary_op, summary_writer, sess,
-                       n_val_samples, batch_size, count, start_time):
+    def run_validation(self, val_gen, x_pl, loss, val_loss, val_summary_op, summary_writer, sess,
+                       n_val_samples, batch_size, count, start_time, saver, checkpoint_file):
         val_loss_acc = 0.0
         num_runs = n_val_samples // batch_size
         for val_count in range(num_runs):
@@ -274,6 +278,18 @@ class FoEFullPrior(LearnedPriorLoss):
         print(('Iteration: {0:6d} Validation Error: {1:9.2f} ' +
                'Time: {2:5.1f} min').format(count, val_loss_acc,
                                             (time.time() - start_time) / 60))
+
+        if self.min_val_loss < val_loss_acc:
+            print('Validation loss increased! Risk of overfitting')
+            if self.increasing_val_flag == 0:
+                saver.save(sess, checkpoint_file, write_meta_graph=False, global_step=count)
+            self.increasing_val_flag += 1
+        else:
+            self.increasing_val_flag = 0
+            self.min_val_loss = val_loss_acc
+
+    def decide_break(self, test_freq, log_freq):
+        return self.increasing_val_flag >= log_freq // test_freq
 
     def plot_filters_after_training(self, w_res, unwhiten_mat, n_vis):
         comps = np.dot(w_res.T, unwhiten_mat)
