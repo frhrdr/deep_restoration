@@ -48,8 +48,8 @@ pre_mse.add_loss = False
 #                          load_name='FoEPrior',
 #                          load_tensor_names='conv1/lin:0')
 
-slimprior = FoEFullPrior('pre_featmap/read:0', 1e-9, 'alexnet', [3, 3], 1.0, n_components=5000, n_channels=254,
-                         n_features_white=3**2*254, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
+slimprior = FoEFullPrior('pre_featmap/read:0', 1e-9, 'alexnet', [3, 3], 1.0, n_components=5000, n_channels=256,
+                         n_features_white=3**2*256, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
                          name=None, load_name=None, dir_name=None, load_tensor_names='conv5/lin:0')
 
 # chanprior = FoEChannelwisePrior(tensor_names='pre_featmap/read:0', weighting=6e-5, classifier='alexnet',
