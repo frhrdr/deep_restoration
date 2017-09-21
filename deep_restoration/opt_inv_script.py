@@ -48,7 +48,7 @@ pre_mse.add_loss = False
 #                          load_name='FoEPrior',
 #                          load_tensor_names='conv1/lin:0')
 
-slimprior = FoEFullPrior('pre_featmap/read:0', 1e-9, 'alexnet', [3, 3], 1.0, n_components=5000, n_channels=256,
+slimprior = FoEFullPrior('pre_featmap/read:0', 1e-7, 'alexnet', [3, 3], 1.0, n_components=5000, n_channels=256,
                          n_features_white=3**2*256, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
                          name=None, load_name=None, dir_name=None, load_tensor_names='conv5/lin:0')
 
@@ -72,7 +72,7 @@ p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [9, 9], 1.0, n_component
 tv_prior = TotalVariationLoss(tensor='pre_featmap/read:0', beta=2, weighting=1e-10)
 
 modules = [split6, mse6, pre_mse, slimprior]
-log_path = '../logs/opt_inversion/alexnet/slim_vs_img/fc6l_to_c5l/slim_prior/1e-9/'
+log_path = '../logs/opt_inversion/alexnet/slim_vs_img/fc6l_to_c5l/slim_prior/1e-7/'
 # log_path = '../logs/opt_inversion/alexnet/sep_prior_on_img/channelwise/'
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
