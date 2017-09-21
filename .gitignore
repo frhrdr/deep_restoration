@@ -97,6 +97,7 @@ data/imagenet2012-validationset/images_resized_224/
 data/imagenet2012-validationset/images_resized_227/
 data/imagenet2012-validationset/xml_annotations/
 data/imagenet2012-validationset/features/
+data/adversarial_examples/
 !/deep_restoration/
 
 # excluded directories
