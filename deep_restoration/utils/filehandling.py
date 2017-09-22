@@ -107,6 +107,9 @@ def load_image(path, res=(224, 224), resize=True):
     [height, width, depth]
     """
     img = skimage.io.imread(path)
+    if img.shape[2] == 4:
+        img = skimage.color.rgba2rgb(img, [0, 0, 0])
+
     if resize:
         # noinspection PyUnresolvedReferences
         assert (0 <= img).all() and (img <= 255.0).all()

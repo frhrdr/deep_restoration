@@ -250,7 +250,7 @@ class NetInversion:
                             if save_as_plot:
                                 rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))
                                 fig = plt.figure(frameon=False)
-                                fig.set_size_inches(2, 1)
+                                fig.set_size_inches(1, 1)
                                 ax = plt.Axes(fig, [0., 0., 1., 1.])
                                 ax.set_axis_off()
                                 fig.add_axes(ax)
@@ -423,7 +423,7 @@ class NetInversion:
     #         with tf.Session() as sess:
     #             img_pl = tf.placeholder(dtype=tf.float32,
     #                                     shape=[batch_size, self.img_hw, self.img_hw, self.img_channels])
-    #             self.load_classifier(img_pl)
+    #             self.get_classifier(img_pl)
     #             self.build_model()
     #             saver = tf.train.Saver()
     #
