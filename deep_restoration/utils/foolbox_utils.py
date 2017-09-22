@@ -91,11 +91,11 @@ def make_small_selected_dataset():
     image_indices = (53, 76, 81, 99, 106, 108, 129, 153, 157, 160)
     image_path = '../data/selected/images_resized_227/val{}.bmp'
     target_classes = [844, 424, 970, 949, 906, 486, 934, 39, 277, 646]
-    attack_name = 'lbfgs'
+    attack_name = 'itgradientsign'
     save_dir = '../data/adversarial_examples/foolbox_images/small_dataset/{}/'.format(attack_name)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     for idx in image_indices:
         make_targeted_examples(image_path.format(idx), target_classes, save_dir,
-                               attack_name=attack_name, attack_keys={'maxiter': 1000}, verbose=True)
+                               attack_name=attack_name, attack_keys={'epsilons': 1000, 'steps': 50}, verbose=True)
 
