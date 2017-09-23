@@ -100,7 +100,7 @@ def get_img_files_complement(file_a='images.txt', file_b='validate_2k_images.txt
         f.writelines([k + '\n' for k in comp])
 
 
-def load_image(path, res=(224, 224), resize=True):
+def load_image(path, res=(224, 224), resize=False):
     """
     taken from https://github.com/machrisaa/tensorflow-vgg/utils.py
     returns image of shape [res[0], res[1], 3]

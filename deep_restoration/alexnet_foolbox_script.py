@@ -1,48 +1,30 @@
 import numpy as np
 import tensorflow as tf
-from utils.foolbox_utils import make_targeted_examples, make_small_selected_dataset
+from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_dataset, get_prior_scores_per_image, compare_images_to_untargeted_adv_ex
+from modules.foe_full_prior import FoEFullPrior
+
+imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [12, 12], 1.0, n_components=1000, n_channels=3,
+                        n_features_white=12**2*3, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
+                        name=None, load_name=None, dir_name=None, load_tensor_names='image')
+
+# image_dir = '../data/adversarial_examples/foolbox_images/small_dataset/lbfgs/'
+# image_names = ['val53_t844_f39.bmp',
+#                'val53_t844_f844.bmp',
+#                'val53_t844_f970.bmp',
+#                'val76_t860_f424.bmp',
+#                'val81_t970_f970.bmp',
+#                'val99_t949_f934.bmp',
+#                'val99_t949_f949.bmp',
+#                'val99_t949_f970.bmp',
+#                'val106_t824_f906.bmp',
+#                'val108_t889_f486.bmp'
+#                ]
+# image_dir = '../data/selected/images_resized_227/val{}.bmp'
+# image_names = [53, 76, 81, 99, 106, 108, 129, 153, 157, 160]
 #
-# image_path = '../data/selected/images_resized_227/red-fox.bmp'
-# # image_path = './red-fox_t277_f280.bmp'
-# target_class = 1
-# make_targeted_examples(image_path, (target_class,), './', attack_name='lbfgs', verbose=True)
-make_small_selected_dataset()
-# with tf.Graph().as_default() as graph:
-#     with tf.Session() as sess:
-#         images = tf.placeholder(tf.float32, (None, 227, 227, 3))
-#         net = AlexNet()
-#         net.build(images, rescale=1.0)
-#         # logits = graph.get_tensor_by_name('softmax:0')
-#         logits = graph.get_tensor_by_name('fc8/relu:0')
+# image_paths = [image_dir.format(k) for k in image_names]
 #
-#         model = TensorFlowModel(images, logits, bounds=(0, 255))
-#
-#         target_class = 280
-#         criterion = TargetClass(target_class)
-#         # criterion = Misclassification()
-#         attack = LBFGSAttack(model, criterion)
-#         # attack = GaussianBlurAttack(model, criterion)
-#
-#         image_path = '../data/selected/images_resized_227/red-fox.bmp'
-#         image = load_image(image_path, resize=False)
-#         pred = model.predictions(image)
-#         label = np.argmax(pred)
-#         confidence = np.max(pred)
-#         print(label, confidence)
-#         adversarial = attack(image=image, label=label)
-#         fooled_pred = model.predictions(adversarial)
-#         fooled_label = np.argmax(fooled_pred)
-#         fooled_confidence = np.max(fooled_pred)
-#         print(fooled_label, fooled_confidence)
-#
-#
-# plt.subplot(1, 3, 1)
-# plt.imshow(image)
-#
-# plt.subplot(1, 3, 2)
-# plt.imshow(adversarial)
-#
-# plt.subplot(1, 3, 3)
-# plt.imshow(adversarial - image)
-#
-# plt.show()
+# get_prior_scores_per_image(image_paths, [imgprior])
+
+# make_small_untargeted_dataset()
+compare_images_to_untargeted_adv_ex([imgprior])
