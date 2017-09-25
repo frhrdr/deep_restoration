@@ -325,7 +325,7 @@ def stability_experiment_200():
     count = 0
     img_list = []
     adv_list = []
-    for img_path, adv_path in advex_matches[:100]:
+    for img_path, adv_path in advex_matches[100:]:
         count += 1
         print('match no.', count)
         log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
@@ -337,8 +337,8 @@ def stability_experiment_200():
         adv_list.append(log_list)
     print(img_list)
     print(adv_list)
-    np.save('img_log.npy', np.asarray(img_list))
-    np.save('adv_log.npy', np.asarray(adv_list))
+    np.save('img_log2.npy', np.asarray(img_list))
+    np.save('adv_log2.npy', np.asarray(adv_list))
 
 
 def stability_statistics():
@@ -347,6 +347,43 @@ def stability_statistics():
     adv_log = np.load('adv_log.npy')
 
     print(img_log.shape)
-
+    n_samples, n_logpoints = img_log.shape
     # count changes over channels by log point
-    img_changes = img_log[:, :-1] - img_log[:, 1:]
+    img_changes = np.minimum(np.abs(img_log[:, :-1] - img_log[:, 1:]), 1)
+    adv_changes = np.minimum(np.abs(adv_log[:, :-1] - adv_log[:, 1:]), 1)
+
+    img_changes_sum = np.sum(img_changes, axis=0)
+    adv_changes_sum = np.sum(adv_changes, axis=0)
+    print('count of changes in images', img_changes_sum)
+    print('count of changes in adv ex', adv_changes_sum)
+
+    # count first change only
+
+    img_count = np.argmax(img_changes, axis=1)
+    adv_count = np.argmax(adv_changes, axis=1)
+
+    img_range = np.zeros(n_logpoints)
+    adv_range = np.zeros(n_logpoints)
+
+    for idx in range(n_samples):
+        img_range[img_count[idx]] += img_changes[idx, img_count[idx]]
+        adv_range[adv_count[idx]] += adv_changes[idx, adv_count[idx]]
+
+    print('count of first changes in images', img_range.astype(np.int))
+    print('count of first changes in adv ex', adv_range.astype(np.int))
+
+    # find reversion to original label
+    src_labels = img_log[:, 0]
+    src_found = 1 - np.minimum(np.abs(adv_log.T - src_labels).T, 1)
+    src_count = np.argmax(src_found, axis=1)
+
+    src_range = np.zeros(n_logpoints)
+
+    for idx in range(n_samples):
+        assert src_labels[idx] == adv_log[idx, src_count[idx]] or src_found[idx, src_count[idx]] == 0
+        src_range[src_count[idx]] += src_found[idx, src_count[idx]]
+
+    print('count of first changes to original label in adv ex', adv_range.astype(np.int))
+
+
+
