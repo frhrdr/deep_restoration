@@ -298,10 +298,12 @@ def stability_experiment_200():
                             n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                             whiten_mode='pca',
                             name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
-    learning_rate = 1e-0
-    n_iterations = 100
-    # log_freq = 5
-    log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+    # learning_rate = 1e-0
+    # n_iterations = 100
+    # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+    learning_rate = 1e-1
+    n_iterations = 20
+    log_freq = 1
 
     data_dir = '../data/imagenet2012-validationset/'
     images_file = 'subset_cutoff_200_images.txt'
@@ -325,7 +327,7 @@ def stability_experiment_200():
     count = 0
     img_list = []
     adv_list = []
-    for img_path, adv_path in advex_matches[100:]:
+    for img_path, adv_path in advex_matches[:100]:
         count += 1
         print('match no.', count)
         log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
@@ -337,14 +339,16 @@ def stability_experiment_200():
         adv_list.append(log_list)
     print(img_list)
     print(adv_list)
-    np.save('img_log2.npy', np.asarray(img_list))
-    np.save('adv_log2.npy', np.asarray(adv_list))
+    np.save('img_log_1.npy', np.asarray(img_list))
+    np.save('adv_log_1.npy', np.asarray(adv_list))
 
 
 def stability_statistics():
     log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
-    img_log = np.load('img_log.npy')
-    adv_log = np.load('adv_log.npy')
+    print('log points after n iterations', log_freq)
+
+    img_log = np.load('img_log_198.npy')
+    adv_log = np.load('adv_log_198.npy')
 
     print(img_log.shape)
     n_samples, n_logpoints = img_log.shape
@@ -354,23 +358,23 @@ def stability_statistics():
 
     img_changes_sum = np.sum(img_changes, axis=0)
     adv_changes_sum = np.sum(adv_changes, axis=0)
-    print('count of changes in images', img_changes_sum)
-    print('count of changes in adv ex', adv_changes_sum)
+    print('count of changes in images', list(img_changes_sum))
+    print('count of changes in adv ex', list(adv_changes_sum))
 
     # count first change only
 
     img_count = np.argmax(img_changes, axis=1)
     adv_count = np.argmax(adv_changes, axis=1)
 
-    img_range = np.zeros(n_logpoints)
-    adv_range = np.zeros(n_logpoints)
+    img_range = np.zeros(n_logpoints - 1)
+    adv_range = np.zeros(n_logpoints - 1)
 
     for idx in range(n_samples):
         img_range[img_count[idx]] += img_changes[idx, img_count[idx]]
         adv_range[adv_count[idx]] += adv_changes[idx, adv_count[idx]]
 
-    print('count of first changes in images', img_range.astype(np.int))
-    print('count of first changes in adv ex', adv_range.astype(np.int))
+    print('count of first changes in images', list(img_range.astype(np.int)))
+    print('count of first changes in adv ex', list(adv_range.astype(np.int)))
 
     # find reversion to original label
     src_labels = img_log[:, 0]
@@ -383,7 +387,9 @@ def stability_statistics():
         assert src_labels[idx] == adv_log[idx, src_count[idx]] or src_found[idx, src_count[idx]] == 0
         src_range[src_count[idx]] += src_found[idx, src_count[idx]]
 
-    print('count of first changes to original label in adv ex', adv_range.astype(np.int))
+    print('count of first changes to original label in adv ex', list(src_range.astype(np.int))[1:])
 
+    # plt.plot(log_freq, src_range[1:], 'ro')
+    # plt.show()
 
 
