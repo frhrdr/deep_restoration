@@ -105,8 +105,8 @@ class FoEFullPrior(LearnedPriorLoss):
                 whitened_mixing = tf.reshape(whitened_mixing, shape=[self.n_channels, self.ph,
                                                                      self.pw, self.n_components])
                 whitened_mixing = tf.transpose(whitened_mixing, perm=[1, 2, 0, 3])
-                print(normed_featmap.get_shape())
-                print(whitened_mixing.get_shape())
+                # print(normed_featmap.get_shape())
+                # print(whitened_mixing.get_shape())
                 xw = tf.nn.conv2d(normed_featmap, whitened_mixing, strides=[1, 1, 1, 1], padding='VALID')
                 xw = tf.reshape(xw, shape=[-1, self.n_components])
 

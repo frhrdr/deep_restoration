@@ -5,9 +5,10 @@ from tf_vgg.vgg16 import Vgg16
 import matplotlib
 matplotlib.use('tkagg', force=True)
 import matplotlib.pyplot as plt
-from utils.temp_utils import load_image
+from utils.temp_utils import load_image, get_optimizer
 from utils.imagenet_classnames import get_class_name
 from modules.core_modules import LearnedPriorLoss
+from modules.foe_full_prior import FoEFullPrior
 import foolbox
 import skimage.io
 import os
@@ -25,19 +26,27 @@ def get_attack(name, model, criterion):
     return attacks[name](model, criterion)
 
 
-def get_classifier_io(name):
+def get_classifier_io(name, input_init=None, input_type='placeholder'):
     assert name in ('alexnet', 'vgg16')
+    assert input_type in ('placeholder', 'variable', 'constant')
     if name == 'vgg16':
-        input_pl = tf.placeholder(tf.float32, (1, 224, 224, 3))
         classifier = Vgg16()
-        classifier.build(input_pl)
-        logit_tsr = tf.get_default_graph().get_tensor_by_name('fc8/lin:0')
+        hw = 224
     else:
-        input_pl = tf.placeholder(tf.float32, (1, 227, 227, 3))
         classifier = AlexNet()
-        classifier.build(input_pl)
-        logit_tsr = tf.get_default_graph().get_tensor_by_name('fc8/lin:0')
-    return input_pl, logit_tsr
+        hw = 227
+
+    if input_type == 'placeholder':
+        input_tensor = tf.placeholder(tf.float32, (1, hw, hw, 3))
+    elif input_type == 'variable':
+        input_tensor = tf.get_variable('input_image', initializer=input_init, dtype=tf.float32)
+    else:
+        input_tensor = tf.constant(input_init, dtype=tf.float32)
+
+    classifier.build(input_tensor)
+    logit_tsr = tf.get_default_graph().get_tensor_by_name('fc8/lin:0')
+
+    return input_tensor, logit_tsr
 
 
 def get_adv_ex_filename(source_image, source_label, target_label, save_dir, file_type='png'):
@@ -60,6 +69,7 @@ def make_targeted_examples(source_image, target_class_labels, save_dir,
                     image = np.load(source_image)
                 else:
                     raise NotImplementedError
+                image = image.astype(np.float32)
 
                 if src_label is None:
                     pred = model.predictions(image)
@@ -122,11 +132,12 @@ def make_untargeted_examples(source_images, save_dir,
                 if verbose:
                     fooled_label_name = get_class_name(fooled_label)
                     print('adversarial image classified as {}. (label {})'.format(fooled_label_name, fooled_label))
-                save_file = get_adv_ex_filename(src_image, src_label, fooled_label, save_dir, file_type='bmp')
-                if adversarial.dtype == np.float32:
-                    adversarial = np.minimum(adversarial / 255, 1.0)
+                save_file = get_adv_ex_filename(src_image, src_label, fooled_label, save_dir, file_type='npy')
+                # if adversarial.dtype == np.float32:
+                #     adversarial = np.minimum(adversarial / 255, 1.0)
 
-                skimage.io.imsave(save_file, adversarial)
+                np.save(save_file, adversarial)
+                # skimage.io.imsave(save_file, adversarial)
 
 
 def get_prior_scores_per_image(image_paths, priors, classifier='alexnet', verbose=True):
@@ -185,7 +196,7 @@ def make_small_untargeted_dataset():
         os.makedirs(save_dir)
 
     make_untargeted_examples(image_paths, save_dir, classifier='alexnet', attack_name='deepfool',
-                             attack_keys=None, verbose=True)
+                             attack_keys={'steps': 300}, verbose=True)
 
 
 def compare_images_to_untargeted_adv_ex(priors):
@@ -210,9 +221,133 @@ def compare_images_to_untargeted_adv_ex(priors):
             img_idx += 1
         advex_matches.append((image_losses[img_idx], advex_losses[adv_idx]))
     print('number of matches:', len(advex_matches))
+
     diff = np.asarray([k[0] - k[1] for k in advex_matches])
     print(diff)
 
     print('mean difference:', np.mean(diff))
     print('number of images with higher ad-ex loss', np.sum(diff < 0))
-    print('number of images with lower or equal ad-ex loss', np.sum(diff >= 0))
+    print('number of images with equal ad-ex loss', np.sum(diff == 0))
+    print('number of images with lower ad-ex loss', np.sum(diff > 0))
+
+    print(np.max(advex_losses))
+    print(np.min(advex_losses))
+    print(np.max(image_losses))
+    print(np.min(image_losses))
+
+
+def eval_class_stability(image_file, priors, learning_rate, n_iterations, log_freq,
+                         optimizer='sgd', classifier='alexnet', verbose=False):
+    if not isinstance(log_freq, list):
+        log_freq = list(range(log_freq, n_iterations, log_freq))
+    log_list = []
+
+    if image_file.endswith('bmp') or image_file.endswith('png'):
+        image = load_image(image_file, resize=False)
+    elif image_file.endswith('npy'):
+        image = np.load(image_file)
+    else:
+        raise NotImplementedError
+    image = np.expand_dims(image.astype(dtype=np.float32), axis=0)
+    # print(image)
+    with tf.Graph().as_default():
+
+        input_var, logit_tsr = get_classifier_io(classifier, input_init=image, input_type='variable')
+
+        loss_tsr = 0
+        for prior in priors:
+            prior.build()
+            loss_tsr += prior.get_loss()
+
+        optimizer = get_optimizer(optimizer, learning_rate)
+        train_op = optimizer.minimize(loss_tsr)
+
+        init_op = tf.global_variables_initializer()
+        with tf.Session() as sess:
+            sess.run(init_op)
+            for prior in priors:
+                if isinstance(prior, LearnedPriorLoss):
+                    prior.load_weights(sess)
+
+            pred = sess.run(logit_tsr)
+            current_label = np.argmax(pred)
+            log_list.append(current_label)
+            if verbose:
+                current_label_name = get_class_name(current_label)
+                print('image initially classified as {}. (label {})'.format(current_label_name, current_label))
+
+            for count in range(n_iterations + 1):
+                _, loss = sess.run([train_op, loss_tsr])
+
+                if log_freq and count == log_freq[0]:
+                    log_freq = log_freq[1:]
+                    pred = sess.run(logit_tsr)
+                    new_label = np.argmax(pred)
+                    log_list.append(new_label)
+                    if verbose and new_label != current_label:
+                        new_label_name = get_class_name(new_label)
+                        print(('label changed at iteration {}: ' +
+                              'now classified as {} (label {})').format(count, new_label_name, new_label))
+                        print('Loss:', loss)
+                    current_label = new_label
+    return log_list
+
+
+def stability_experiment_200():
+    imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
+                            n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
+                            whiten_mode='pca',
+                            name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
+    learning_rate = 1e-0
+    n_iterations = 100
+    # log_freq = 5
+    log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+
+    data_dir = '../data/imagenet2012-validationset/'
+    images_file = 'subset_cutoff_200_images.txt'
+    subdir = 'images_resized_227/'
+    advex_dir = '../data/adversarial_examples/foolbox_images/200_dataset/deepfool/'
+
+    with open(data_dir + images_file) as f:
+        image_files = [k.rstrip() for k in f.readlines()]
+        image_paths = [data_dir + subdir + k[:-len('JPEG')] + 'bmp' for k in image_files]
+
+    image_stems = [k[:-len('.JPEG')] for k in image_files]
+    advex_files = sorted(os.listdir(advex_dir))
+    advex_paths = [advex_dir + k for k in advex_files]
+    img_idx = 0
+    advex_matches = []
+    for adv_idx, adv_file in enumerate(advex_files):
+        while not adv_file.startswith(image_stems[img_idx]):
+            img_idx += 1
+        advex_matches.append((image_paths[img_idx], advex_paths[adv_idx]))
+    print('number of matches:', len(advex_matches))
+    count = 0
+    img_list = []
+    adv_list = []
+    for img_path, adv_path in advex_matches:
+        count += 1
+        print('match no.', count)
+        log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
+                                        optimizer='adam', classifier='alexnet', verbose=True)
+        img_list.append(log_list)
+
+        log_list = eval_class_stability(adv_path, [imgprior], learning_rate, n_iterations, log_freq,
+                                        optimizer='adam', classifier='alexnet', verbose=True)
+        adv_list.append(log_list)
+
+    print(img_list)
+    print(adv_list)
+    np.save('img_log.npy', np.asarray(img_list))
+    np.save('adv_log.npy', np.asarray(adv_list))
+
+
+def stability_statistics():
+    log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+    img_log = np.load('img_log.npy')
+    adv_log = np.load('adv_log.npy')
+
+    print(img_log.shape)
+
+    # count changes over channels by log point
+    img_changes = img_log[:, :-1] - img_log[:, 1:]

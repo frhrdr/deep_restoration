@@ -1,11 +1,9 @@
 import numpy as np
 import tensorflow as tf
-from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_dataset, get_prior_scores_per_image, compare_images_to_untargeted_adv_ex
+from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_dataset, get_prior_scores_per_image, \
+    compare_images_to_untargeted_adv_ex, eval_class_stability, stability_experiment_200
 from modules.foe_full_prior import FoEFullPrior
 
-imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [12, 12], 1.0, n_components=1000, n_channels=3,
-                        n_features_white=12**2*3, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
-                        name=None, load_name=None, dir_name=None, load_tensor_names='image')
 
 # image_dir = '../data/adversarial_examples/foolbox_images/small_dataset/lbfgs/'
 # image_names = ['val53_t844_f39.bmp',
@@ -24,7 +22,29 @@ imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [12, 12], 1.0, n_compon
 #
 # image_paths = [image_dir.format(k) for k in image_names]
 #
+# make_small_untargeted_dataset()
+
+# imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [12, 12], 1.0, n_components=1000, n_channels=3,
+#                         n_features_white=12**2*3, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
+#                         name=None, load_name=None, dir_name=None, load_tensor_names='image')
+
 # get_prior_scores_per_image(image_paths, [imgprior])
 
-# make_small_untargeted_dataset()
-compare_images_to_untargeted_adv_ex([imgprior])
+# compare_images_to_untargeted_adv_ex([imgprior])
+
+# TESTING REGULARIZER BEHAVIOUR ########################################################################################
+# imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
+#                         n_features_white=8**2*3-1, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
+#                         name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
+#
+# # image_file = '../data/selected/images_resized_227/val53.bmp'
+# # image_file = '../data/adversarial_examples/foolbox_images/small_dataset/lbfgs/val76_t860_f424.bmp'
+# image_file = '../data/adversarial_examples/foolbox_images/200_dataset/deepfool/ILSVRC2012_val_00000053_t844_f530.npy'
+# priors = [imgprior]
+# learning_rate = 1e-0
+# n_iterations = 100
+# log_freq = 5
+# log_list = eval_class_stability(image_file, priors, learning_rate, n_iterations, log_freq,
+#                                 optimizer='adam', classifier='alexnet', verbose=True)
+# print(log_list)
+stability_experiment_200()
