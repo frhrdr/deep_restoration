@@ -250,7 +250,7 @@ def eval_class_stability(image_file, priors, learning_rate, n_iterations, log_fr
         raise NotImplementedError
     image = np.expand_dims(image.astype(dtype=np.float32), axis=0)
     # print(image)
-    with tf.Graph().as_default():
+    with tf.Graph().as_default() as graph:
 
         input_var, logit_tsr = get_classifier_io(classifier, input_init=image, input_type='variable')
 
@@ -325,7 +325,7 @@ def stability_experiment_200():
     count = 0
     img_list = []
     adv_list = []
-    for img_path, adv_path in advex_matches:
+    for img_path, adv_path in advex_matches[:100]:
         count += 1
         print('match no.', count)
         log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
@@ -335,7 +335,6 @@ def stability_experiment_200():
         log_list = eval_class_stability(adv_path, [imgprior], learning_rate, n_iterations, log_freq,
                                         optimizer='adam', classifier='alexnet', verbose=True)
         adv_list.append(log_list)
-
     print(img_list)
     print(adv_list)
     np.save('img_log.npy', np.asarray(img_list))
