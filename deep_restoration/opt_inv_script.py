@@ -15,14 +15,14 @@ mse1.add_loss = False
 
 split2 = SplitModule(name_to_split='conv2/lin:0', img_slice_name='img_rep_c2l',
                      rec_slice_name='rec_rep_c2l', name='Split2')
-# mse2 = MSELoss(target='img_rep_c2l:0', reconstruction='rec_rep_c2l:0', name='MSE_conv2')
-mse2 = MSELoss(target='img_rep_c2l:0', reconstruction='rec_rep_c2l:0', name='MSE_Reconstruction')
+mse2 = MSELoss(target='img_rep_c2l:0', reconstruction='rec_rep_c2l:0', name='MSE_conv2')
+# mse2 = MSELoss(target='img_rep_c2l:0', reconstruction='rec_rep_c2l:0', name='MSE_Reconstruction')
 mse2.add_loss = True
 
 split3 = SplitModule(name_to_split='conv3/lin:0', img_slice_name='img_rep_c3l',
                      rec_slice_name='rec_rep_c3l', name='Split3')
-# mse3 = MSELoss(target='img_rep_c3l:0', reconstruction='rec_rep_c3l:0', name='MSE_conv3')
-mse3 = MSELoss(target='img_rep_c3l:0', reconstruction='rec_rep_c3l:0', name='MSE_Reconstruction')
+mse3 = MSELoss(target='img_rep_c3l:0', reconstruction='rec_rep_c3l:0', name='MSE_conv3')
+# mse3 = MSELoss(target='img_rep_c3l:0', reconstruction='rec_rep_c3l:0', name='MSE_Reconstruction')
 mse3.add_loss = False
 
 split4 = SplitModule(name_to_split='conv4/lin:0', img_slice_name='img_rep_c4l',

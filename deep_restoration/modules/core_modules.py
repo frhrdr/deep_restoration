@@ -25,24 +25,26 @@ class LossModule(Module):
         super().__init__(in_tensor_names, name=name)
         self.weighting = weighting
         self.loss = None
+        self.weighted_loss = None
         self.add_loss = True
 
     def build(self, scope_suffix=''):
         self.loss = 0
 
     def get_loss(self, weighted=True):
-        if self.loss is not None and self.add_loss:
-            if weighted:
-                return self.loss * self.weighting
-            else:
-                return self.loss
-        elif not self.add_loss:
-            return 0
+        assert self.loss is not None
+        if self.add_loss:
+            return self.get_weighted_loss() if weighted else self.loss
         else:
-            raise AttributeError
+            return 0
+
+    def get_weighted_loss(self):
+        if self.weighted_loss is None:
+            self.weighted_loss = self.loss * self.weighting
+        return self.weighted_loss
 
     def scalar_summary(self, weighted=True):
-        loss = self.loss * self.weighting if weighted else self.loss
+        loss = self.get_weighted_loss() if weighted else self.loss
         tf.summary.scalar(self.name, loss)
 
 
