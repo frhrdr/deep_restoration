@@ -11,7 +11,7 @@ import numpy as np
 
 split1 = SplitModule(name_to_split='conv1/lin:0', img_slice_name='img_rep_c1l',
                      rec_slice_name='conv1_lin', name='Split1')
-mse1 = MSELoss(target='img_rep_c1l:0', reconstruction='conv1_lin:0', name='MSE_conv1_tracker')
+mse1 = MSELoss(target='img_rep_c1l:0', reconstruction='conv1_lin:0', name='MSE_Reconstruction')
 mse1.add_loss = False
 
 split2 = SplitModule(name_to_split='conv2/lin:0', img_slice_name='img_rep_c2l',
@@ -73,9 +73,9 @@ p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [9, 9], 1.0, n_component
 
 tv_prior = TotalVariationLoss(tensor='pre_featmap/read:0', beta=2, weighting=1e-10)
 
-modules = [split2, mse2, fullprior, pre_mse]
-log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/full_prior/1e-4/'
-# log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/no_prior/'
+modules = [split2, mse2, split1, mse1, imgprior]
+# log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/full_prior/1e-4/'
+log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/pre_image_12x12_full_prior/1e-5'
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
 if not os.path.exists(log_path):
@@ -90,8 +90,8 @@ copyfile('./opt_inv_script.py', log_path + 'script.py')
 pre_featmap_init = None
 
 target_image = '../data/selected/images_resized_227/red-fox.bmp'
-pre_featmap_name = 'conv1/lin'
-# pre_featmap_name = 'rgb_scaled'
+# pre_featmap_name = 'conv1/lin'
+pre_featmap_name = 'rgb_scaled'
 
 ni.train_pre_featmap(target_image, n_iterations=500, optim_name='adam',
                      lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
