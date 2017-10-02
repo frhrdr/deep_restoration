@@ -44,7 +44,7 @@ mse6.add_loss = True
 pre_mse = MSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
 pre_mse.add_loss = False
 
-fullprior = FoEFullPrior(tensor_names='pre_featmap/read:0', weighting=1e-6, classifier='alexnet',
+fullprior = FoEFullPrior(tensor_names='pre_featmap/read:0', weighting=1e-5, classifier='alexnet',
                          filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
                          n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
                          load_name='FoEPrior',
@@ -74,7 +74,7 @@ p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [9, 9], 1.0, n_component
 tv_prior = TotalVariationLoss(tensor='pre_featmap/read:0', beta=2, weighting=1e-10)
 
 modules = [split2, mse2, fullprior, pre_mse]
-log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/full_prior/1e-6/'
+log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/full_prior/1e-5/'
 # log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/no_prior/'
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
@@ -91,6 +91,7 @@ pre_featmap_init = None
 
 target_image = '../data/selected/images_resized_227/red-fox.bmp'
 pre_featmap_name = 'conv1/lin'
+# pre_featmap_name = 'rgb_scaled'
 
 ni.train_pre_featmap(target_image, n_iterations=500, optim_name='adam',
                      lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
