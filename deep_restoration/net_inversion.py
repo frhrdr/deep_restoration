@@ -147,7 +147,6 @@ class NetInversion:
             with tf.Session() as sess:
                 target_featmap = tf.get_variable(name='target_featmap', dtype=tf.float32, trainable=False,
                                                  initializer=target_featmap_mat)
-                print(target_featmap)
 
                 if pre_featmap_init is None and scale_pre_img == 2.7098e+4:
                     print('using special initializer')  # remnant from m&v settings
@@ -213,7 +212,7 @@ class NetInversion:
                         clip_op = None
 
                     train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
-
+                    summary_writer.add_graph(graph)
                     sess.run(tf.global_variables_initializer())
 
                     for mod in self.modules:

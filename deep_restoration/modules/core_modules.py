@@ -28,6 +28,10 @@ class LossModule(Module):
         self.weighted_loss = None
         self.add_loss = True
 
+    def reset(self):
+        self.loss = None
+        self.weighted_loss = None
+
     def build(self, scope_suffix=''):
         self.loss = 0
 
@@ -46,7 +50,6 @@ class LossModule(Module):
     def scalar_summary(self, weighted=True):
         loss = self.get_weighted_loss() if weighted else self.loss
         tf.summary.scalar(self.name, loss)
-
 
 class LearnedPriorLoss(LossModule):
 
