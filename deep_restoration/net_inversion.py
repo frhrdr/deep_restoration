@@ -212,7 +212,7 @@ class NetInversion:
                         clip_op = None
 
                     train_summary_op, summary_writer, saver, val_loss, val_summary_op = self.build_logging(loss)
-                    summary_writer.add_graph(graph)
+                    # summary_writer.add_graph(graph)
                     sess.run(tf.global_variables_initializer())
 
                     for mod in self.modules:
