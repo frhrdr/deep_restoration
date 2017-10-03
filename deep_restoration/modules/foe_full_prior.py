@@ -121,7 +121,9 @@ class FoEFullPrior(LearnedPriorLoss):
 
     def forward_opt_sgd(self, learning_rate, n_iterations):
         featmap = self.get_tensors()
-        grads = tf.gradients(self.loss, featmap)
+
+        featmap_grad = tf.gradients(self.loss, featmap)[0]
+
 
     def score_matching_loss(self, x_mat, ica_w, ica_a):
         if self.dist == 'logistic':
