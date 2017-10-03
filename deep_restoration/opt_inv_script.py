@@ -60,7 +60,7 @@ slimprior = FoEFullPrior('pre_featmap/read:0', 1e-7, 'alexnet', [3, 3], 1.0, n_c
 #                                 dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='zca',
 #                                 load_tensor_names='conv1/lin:0')
 
-img_prior = FoEFullPrior('pre_featmap/read:0', 1e-4, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
+img_prior = FoEFullPrior('pre_featmap/read:0', 1e-2, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
                          n_features_white=64*3-1, dist='logistic', mean_mode='lf', sdev_mode='gc', whiten_mode='pca',
                          load_name='ICAPrior', load_tensor_names='image')
 
@@ -79,7 +79,7 @@ tv_prior = TotalVariationLoss(tensor='pre_featmap/read:0', beta=2, weighting=1e-
 
 modules = [split2, mse2, split1, mse1, img_prior]
 # log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/full_prior/1e-4/'
-log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/pre_image_8x8_full_prior/1e-4'
+log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/pre_image_8x8_full_prior/1e-2'
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
 if not os.path.exists(log_path):
