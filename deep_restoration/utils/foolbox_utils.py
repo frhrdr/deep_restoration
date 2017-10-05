@@ -335,7 +335,7 @@ def stability_experiment_200():
     count = 0
     img_list = []
     adv_list = []
-    for img_path, adv_path in advex_matches[:100]:
+    for img_path, adv_path in advex_matches[100:]:
         count += 1
         print('match no.', count)
         log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
@@ -348,8 +348,8 @@ def stability_experiment_200():
         imgprior.reset()
     print(img_list)
     print(adv_list)
-    np.save('img_log_sgd_1.npy', np.asarray(img_list))
-    np.save('adv_log_sgd_1.npy', np.asarray(adv_list))
+    np.save('img_log_sgd_2.npy', np.asarray(img_list))
+    np.save('adv_log_sgd_2.npy', np.asarray(adv_list))
 
 
 def stability_statistics():
