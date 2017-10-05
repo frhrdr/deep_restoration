@@ -328,26 +328,27 @@ def stability_experiment_200():
     learning_rate = 1e-1
     n_iterations = 20
     log_freq = 1
+    optimizer = 'sgd'
 
     advex_matches = advex_match_paths_200()
     print('number of matches:', len(advex_matches))
     count = 0
     img_list = []
     adv_list = []
-    for img_path, adv_path in advex_matches[100:]:
+    for img_path, adv_path in advex_matches[:100]:
         count += 1
         print('match no.', count)
         log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
-                                        optimizer='adam', classifier='alexnet', verbose=True)
+                                        optimizer=optimizer, classifier='alexnet', verbose=True)
         img_list.append(log_list)
 
         log_list = eval_class_stability(adv_path, [imgprior], learning_rate, n_iterations, log_freq,
-                                        optimizer='adam', classifier='alexnet', verbose=True)
+                                        optimizer=optimizer, classifier='alexnet', verbose=True)
         adv_list.append(log_list)
     print(img_list)
     print(adv_list)
-    np.save('img_log_2.npy', np.asarray(img_list))
-    np.save('adv_log_2.npy', np.asarray(adv_list))
+    np.save('img_log_sgd_1.npy', np.asarray(img_list))
+    np.save('adv_log_sgd_1.npy', np.asarray(adv_list))
 
 
 def stability_statistics():
@@ -417,8 +418,6 @@ def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_
     :return:
     """
 
-    image = np.expand_dims(image.astype(dtype=np.float32), axis=0)
-
     with tf.Graph().as_default():
         # input_featmap = tf.constant(image, dtype=tf.float32)
         input_featmap = tf.placeholder(tf.float32, image.shape)
@@ -435,7 +434,7 @@ def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_
             init_op = tf.global_variables_initializer()
             sess.run(init_op)
             prior.load_weights(sess)
-            pred = model.predictions(np.squeeze(image, axis=0))
+            pred = model.predictions(image)
             noisy_label = np.argmax(pred)
 
             if verbose:
@@ -444,7 +443,7 @@ def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_
                     print('noisy label {} same as source: {}'.format(noisy_label, noisy_label_name))
                 else:
                     print('image with prior misclassified as {}. (label {})'.format(noisy_label_name, noisy_label))
-            adversarial = attack(image=np.squeeze(image, axis=0), label=noisy_label, **attack_keys)
+            adversarial = attack(image=image, label=noisy_label, **attack_keys)
             if adversarial is None:
                 print('no adversary found for source label {} using {}'.format(noisy_label, attack_name))
                 return None
@@ -456,30 +455,75 @@ def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_
                 if verbose:
                     print('adversarial image classified as {}. (label {}) '
                           'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, noise_norm))
-                return noise_norm
+                return adversarial, noise_norm
 
 
-def whitebox_experiment_200(learning_rate=0.1, n_iterations=1, attack_name='deepfool', attack_keys=None):
+def whitebox_experiment_200(learning_rate=0.1, n_iterations=1, attack_name='deepfool', attack_keys=None, verbose=True):
     path = '../logs/adversarial_examples/deepfool_oblivious_198/'
     img_log = np.load(path + 'img_log_198_fine.npy')
     adv_log = np.load(path + 'adv_log_198_fine.npy')
-
+    classifier = 'alexnet'
+    image_shape = (1, 227, 227, 3)
     advex_matches = advex_match_paths_200()
 
-    for idx, match in enumerate(advex_matches[:2]):
-        imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
-                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
-                                whiten_mode='pca',
-                                name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
+    imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
+                            n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
+                            whiten_mode='pca',
+                            name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
 
-        img_path, adv_path = match
-        src_label = img_log[idx][0]
+    with tf.Graph().as_default():
+        # input_featmap = tf.constant(image, dtype=tf.float32)
+        input_featmap = tf.placeholder(tf.float32, image_shape)
+        featmap = imgprior.forward_opt_sgd(input_featmap, learning_rate, n_iterations)
+        _, logit_tsr = get_classifier_io(classifier, input_init=featmap, input_type='tensor')
 
-        img = load_image(img_path)
-        adv = load_image(adv_path)
+        with tf.Session() as sess:
+            model = foolbox.models.TensorFlowModel(input_featmap, logit_tsr, bounds=(0, 255))
+            criterion = foolbox.criteria.Misclassification()
+            attack = get_attack(attack_name, model, criterion)
+            if attack_keys is None:
+                attack_keys = dict()
 
-        oblivious_norm = np.linalg.norm((img - adv).flatten(), ord=2)
-        print('oblivious norm', oblivious_norm)
+            init_op = tf.global_variables_initializer()
+            sess.run(init_op)
+            imgprior.load_weights(sess)
 
-        whitebox_norm = eval_whitebox_forward_opt(img, imgprior, learning_rate, n_iterations, attack_name,
-                                                  attack_keys, src_label, classifier='alexnet', verbose=True)
+            noise_norms = []
+            src_invariant = []
+            for idx, match in enumerate(advex_matches[:2]):
+                img_path, adv_path = match
+                src_label = img_log[idx][0]
+
+                img = load_image(img_path)
+                adv = load_image(adv_path)
+
+                oblivious_norm = np.linalg.norm((img - adv).flatten(), ord=2)
+                print('oblivious norm', oblivious_norm)
+
+                pred = model.predictions(img)
+                noisy_label = np.argmax(pred)
+
+                if verbose:
+                    noisy_label_name = get_class_name(noisy_label)
+                    if noisy_label == src_label:
+                        print('noisy label {} same as source: {}'.format(noisy_label, noisy_label_name))
+                        src_invariant.append(1)
+                    else:
+                        print('image with prior misclassified as {}. (label {})'.format(noisy_label_name, noisy_label))
+                        src_invariant.append(0)
+                adversarial = attack(image=img, label=noisy_label, **attack_keys)
+                if adversarial is None:
+                    whitebox_norm = None
+                    if verbose:
+                        print('no adversary found for source label {} using {}'.format(noisy_label, attack_name))
+                else:
+                    fooled_pred = model.predictions(adversarial)
+                    fooled_label = np.argmax(fooled_pred)
+                    fooled_label_name = get_class_name(fooled_label)
+                    whitebox_norm = np.linalg.norm((img - adversarial).flatten(), ord=2)
+                    if verbose:
+                        print('adversarial image classified as {}. (label {}) '
+                              'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, whitebox_norm))
+                    whitebox_save_path = adv_path.replace('oblivious', 'whitebox')
+                    np.save(whitebox_save_path, adversarial)
+                noise_norms.append((oblivious_norm, whitebox_norm))
