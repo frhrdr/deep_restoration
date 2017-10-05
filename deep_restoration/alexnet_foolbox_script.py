@@ -48,6 +48,6 @@ from modules.foe_full_prior import FoEFullPrior
 # log_list = eval_class_stability(image_file, priors, learning_rate, n_iterations, log_freq,
 #                                 optimizer='adam', classifier='alexnet', verbose=True)
 # print(log_list)
-# stability_experiment_200()
+stability_experiment_200()
 # stability_statistics()
-whitebox_experiment_200()
+# whitebox_experiment_200()
