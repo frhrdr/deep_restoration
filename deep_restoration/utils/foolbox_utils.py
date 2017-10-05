@@ -328,7 +328,7 @@ def stability_experiment_200():
     # learning_rate = 1e-1
     # n_iterations = 20
     # log_freq = 1
-    optimizer = 'sgd'
+    optimizer = 'adam'
 
     advex_matches = advex_match_paths_200()
     print('number of matches:', len(advex_matches))
