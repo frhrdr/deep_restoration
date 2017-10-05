@@ -322,7 +322,7 @@ def stability_experiment_200():
                             n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                             whiten_mode='pca',
                             name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
-    optimizer = 'adam'
+    optimizer = 'sgd'
     # learning_rate = 1e-0
     # n_iterations = 100
     # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
