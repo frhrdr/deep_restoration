@@ -51,6 +51,7 @@ class LossModule(Module):
         loss = self.get_weighted_loss() if weighted else self.loss
         tf.summary.scalar(self.name, loss)
 
+
 class LearnedPriorLoss(LossModule):
 
     def __init__(self, tensor_names, weighting, name, load_path, load_name):

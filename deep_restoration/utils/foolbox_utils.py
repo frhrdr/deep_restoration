@@ -341,10 +341,11 @@ def stability_experiment_200():
         log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
                                         optimizer=optimizer, classifier='alexnet', verbose=True)
         img_list.append(log_list)
-
+        imgprior.reset()
         log_list = eval_class_stability(adv_path, [imgprior], learning_rate, n_iterations, log_freq,
                                         optimizer=optimizer, classifier='alexnet', verbose=True)
         adv_list.append(log_list)
+        imgprior.reset()
     print(img_list)
     print(adv_list)
     np.save('img_log_sgd_1.npy', np.asarray(img_list))
