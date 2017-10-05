@@ -87,7 +87,7 @@ class FoEFullPrior(LearnedPriorLoss):
         extra_vals = None
         return ica_a, ica_w, extra_op, extra_vals
 
-    def build(self, scope_suffix=''):
+    def build(self, scope_suffix='', featmap_tensor=None):
 
         with tf.variable_scope(self.name):
 
@@ -98,9 +98,10 @@ class FoEFullPrior(LearnedPriorLoss):
             ica_a, ica_w, _, _ = self.make_normed_filters(trainable=False, squeeze_alpha=True)
 
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
+            featmap = self.get_tensors() if featmap_tensor is None else featmap_tensor
 
             if self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf'):
-                normed_featmap = self.norm_feat_map_directly()  # shape [1, h, w, n_channels]
+                normed_featmap = self.norm_feat_map_directly(featmap)  # shape [1, h, w, n_channels]
 
                 whitened_mixing = tf.reshape(whitened_mixing, shape=[self.n_channels, self.ph,
                                                                      self.pw, self.n_components])
@@ -111,7 +112,7 @@ class FoEFullPrior(LearnedPriorLoss):
                 xw = tf.reshape(xw, shape=[-1, self.n_components])
 
             else:
-                normed_patches = self.shape_and_norm_tensor()
+                normed_patches = self.shape_and_norm_featmap(featmap)
                 n_patches = normed_patches.get_shape()[0].value
                 normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
                 xw = tf.matmul(normed_patches, whitened_mixing)
@@ -119,11 +120,23 @@ class FoEFullPrior(LearnedPriorLoss):
             self.loss = self.mrf_loss(xw, ica_a)
             self.var_list.append(whitening_tensor)
 
-    def forward_opt_sgd(self, learning_rate, n_iterations):
-        featmap = self.get_tensors()
+    def forward_opt_sgd(self, input_featmap, learning_rate, n_iterations):
 
-        featmap_grad = tf.gradients(self.loss, featmap)[0]
+        def cond(*args):
+            return tf.not_equal(args[0], tf.constant(n_iterations, dtype=tf.int32))
 
+        def body(count, featmap):
+            count += 1
+            self.build(featmap_tensor=featmap)
+            featmap_grad = tf.gradients(ys=self.loss, xs=featmap)[0]
+            featmap -= learning_rate * featmap_grad
+            featmap = tf.Print(featmap, [count])
+            return count, featmap
+
+        count_init = tf.constant(0, dtype=tf.int32)
+        _, final_featmap = tf.while_loop(cond=cond, body=body, loop_vars=[count_init, input_featmap])
+        # needs switch and boolean_pl
+        return final_featmap
 
     def score_matching_loss(self, x_mat, ica_w, ica_a):
         if self.dist == 'logistic':
@@ -494,16 +507,16 @@ class FoEFullPrior(LearnedPriorLoss):
             sdev_mat = np.load(data_dir + 'data_sdev.npy').astype(np.float32)
             tf.get_variable('rescaling_sdev', initializer=sdev_mat, trainable=False, dtype=tf.float32)
 
-    def shape_and_norm_tensor(self):
-        tensor = self.get_tensors()
-        scaled_tensor = tensor * self.input_scaling
+    def shape_and_norm_featmap(self, featmap):
+        # tensor = featmap
+        scaled_featmap = featmap * self.input_scaling
 
         filter_mat = flattening_filter((self.ph, self.pw, 1))
 
         flat_filter = tf.constant(filter_mat, dtype=tf.float32)
         x_pad = ((self.ph - 1) // 2, int(np.ceil((self.ph - 1) / 2)))
         y_pad = ((self.pw - 1) // 2, int(np.ceil((self.pw - 1) / 2)))
-        conv_input = tf.pad(scaled_tensor, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
+        conv_input = tf.pad(scaled_featmap, paddings=[(0, 0), x_pad, y_pad, (0, 0)], mode='REFLECT')
 
         feat_map_list = tf.split(conv_input, num_or_size_splits=conv_input.get_shape()[3].value, axis=3)
 
@@ -523,7 +536,7 @@ class FoEFullPrior(LearnedPriorLoss):
         self.var_list.extend(mean_sdev_list)
         return normed_patches
 
-    def norm_feat_map_directly(self):
+    def norm_feat_map_directly(self, featmap):
         """
         if both mean and sdev modes use training set values (gc or gf),
         norming can be applied directly to the feature map (shape [bs, h, w, c])
@@ -531,9 +544,7 @@ class FoEFullPrior(LearnedPriorLoss):
         :return:
         """
         assert self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf')
-
-        featmap = self.get_tensors()
-        featmap = featmap * self.input_scaling
+        featmap = featmap * tf.constant(self.input_scaling, dtype=tf.float32)
         assert featmap.get_shape()[0].value == 1
         featmap = tf.squeeze(featmap)
         normed_featmap, mean_sdev_list = preprocess_featmap_tensor(featmap, self.mean_mode, self.sdev_mode)

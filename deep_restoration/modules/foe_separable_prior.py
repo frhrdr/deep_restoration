@@ -126,7 +126,7 @@ class FoESeparablePrior(FoEFullPrior):
 
                 whitened_mixing = tf.matmul(whitening_tensor, w_temp, transpose_a=True)
 
-                normed_patches = self.shape_and_norm_tensor()
+                normed_patches = self.shape_and_norm_featmap()
                 n_patches = normed_patches.get_shape()[0].value
                 normed_patches = tf.reshape(normed_patches, shape=[n_patches, self.ph * self.pw * self.n_channels])
                 xw = tf.matmul(normed_patches, whitened_mixing)

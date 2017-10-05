@@ -106,6 +106,10 @@ def load_image(path, res=(224, 224), resize=False):
     returns image of shape [res[0], res[1], 3]
     [height, width, depth]
     """
+    if path.endswith('npy'):
+        assert resize is False
+        return np.load(path)
+
     img = skimage.io.imread(path)
     if img.shape[2] == 4:
         img = skimage.color.rgba2rgb(img, [0, 0, 0])

@@ -105,7 +105,7 @@ class FoEChannelwisePrior(FoEFullPrior):
                 xw = tf.transpose(xw, perm=[1, 0, 2])
 
             else:
-                normed_patches = self.shape_and_norm_tensor()  # shape [n_patches, n_channels, n_feats_per_channel]
+                normed_patches = self.shape_and_norm_featmap()  # shape [n_patches, n_channels, n_feats_per_channel]
                 xw = tf.matmul(tf.transpose(normed_patches, perm=[1, 0, 2]), whitened_mixing)
 
             self.loss = self.mrf_loss(xw, ica_a)

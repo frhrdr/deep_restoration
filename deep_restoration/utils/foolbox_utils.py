@@ -28,7 +28,7 @@ def get_attack(name, model, criterion):
 
 def get_classifier_io(name, input_init=None, input_type='placeholder'):
     assert name in ('alexnet', 'vgg16')
-    assert input_type in ('placeholder', 'variable', 'constant')
+    assert input_type in ('placeholder', 'variable', 'constant', 'tensor')
     if name == 'vgg16':
         classifier = Vgg16()
         hw = 224
@@ -40,8 +40,10 @@ def get_classifier_io(name, input_init=None, input_type='placeholder'):
         input_tensor = tf.placeholder(tf.float32, (1, hw, hw, 3))
     elif input_type == 'variable':
         input_tensor = tf.get_variable('input_image', initializer=input_init, dtype=tf.float32)
-    else:
+    elif input_type == 'constant':
         input_tensor = tf.constant(input_init, dtype=tf.float32)
+    else:
+        input_tensor = input_init
 
     classifier.build(input_tensor)
     logit_tsr = tf.get_default_graph().get_tensor_by_name('fc8/lin:0')
@@ -250,7 +252,7 @@ def eval_class_stability(image_file, priors, learning_rate, n_iterations, log_fr
         raise NotImplementedError
     image = np.expand_dims(image.astype(dtype=np.float32), axis=0)
     # print(image)
-    with tf.Graph().as_default() as graph:
+    with tf.Graph().as_default():
 
         input_var, logit_tsr = get_classifier_io(classifier, input_init=image, input_type='variable')
 
@@ -293,22 +295,11 @@ def eval_class_stability(image_file, priors, learning_rate, n_iterations, log_fr
     return log_list
 
 
-def stability_experiment_200():
-    imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
-                            n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
-                            whiten_mode='pca',
-                            name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
-    # learning_rate = 1e-0
-    # n_iterations = 100
-    # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
-    learning_rate = 1e-1
-    n_iterations = 20
-    log_freq = 1
-
+def advex_match_paths_200():
     data_dir = '../data/imagenet2012-validationset/'
     images_file = 'subset_cutoff_200_images.txt'
     subdir = 'images_resized_227/'
-    advex_dir = '../data/adversarial_examples/foolbox_images/200_dataset/deepfool/'
+    advex_dir = '../data/adversarial_examples/foolbox_images/200_dataset/deepfool_oblivious/'
 
     with open(data_dir + images_file) as f:
         image_files = [k.rstrip() for k in f.readlines()]
@@ -323,6 +314,22 @@ def stability_experiment_200():
         while not adv_file.startswith(image_stems[img_idx]):
             img_idx += 1
         advex_matches.append((image_paths[img_idx], advex_paths[adv_idx]))
+    return advex_matches
+
+
+def stability_experiment_200():
+    imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
+                            n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
+                            whiten_mode='pca',
+                            name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
+    # learning_rate = 1e-0
+    # n_iterations = 100
+    # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+    learning_rate = 1e-1
+    n_iterations = 20
+    log_freq = 1
+
+    advex_matches = advex_match_paths_200()
     print('number of matches:', len(advex_matches))
     count = 0
     img_list = []
@@ -347,8 +354,9 @@ def stability_statistics():
     log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
     print('log points after n iterations', log_freq)
 
-    img_log = np.load('img_log_198_fine.npy')
-    adv_log = np.load('adv_log_198_fine.npy')
+    path = '../logs/adversarial_examples/deepfool_oblivious_198/'
+    img_log = np.load(path + 'img_log_198_fine.npy')
+    adv_log = np.load(path + 'adv_log_198_fine.npy')
 
     print(img_log.shape)
     n_samples, n_logpoints = img_log.shape
@@ -393,3 +401,91 @@ def stability_statistics():
     # plt.show()
 
 
+def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_name, attack_keys, src_label,
+                              classifier='alexnet', verbose=False):
+    """
+    runs baseline with prior, then whitebox attack
+    :param image:
+    :param prior:
+    :param learning_rate:
+    :param n_iterations:
+    :param attack_name:
+    :param attack_keys:
+    :param src_label: label given by classifier without prior
+    :param classifier:
+    :param verbose:
+    :return:
+    """
+
+    image = np.expand_dims(image.astype(dtype=np.float32), axis=0)
+
+    with tf.Graph().as_default():
+        # input_featmap = tf.constant(image, dtype=tf.float32)
+        input_featmap = tf.placeholder(tf.float32, image.shape)
+        featmap = prior.forward_opt_sgd(input_featmap, learning_rate, n_iterations)
+        _, logit_tsr = get_classifier_io(classifier, input_init=featmap, input_type='tensor')
+
+        print('rolled out prior')
+
+        with tf.Session() as sess:
+            model = foolbox.models.TensorFlowModel(input_featmap, logit_tsr, bounds=(0, 255))
+            print('built model')
+            criterion = foolbox.criteria.Misclassification()
+            attack = get_attack(attack_name, model, criterion)
+            if attack_keys is None:
+                attack_keys = dict()
+
+            init_op = tf.global_variables_initializer()
+            sess.run(init_op)
+            prior.load_weights(sess)
+            print('loaded weights')
+            # pred = sess.run(logit_tsr)
+            pred = model.predictions(np.squeeze(image, axis=0))
+            noisy_label = np.argmax(pred)
+
+            if verbose:
+                noisy_label_name = get_class_name(noisy_label)
+                if noisy_label == src_label:
+                    print('noisy label {} same as source: {}'.format(noisy_label, noisy_label_name))
+                else:
+                    print('image with prior misclassified as {}. (label {})'.format(noisy_label_name, noisy_label))
+            print('ran baseline')
+            adversarial = attack(image=np.squeeze(image, axis=0), label=noisy_label, **attack_keys)
+            if adversarial is None:
+                print('no adversary found for source label {} using {}'.format(noisy_label, attack_name))
+                return None
+            else:
+                fooled_pred = model.predictions(adversarial)
+                fooled_label = np.argmax(fooled_pred)
+                fooled_label_name = get_class_name(fooled_label)
+                noise_norm = np.linalg.norm((image - adversarial).flatten(), ord=2)
+                if verbose:
+                    print('adversarial image classified as {}. (label {}) '
+                          'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, noise_norm))
+                return noise_norm
+
+
+def whitebox_experiment_200(learning_rate=0.1, n_iterations=1, attack_name='deepfool', attack_keys=None):
+    path = '../logs/adversarial_examples/deepfool_oblivious_198/'
+    img_log = np.load(path + 'img_log_198_fine.npy')
+    adv_log = np.load(path + 'adv_log_198_fine.npy')
+
+    advex_matches = advex_match_paths_200()
+
+    for idx, match in enumerate(advex_matches[:2]):
+        imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
+                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
+                                whiten_mode='pca',
+                                name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
+
+        img_path, adv_path = match
+        src_label = img_log[idx][0]
+
+        img = load_image(img_path)
+        adv = load_image(adv_path)
+
+        oblivious_norm = np.linalg.norm((img - adv).flatten(), ord=2)
+        print('oblivious norm', oblivious_norm)
+
+        whitebox_norm = eval_whitebox_forward_opt(img, imgprior, learning_rate, n_iterations, attack_name,
+                                                  attack_keys, src_label, classifier='alexnet', verbose=True)
