@@ -425,11 +425,8 @@ def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_
         featmap = prior.forward_opt_sgd(input_featmap, learning_rate, n_iterations)
         _, logit_tsr = get_classifier_io(classifier, input_init=featmap, input_type='tensor')
 
-        print('rolled out prior')
-
         with tf.Session() as sess:
             model = foolbox.models.TensorFlowModel(input_featmap, logit_tsr, bounds=(0, 255))
-            print('built model')
             criterion = foolbox.criteria.Misclassification()
             attack = get_attack(attack_name, model, criterion)
             if attack_keys is None:
@@ -438,8 +435,6 @@ def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_
             init_op = tf.global_variables_initializer()
             sess.run(init_op)
             prior.load_weights(sess)
-            print('loaded weights')
-            # pred = sess.run(logit_tsr)
             pred = model.predictions(np.squeeze(image, axis=0))
             noisy_label = np.argmax(pred)
 
@@ -449,7 +444,6 @@ def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_
                     print('noisy label {} same as source: {}'.format(noisy_label, noisy_label_name))
                 else:
                     print('image with prior misclassified as {}. (label {})'.format(noisy_label_name, noisy_label))
-            print('ran baseline')
             adversarial = attack(image=np.squeeze(image, axis=0), label=noisy_label, **attack_keys)
             if adversarial is None:
                 print('no adversary found for source label {} using {}'.format(noisy_label, attack_name))

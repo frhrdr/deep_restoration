@@ -130,7 +130,7 @@ class FoEFullPrior(LearnedPriorLoss):
             self.build(featmap_tensor=featmap)
             featmap_grad = tf.gradients(ys=self.loss, xs=featmap)[0]
             featmap -= learning_rate * featmap_grad
-            featmap = tf.Print(featmap, [count])
+            featmap = tf.Print(featmap, self.var_list)
             return count, featmap
 
         count_init = tf.constant(0, dtype=tf.int32)
