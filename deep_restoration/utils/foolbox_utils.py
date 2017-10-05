@@ -322,12 +322,12 @@ def stability_experiment_200():
                             n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                             whiten_mode='pca',
                             name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
-    # learning_rate = 1e-0
-    # n_iterations = 100
-    # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
-    learning_rate = 1e-1
-    n_iterations = 20
-    log_freq = 1
+    learning_rate = 1e-0
+    n_iterations = 100
+    log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+    # learning_rate = 1e-1
+    # n_iterations = 20
+    # log_freq = 1
     optimizer = 'sgd'
 
     advex_matches = advex_match_paths_200()
@@ -335,7 +335,7 @@ def stability_experiment_200():
     count = 0
     img_list = []
     adv_list = []
-    for img_path, adv_path in advex_matches[100:]:
+    for img_path, adv_path in advex_matches[:100]:
         count += 1
         print('match no.', count)
         log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
@@ -348,8 +348,8 @@ def stability_experiment_200():
         imgprior.reset()
     print(img_list)
     print(adv_list)
-    np.save('img_log_sgd_2.npy', np.asarray(img_list))
-    np.save('adv_log_sgd_2.npy', np.asarray(adv_list))
+    np.save('img_log_sgd_1.npy', np.asarray(img_list))
+    np.save('adv_log_sgd_1.npy', np.asarray(adv_list))
 
 
 def stability_statistics():
