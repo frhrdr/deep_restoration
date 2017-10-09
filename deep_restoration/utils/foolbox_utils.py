@@ -463,7 +463,7 @@ def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_
                 return adversarial, noise_norm
 
 
-def whitebox_experiment_200(learning_rate=0.1, n_iterations=2, attack_name='deepfool', attack_keys=None, verbose=True):
+def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deepfool', attack_keys=None, verbose=True):
     path = '../logs/adversarial_examples/deepfool_oblivious_198/'
     img_log = np.load(path + 'img_log_198_fine.npy')
     # adv_log = np.load(path + 'adv_log_198_fine.npy')
@@ -495,7 +495,7 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=2, attack_name='deep
 
             noise_norms = []
             src_invariant = []
-            for idx, match in enumerate(advex_matches[:2]):
+            for idx, match in enumerate(advex_matches[:20]):
                 img_path, adv_path = match
                 src_label = img_log[idx][0]
 
