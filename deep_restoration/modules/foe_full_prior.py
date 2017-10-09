@@ -162,8 +162,8 @@ class FoEFullPrior(LearnedPriorLoss):
 
             featmap, m_acc, v_acc = apply_adam(featmap, featmap_grad, m_acc, v_acc, count)
 
-            print(self.var_list)
-            featmap = tf.Print(featmap, self.var_list)
+            # print(self.var_list)
+            # featmap = tf.Print(featmap, self.var_list)
             return count, featmap, m_acc, v_acc
 
         featmap_shape = [k.value for k in input_featmap.get_shape()]
