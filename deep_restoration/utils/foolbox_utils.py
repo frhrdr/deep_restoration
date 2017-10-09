@@ -322,7 +322,7 @@ def stability_experiment_200():
                             n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                             whiten_mode='pca',
                             name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
-    optimizer = 'momentum'
+    optimizer = 'adam'
     # learning_rate = 1e-0
     # n_iterations = 100
     # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
@@ -463,10 +463,10 @@ def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_
                 return adversarial, noise_norm
 
 
-def whitebox_experiment_200(learning_rate=0.1, n_iterations=1, attack_name='deepfool', attack_keys=None, verbose=True):
+def whitebox_experiment_200(learning_rate=0.1, n_iterations=2, attack_name='deepfool', attack_keys=None, verbose=True):
     path = '../logs/adversarial_examples/deepfool_oblivious_198/'
     img_log = np.load(path + 'img_log_198_fine.npy')
-    adv_log = np.load(path + 'adv_log_198_fine.npy')
+    # adv_log = np.load(path + 'adv_log_198_fine.npy')
     classifier = 'alexnet'
     image_shape = (1, 227, 227, 3)
     advex_matches = advex_match_paths_200()
@@ -478,8 +478,8 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=1, attack_name='deep
 
     with tf.Graph().as_default():
         # input_featmap = tf.constant(image, dtype=tf.float32)
-        input_featmap = tf.placeholder(tf.float32, image_shape)
-        featmap = imgprior.forward_opt_sgd(input_featmap, learning_rate, n_iterations)
+        input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
+        featmap = imgprior.forward_opt_adam(input_featmap, learning_rate, n_iterations)
         _, logit_tsr = get_classifier_io(classifier, input_init=featmap, input_type='tensor')
 
         with tf.Session() as sess:

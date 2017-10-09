@@ -139,6 +139,42 @@ class FoEFullPrior(LearnedPriorLoss):
         # needs switch and boolean_pl
         return final_featmap
 
+    def forward_opt_adam(self, input_featmap, learning_rate, n_iterations, beta1=0.999, beta2=0.9, eps=1e-8):
+
+        def apply_adam(variable, gradients, m_acc, v_acc, iteration):
+            beta1_tsr = tf.constant(beta1, dtype=tf.float32)
+            beta2_tsr = tf.constant(beta2, dtype=tf.float32)
+            m_new = beta1_tsr * m_acc + (1.0 - beta1_tsr) * gradients
+            v_new = beta2_tsr * v_acc + (1.0 - beta2_tsr) * gradients ** 2
+            m_hat = m_new / (1.0 - beta1_tsr ** iteration)
+            v_hat = v_new / (1.0 - beta2_tsr ** iteration)
+            variable -= learning_rate * m_hat / (tf.sqrt(v_hat) + eps)
+
+            return variable, m_new, v_new
+
+        def cond(*args):
+            return tf.not_equal(args[0], tf.constant(n_iterations, dtype=tf.float32))
+
+        def body(count, featmap, m_acc, v_acc):
+            count += 1
+            self.build(featmap_tensor=featmap)
+            featmap_grad = tf.gradients(ys=self.loss, xs=featmap)[0]
+
+            featmap, m_acc, v_acc = apply_adam(featmap, featmap_grad, m_acc, v_acc, count)
+
+            print(self.var_list)
+            featmap = tf.Print(featmap, self.var_list)
+            return count, featmap, m_acc, v_acc
+
+        featmap_shape = [k.value for k in input_featmap.get_shape()]
+        m_init = tf.constant(np.zeros(featmap_shape), dtype=tf.float32)
+        v_init = tf.constant(np.zeros(featmap_shape), dtype=tf.float32)
+        count_init = tf.constant(0, dtype=tf.float32)
+        _, final_featmap, _, _ = tf.while_loop(cond=cond, body=body,
+                                               loop_vars=[count_init, input_featmap, m_init, v_init])
+        # needs switch and boolean_pl
+        return final_featmap
+
     def score_matching_loss(self, x_mat, ica_w, ica_a):
         if self.dist == 'logistic':
             return logistic_full_score_matching_loss(x_mat, ica_w, ica_a)
