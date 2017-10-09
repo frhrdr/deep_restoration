@@ -518,9 +518,11 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
                         if adv_pred_label == img_pred_label:
                             print('oblivious attack averted')
                         else:
+
                             print('WARNING: oblivious attack succeeded!')
                     else:
-                        print('image with prior misclassified as {}. (label {})'.format(noisy_label_name, img_pred_label))
+                        print('image with prior misclassified as {}. (label {})'.format(noisy_label_name,
+                                                                                        img_pred_label))
                         src_invariant.append(0)
                 adversarial = attack(image=img, label=img_pred_label, **attack_keys)
                 if adversarial is None:
@@ -537,4 +539,166 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
                               'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, whitebox_norm))
                     whitebox_save_path = adv_path.replace('oblivious', 'whitebox')
                     np.save(whitebox_save_path, adversarial)
+                noise_norms.append((oblivious_norm, whitebox_norm))
+
+
+def mean_filter_model(make_switch=True):
+    filter_hw = 2
+    pad_u = 0
+    pad_d = 1
+    image_shape = (1, 227, 227, 3)
+
+    img_pl = tf.placeholder(dtype=tf.float32, shape=image_shape)
+    mean_filter_mat = np.ones(shape=[filter_hw, filter_hw, 3, 1]) / filter_hw ** 2
+    mean_filter_tsr = tf.constant(mean_filter_mat, dtype=tf.float32)
+    img_tsr = tf.pad(img_pl, paddings=[(0, 0), (pad_u, pad_d), (pad_u, pad_d), (0, 0)], mode='REFLECT')
+    smoothed_img = tf.nn.depthwise_conv2d(img_tsr, mean_filter_tsr, strides=[1, 1, 1, 1], padding='VALID')
+
+    if make_switch:
+        activate = tf.placeholder(dtype=tf.bool)
+        net_input = tf.cond(activate, lambda: smoothed_img, lambda: img_pl)
+        return net_input, img_pl, activate
+    else:
+        return smoothed_img, img_pl, None
+
+
+def mean_filter_benchmark(classifier='alexnet', verbose=False):
+    log_list = []
+
+    advex_matches = advex_match_paths_200()
+    print('number of matches:', len(advex_matches))
+    count = 0
+
+    with tf.Graph().as_default():
+
+        net_input, img_pl, activate = mean_filter_model()
+        input_var, logit_tsr = get_classifier_io(classifier, input_init=net_input, input_type='tensor')
+        with tf.Session() as sess:
+            for img_path, adv_path in advex_matches:
+                count += 1
+                print('match no.', count)
+
+                image = np.expand_dims(load_image(img_path).astype(dtype=np.float32), axis=0)
+                advex = np.expand_dims(load_image(adv_path).astype(dtype=np.float32), axis=0)
+
+                # skimage.io.imsave('img.png', np.squeeze(image / 255.0, axis=0))
+                # smoo = sess.run(net_input, feed_dict={img_pl: image, activate: True})
+                # skimage.io.imsave('smoothed.png', np.squeeze(smoo / 255.0, axis=0))
+
+                img_naive_pred = sess.run(logit_tsr, feed_dict={img_pl: image, activate: False})
+                img_naive_label = np.argmax(img_naive_pred)
+
+                img_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: image, activate: True})
+                img_smoothed_label = np.argmax(img_smoothed_pred)
+
+                if verbose:
+                    img_naive_label_name = get_class_name(img_naive_label)
+                    print('image initially classified as {}. (label {})'.format(img_naive_label_name, img_naive_label))
+                    if img_smoothed_label == img_naive_label:
+                        print('Smoothed label matches')
+                    else:
+                        print('smoothing changes it to {}. (label {})'.format(img_naive_label_name, img_naive_label))
+
+                adv_naive_pred = sess.run(logit_tsr, feed_dict={img_pl: advex, activate: False})
+                adv_naive_label = np.argmax(adv_naive_pred)
+
+                adv_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: advex, activate: True})
+                adv_smoothed_label = np.argmax(adv_smoothed_pred)
+
+                if verbose:
+                    adv_naive_label_name = get_class_name(adv_naive_label)
+                    print('advex initially classified as {}. (label {})'.format(adv_naive_label_name, adv_naive_label))
+                    if adv_smoothed_label == adv_naive_label:
+                        print('Smoothed label matches')
+                    elif adv_smoothed_label == img_naive_label:
+                        print('Smoothing restored original label')
+                    else:
+                        print('smoothing changes label to {}. (label {})'.format(adv_naive_label_name, adv_naive_label))
+
+                log_list.append((img_naive_label, img_smoothed_label, adv_naive_label, adv_smoothed_label))
+    np.save('smooth_log.npy', np.asarray(log_list))
+    print(log_list)
+
+
+def mean_log_statistics(log_path='smooth_log.npy'):
+    log = np.load(log_path)
+    print('number of samples contained:', log.shape[0])
+    a = np.sum(log[:, 0] == log[:, 1])
+    print('labels retained after smoothing image', a)
+    a = np.sum(log[:, 0] == log[:, 2])
+    print('labels retained after adversarial attack', a)
+    a = np.sum(log[:, 0] == log[:, 3])
+    print('labels restored after smoothing advex', a)
+    a = np.sum(log[:, 1] == log[:, 3])
+    print('image and advex smoothed to same label', a)
+
+
+def mean_whitebox_attacks_200(attack_name='deepfool', attack_keys=None, verbose=True):
+    path = '../logs/adversarial_examples/deepfool_oblivious_198/'
+    img_log = np.load(path + 'img_log_198_fine.npy')
+    # adv_log = np.load(path + 'adv_log_198_fine.npy')
+    classifier = 'alexnet'
+    advex_matches = advex_match_paths_200()
+
+    with tf.Graph().as_default():
+
+        net_input, img_pl, _ = mean_filter_model(make_switch=False)
+        input_var, logit_tsr = get_classifier_io(classifier, input_init=net_input, input_type='tensor')
+
+        with tf.Session() as sess:
+            model = foolbox.models.TensorFlowModel(img_pl, logit_tsr, bounds=(0, 255))
+            criterion = foolbox.criteria.Misclassification()
+            attack = get_attack(attack_name, model, criterion)
+            if attack_keys is None:
+                attack_keys = dict()
+
+            init_op = tf.global_variables_initializer()
+            sess.run(init_op)
+
+            noise_norms = []
+            src_invariant = []
+            for idx, match in enumerate(advex_matches[:20]):
+                img_path, adv_path = match
+                src_label = img_log[idx][0]
+
+                img = load_image(img_path)
+                adv = load_image(adv_path)
+
+                oblivious_norm = np.linalg.norm((img - adv).flatten(), ord=2)
+                print('oblivious norm', oblivious_norm)
+
+                img_pred = model.predictions(img)
+                img_pred_label = np.argmax(img_pred)
+                adv_pred = model.predictions(adv)
+                adv_pred_label = np.argmax(adv_pred)
+
+                if verbose:
+                    noisy_label_name = get_class_name(img_pred_label)
+                    if img_pred_label == src_label:
+                        print('noisy label {} same as source: {}'.format(img_pred_label, noisy_label_name))
+                        src_invariant.append(1)
+                        if adv_pred_label == img_pred_label:
+                            print('oblivious attack averted')
+                        else:
+
+                            print('WARNING: oblivious attack succeeded!')
+                    else:
+                        print('image with prior misclassified as {}. (label {})'.format(noisy_label_name,
+                                                                                        img_pred_label))
+                        src_invariant.append(0)
+                adversarial = attack(image=img, label=src_label, **attack_keys)
+                if adversarial is None:
+                    whitebox_norm = None
+                    if verbose:
+                        print('no adversary found for source label {} using {}'.format(img_pred_label, attack_name))
+                else:
+                    fooled_pred = model.predictions(adversarial)
+                    fooled_label = np.argmax(fooled_pred)
+                    fooled_label_name = get_class_name(fooled_label)
+                    whitebox_norm = np.linalg.norm((img - adversarial).flatten(), ord=2)
+                    if verbose:
+                        print('adversarial image classified as {}. (label {}) '
+                              'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, whitebox_norm))
+                    # whitebox_save_path = adv_path.replace('oblivious', 'whitebox')
+                    # np.save(whitebox_save_path, adversarial)
                 noise_norms.append((oblivious_norm, whitebox_norm))
