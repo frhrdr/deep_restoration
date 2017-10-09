@@ -505,22 +505,28 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=2, attack_name='deep
                 oblivious_norm = np.linalg.norm((img - adv).flatten(), ord=2)
                 print('oblivious norm', oblivious_norm)
 
-                pred = model.predictions(img)
-                noisy_label = np.argmax(pred)
+                img_pred = model.predictions(img)
+                img_pred_label = np.argmax(img_pred)
+                adv_pred = model.predictions(adv)
+                adv_pred_label = np.argmax(adv_pred)
 
                 if verbose:
-                    noisy_label_name = get_class_name(noisy_label)
-                    if noisy_label == src_label:
-                        print('noisy label {} same as source: {}'.format(noisy_label, noisy_label_name))
+                    noisy_label_name = get_class_name(img_pred_label)
+                    if img_pred_label == src_label:
+                        print('noisy label {} same as source: {}'.format(img_pred_label, noisy_label_name))
                         src_invariant.append(1)
+                        if adv_pred_label == img_pred_label:
+                            print('oblivious attack averted')
+                        else:
+                            print('WARNING: oblivious attack succeeded!')
                     else:
-                        print('image with prior misclassified as {}. (label {})'.format(noisy_label_name, noisy_label))
+                        print('image with prior misclassified as {}. (label {})'.format(noisy_label_name, img_pred_label))
                         src_invariant.append(0)
-                adversarial = attack(image=img, label=noisy_label, **attack_keys)
+                adversarial = attack(image=img, label=img_pred_label, **attack_keys)
                 if adversarial is None:
                     whitebox_norm = None
                     if verbose:
-                        print('no adversary found for source label {} using {}'.format(noisy_label, attack_name))
+                        print('no adversary found for source label {} using {}'.format(img_pred_label, attack_name))
                 else:
                     fooled_pred = model.predictions(adversarial)
                     fooled_label = np.argmax(fooled_pred)
