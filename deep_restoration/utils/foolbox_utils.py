@@ -505,7 +505,7 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
 
             noise_norms = []
             src_invariant = []
-            for idx, match in enumerate(advex_matches[:2]):
+            for idx, match in enumerate(advex_matches):
                 img_path, adv_path = match
                 src_label = img_log[idx][0]
 
