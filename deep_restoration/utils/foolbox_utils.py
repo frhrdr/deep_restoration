@@ -489,7 +489,7 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
     with tf.Graph().as_default():
         # input_featmap = tf.constant(image, dtype=tf.float32)
         input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
-        featmap = imgprior.forward_opt_adam(input_featmap, learning_rate, n_iterations)
+        featmap, _ = imgprior.forward_opt_adam(input_featmap, learning_rate, n_iterations)
         _, logit_tsr = get_classifier_io(classifier, input_init=featmap, input_type='tensor')
 
         with tf.Session() as sess:
