@@ -1,6 +1,6 @@
 from net_inversion import NetInversion
 from modules.foe_full_prior import FoEFullPrior
-from modules.foe_channelwise_prior import FoEChannelwisePrior
+from modules.foe_dropout_prior import FoEDropoutPrior
 from modules.foe_separable_prior import FoESeparablePrior
 from modules.core_modules import LossModule
 from modules.loss_modules import MSELoss, TotalVariationLoss
@@ -74,12 +74,17 @@ p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [9, 9], 1.0, n_component
                       dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='zca',
                       name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
+dropout_prior = FoEDropoutPrior('pre_featmap/read:0', 1e-8, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
+                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
+                                whiten_mode='pca', load_tensor_names='image',
+                                activate_dropout=True, make_switch=False, dropout_prob=0.5)
+
 
 tv_prior = TotalVariationLoss(tensor='pre_featmap/read:0', beta=2, weighting=1e-10)
 
-modules = [split4, mse4, split3, mse3, img_prior]
+modules = [split4, mse4, split3, mse3, dropout_prior]
 # log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/full_prior/1e-4/'
-log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/pre_image_8x8_full_prior/1e-4'
+log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/pre_image_8x8_dropout_prior/1e-8'
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
 if not os.path.exists(log_path):

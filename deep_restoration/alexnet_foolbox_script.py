@@ -2,7 +2,8 @@ import numpy as np
 import tensorflow as tf
 from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_dataset, get_prior_scores_per_image, \
     compare_images_to_untargeted_adv_ex, eval_class_stability, stability_experiment_200, stability_statistics,\
-    whitebox_experiment_200, mean_filter_benchmark, mean_log_statistics, mean_whitebox_attacks_200
+    whitebox_experiment_200, mean_filter_benchmark, mean_log_statistics, mean_whitebox_attacks_200,\
+    dropout_prior_stability_experiment_200
 from modules.foe_full_prior import FoEFullPrior
 
 
@@ -53,4 +54,5 @@ from modules.foe_full_prior import FoEFullPrior
 # whitebox_experiment_200()
 # mean_filter_benchmark(verbose=False)
 # mean_log_statistics()
-mean_whitebox_attacks_200()
+# mean_whitebox_attacks_200()
+dropout_prior_stability_experiment_200()

@@ -2,13 +2,11 @@ import tensorflow as tf
 import numpy as np
 from tf_alexnet.alexnet import AlexNet
 from tf_vgg.vgg16 import Vgg16
-import matplotlib
-matplotlib.use('tkagg', force=True)
-import matplotlib.pyplot as plt
 from utils.temp_utils import load_image, get_optimizer
 from utils.imagenet_classnames import get_class_name
 from modules.core_modules import LearnedPriorLoss
 from modules.foe_full_prior import FoEFullPrior
+from modules.foe_dropout_prior import FoEDropoutPrior
 import foolbox
 import skimage.io
 import os
@@ -326,13 +324,9 @@ def stability_experiment_200():
     # learning_rate = 1e-0
     # n_iterations = 100
     # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
-    # learning_rate = 1e-1
-    # n_iterations = 20
-    # log_freq = 1
-
-    learning_rate = 1e-0
-    n_iterations = 1000
-    log_freq = 100
+    learning_rate = 1e-1
+    n_iterations = 20
+    log_freq = 1
 
     advex_matches = advex_match_paths_200()
     print('number of matches:', len(advex_matches))
@@ -342,10 +336,12 @@ def stability_experiment_200():
     for img_path, adv_path in advex_matches[:100]:
         count += 1
         print('match no.', count)
+        # noinspection PyTypeChecker
         log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
                                         optimizer=optimizer, classifier='alexnet', verbose=True)
         img_list.append(log_list)
         imgprior.reset()
+        # noinspection PyTypeChecker
         log_list = eval_class_stability(adv_path, [imgprior], learning_rate, n_iterations, log_freq,
                                         optimizer=optimizer, classifier='alexnet', verbose=True)
         adv_list.append(log_list)
@@ -620,6 +616,7 @@ def mean_filter_benchmark(classifier='alexnet', verbose=False):
     print(log_list)
 
 
+# noinspection PyTypeChecker
 def mean_log_statistics(log_path='smooth_log.npy'):
     log = np.load(log_path)
     print('number of samples contained:', log.shape[0])
@@ -702,3 +699,41 @@ def mean_whitebox_attacks_200(attack_name='deepfool', attack_keys=None, verbose=
                     # whitebox_save_path = adv_path.replace('oblivious', 'whitebox')
                     # np.save(whitebox_save_path, adversarial)
                 noise_norms.append((oblivious_norm, whitebox_norm))
+
+
+def dropout_prior_stability_experiment_200():
+    imgprior = FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
+                               n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
+                               whiten_mode='pca',
+                               activate_dropout=True, make_switch=False, dropout_prob=0.5)
+
+    optimizer = 'adam'
+    # learning_rate = 1e-0
+    # n_iterations = 100
+    # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+    learning_rate = 1e-1
+    n_iterations = 20
+    log_freq = 1
+
+    advex_matches = advex_match_paths_200()
+    print('number of matches:', len(advex_matches))
+    count = 0
+    img_list = []
+    adv_list = []
+    for img_path, adv_path in advex_matches[:100]:
+        count += 1
+        print('match no.', count)
+        # noinspection PyTypeChecker
+        log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
+                                        optimizer=optimizer, classifier='alexnet', verbose=True)
+        img_list.append(log_list)
+        imgprior.reset()
+        # noinspection PyTypeChecker
+        log_list = eval_class_stability(adv_path, [imgprior], learning_rate, n_iterations, log_freq,
+                                        optimizer=optimizer, classifier='alexnet', verbose=True)
+        adv_list.append(log_list)
+        imgprior.reset()
+    print(img_list)
+    print(adv_list)
+    np.save('img_log_sgd_1.npy', np.asarray(img_list))
+    np.save('adv_log_sgd_1.npy', np.asarray(adv_list))
