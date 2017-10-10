@@ -353,12 +353,16 @@ def stability_experiment_200():
 
 
 def stability_statistics():
-    log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+    # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+    log_freq = range(1, 21)
     print('log points after n iterations', log_freq)
 
-    path = '../logs/adversarial_examples/deepfool_oblivious_198/'
-    img_log = np.load(path + 'img_log_198_fine.npy')
-    adv_log = np.load(path + 'adv_log_198_fine.npy')
+    # path = '../logs/adversarial_examples/deepfool_oblivious_198/'
+    # img_log = np.load(path + 'img_log_198_fine.npy')
+    # adv_log = np.load(path + 'adv_log_198_fine.npy')
+    path = '../logs/adversarial_examples/deepfool_oblivious_dropout_198/'
+    img_log = np.load(path + 'img_log_dropout_198.npy')
+    adv_log = np.load(path + 'adv_log_dropout_198.npy')
 
     print(img_log.shape)
     n_samples, n_logpoints = img_log.shape
@@ -460,6 +464,16 @@ def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_
 
 
 def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deepfool', attack_keys=None, verbose=True):
+    """
+    constructs adaptive attacks for the prior, records necessary perturbation for oblivious and adaptive attack
+    separately records, which inputs are misclassified as result of the regularization alone.
+    :param learning_rate:
+    :param n_iterations:
+    :param attack_name:
+    :param attack_keys:
+    :param verbose:
+    :return:
+    """
     path = '../logs/adversarial_examples/deepfool_oblivious_198/'
     img_log = np.load(path + 'img_log_198_fine.npy')
     # adv_log = np.load(path + 'adv_log_198_fine.npy')
@@ -491,7 +505,7 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
 
             noise_norms = []
             src_invariant = []
-            for idx, match in enumerate(advex_matches[:20]):
+            for idx, match in enumerate(advex_matches[:2]):
                 img_path, adv_path = match
                 src_label = img_log[idx][0]
 
@@ -522,7 +536,7 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
                         src_invariant.append(0)
                 adversarial = attack(image=img, label=img_pred_label, **attack_keys)
                 if adversarial is None:
-                    whitebox_norm = None
+                    whitebox_norm = np.inf
                     if verbose:
                         print('no adversary found for source label {} using {}'.format(img_pred_label, attack_name))
                 else:
@@ -536,6 +550,9 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
                     whitebox_save_path = adv_path.replace('oblivious', 'whitebox')
                     np.save(whitebox_save_path, adversarial)
                 noise_norms.append((oblivious_norm, whitebox_norm))
+
+        np.save('noise_norms.npy', np.asarray(noise_norms))
+        np.save('src_invariants.npy', np.asarray(src_invariant))
 
 
 def mean_filter_model(make_switch=True):
@@ -737,5 +754,3 @@ def dropout_prior_stability_experiment_200():
     print(adv_list)
     np.save('img_log_dropout_2.npy', np.asarray(img_list))
     np.save('adv_log_dropout_2.npy', np.asarray(adv_list))
-    # np.save('img_log_sgd_1.npy', np.asarray(img_list))
-    # np.save('adv_log_sgd_1.npy', np.asarray(adv_list))
