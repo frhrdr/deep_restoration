@@ -106,8 +106,7 @@ class FoEFullPrior(LearnedPriorLoss):
                 whitened_mixing = tf.reshape(whitened_mixing, shape=[self.n_channels, self.ph,
                                                                      self.pw, self.n_components])
                 whitened_mixing = tf.transpose(whitened_mixing, perm=[1, 2, 0, 3])
-                # print(normed_featmap.get_shape())
-                # print(whitened_mixing.get_shape())
+
                 xw = tf.nn.conv2d(normed_featmap, whitened_mixing, strides=[1, 1, 1, 1], padding='VALID')
                 xw = tf.reshape(xw, shape=[-1, self.n_components])
 
@@ -119,61 +118,6 @@ class FoEFullPrior(LearnedPriorLoss):
 
             self.loss = self.mrf_loss(xw, ica_a)
             self.var_list.append(whitening_tensor)
-
-    def forward_opt_sgd(self, input_featmap, learning_rate, n_iterations):
-
-        def cond(*args):
-            return tf.not_equal(args[0], tf.constant(n_iterations, dtype=tf.int32))
-
-        def body(count, featmap):
-            count += 1
-            self.build(featmap_tensor=featmap)
-            featmap_grad = tf.gradients(ys=self.loss, xs=featmap)[0]
-            featmap -= learning_rate * featmap_grad
-            print(self.var_list)
-            featmap = tf.Print(featmap, self.var_list)
-            return count, featmap
-
-        count_init = tf.constant(0, dtype=tf.int32)
-        _, final_featmap = tf.while_loop(cond=cond, body=body, loop_vars=[count_init, input_featmap])
-        # needs switch and boolean_pl
-        return final_featmap
-
-    def forward_opt_adam(self, input_featmap, learning_rate, n_iterations, beta1=0.999, beta2=0.9, eps=1e-8):
-
-        def apply_adam(variable, gradients, m_acc, v_acc, iteration):
-            beta1_tsr = tf.constant(beta1, dtype=tf.float32)
-            beta2_tsr = tf.constant(beta2, dtype=tf.float32)
-            m_new = beta1_tsr * m_acc + (1.0 - beta1_tsr) * gradients
-            v_new = beta2_tsr * v_acc + (1.0 - beta2_tsr) * gradients ** 2
-            m_hat = m_new / (1.0 - beta1_tsr ** iteration)
-            v_hat = v_new / (1.0 - beta2_tsr ** iteration)
-            variable -= learning_rate * m_hat / (tf.sqrt(v_hat) + eps)
-
-            return variable, m_new, v_new
-
-        def cond(*args):
-            return tf.not_equal(args[0], tf.constant(n_iterations, dtype=tf.float32))
-
-        def body(count, featmap, m_acc, v_acc):
-            count += 1
-            self.build(featmap_tensor=featmap)
-            featmap_grad = tf.gradients(ys=self.loss, xs=featmap)[0]
-
-            featmap, m_acc, v_acc = apply_adam(featmap, featmap_grad, m_acc, v_acc, count)
-
-            # print(self.var_list)
-            # featmap = tf.Print(featmap, self.var_list)
-            return count, featmap, m_acc, v_acc
-
-        featmap_shape = [k.value for k in input_featmap.get_shape()]
-        m_init = tf.constant(np.zeros(featmap_shape), dtype=tf.float32)
-        v_init = tf.constant(np.zeros(featmap_shape), dtype=tf.float32)
-        count_init = tf.constant(0, dtype=tf.float32)
-        _, final_featmap, _, _ = tf.while_loop(cond=cond, body=body,
-                                               loop_vars=[count_init, input_featmap, m_init, v_init])
-        # needs switch and boolean_pl
-        return final_featmap
 
     def score_matching_loss(self, x_mat, ica_w, ica_a):
         if self.dist == 'logistic':
@@ -210,7 +154,7 @@ class FoEFullPrior(LearnedPriorLoss):
                     n_data_samples=100000, n_val_samples=500,
                     log_freq=5000, summary_freq=10, print_freq=100, test_freq=100,
                     prev_ckpt=0, optimizer_name='adam',
-                    plot_filters=False, n_vis=144):
+                    plot_filters=False, n_vis=144, stop_on_overfit=True):
 
         if not os.path.exists(self.load_path):
             os.makedirs(self.load_path)
@@ -280,7 +224,7 @@ class FoEFullPrior(LearnedPriorLoss):
                         if test_freq > 0 and count % test_freq == 0:
                             self.run_validation(val_gen, x_pl, loss, val_loss, val_summary_op, summary_writer, sess,
                                                 n_val_samples, batch_size, count, start_time, saver, checkpoint_file)
-                            if self.decide_break(test_freq, log_freq):
+                            if stop_on_overfit and self.decide_break(test_freq, log_freq):
                                 break
 
                         if count % log_freq == 0:
@@ -368,9 +312,9 @@ class FoEFullPrior(LearnedPriorLoss):
             with tf.Session() as sess:
                 self.load_weights(sess)
                 unwhitening_mat, a_mat, w_mat = sess.run([unwhitening_tensor, ica_a, ica_w])
-                
+
         return unwhitening_mat, a_mat, w_mat
-    
+
     def plot_channels_all_filters(self, channel_ids, save_path, save_as_mat=False, save_as_plot=True, n_vis=144):
         """
         visualizes all filters of selected channels and saves these as one plot per channel.
@@ -447,7 +391,7 @@ class FoEFullPrior(LearnedPriorLoss):
                 plottable_channels /= (w_max - w_min)
                 plot_img_mats(plottable_channels, rescale=False, show=False, save_path=save_path + file_name)
                 print('filter {} done'.format(channel_id))
-
+    
     def plot_filters_all_channels(self, filter_ids, save_path, save_as_mat=False, save_as_plot=True):
         """
         visualizes the patch for each channel of a trained filter and saves this as one plot.
@@ -510,7 +454,7 @@ class FoEFullPrior(LearnedPriorLoss):
     def get_load_path(dir_name, classifier, tensor_name, filter_dims, n_components,
                       n_features_white, mean_mode, sdev_mode, whiten_mode):
         d_str = str(filter_dims[0]) + 'x' + str(filter_dims[1])
-        if 'img' in tensor_name or 'image' in tensor_name:
+        if 'img' in tensor_name or 'image' in tensor_name or 'rgb_scaled' in tensor_name:
             subdir = 'image/color'
         else:
             if tensor_name.lower().startswith('split'):
@@ -618,3 +562,62 @@ class FoEFullPrior(LearnedPriorLoss):
                 idx += batch_size
                 idx = idx % n_samples
                 yield batch
+
+    def forward_opt_sgd(self, input_featmap, learning_rate, n_iterations, make_switch=True):
+
+        def cond(*args):
+            return tf.not_equal(args[0], tf.constant(n_iterations, dtype=tf.int32))
+
+        def body(count, featmap):
+            count += 1
+            self.build(featmap_tensor=featmap)
+            featmap_grad = tf.gradients(ys=self.loss, xs=featmap)[0]
+            featmap -= learning_rate * featmap_grad
+            return count, featmap
+
+        count_init = tf.constant(0, dtype=tf.int32)
+        _, final_featmap = tf.while_loop(cond=cond, body=body, loop_vars=[count_init, input_featmap])
+
+        if make_switch:
+            activate = tf.placeholder(dtype=tf.bool)
+            output = tf.cond(activate, lambda: final_featmap, lambda: input_featmap)
+            return output, activate
+        else:
+            return final_featmap, None
+
+    def forward_opt_adam(self, input_featmap, learning_rate, n_iterations,
+                         make_switch=True, beta1=0.999, beta2=0.9, eps=1e-8):
+
+        def apply_adam(variable, gradients, m_acc, v_acc, iteration):
+            beta1_tsr = tf.constant(beta1, dtype=tf.float32)
+            beta2_tsr = tf.constant(beta2, dtype=tf.float32)
+            m_new = beta1_tsr * m_acc + (1.0 - beta1_tsr) * gradients
+            v_new = beta2_tsr * v_acc + (1.0 - beta2_tsr) * gradients ** 2
+            m_hat = m_new / (1.0 - beta1_tsr ** iteration)
+            v_hat = v_new / (1.0 - beta2_tsr ** iteration)
+            variable -= learning_rate * m_hat / (tf.sqrt(v_hat) + eps)
+
+            return variable, m_new, v_new
+
+        def cond(*args):
+            return tf.not_equal(args[0], tf.constant(n_iterations, dtype=tf.float32))
+
+        def body(count, featmap, m_acc, v_acc):
+            count += 1
+            self.build(featmap_tensor=featmap)
+            featmap_grad = tf.gradients(ys=self.loss, xs=featmap)[0]
+            featmap, m_acc, v_acc = apply_adam(featmap, featmap_grad, m_acc, v_acc, count)
+            return count, featmap, m_acc, v_acc
+
+        featmap_shape = [k.value for k in input_featmap.get_shape()]
+        m_init = tf.constant(np.zeros(featmap_shape), dtype=tf.float32)
+        v_init = tf.constant(np.zeros(featmap_shape), dtype=tf.float32)
+        count_init = tf.constant(0, dtype=tf.float32)
+        _, final_featmap, _, _ = tf.while_loop(cond=cond, body=body,
+                                               loop_vars=[count_init, input_featmap, m_init, v_init])
+        if make_switch:
+            activate = tf.placeholder(dtype=tf.bool)
+            output = tf.cond(activate, lambda: final_featmap, lambda: input_featmap)
+            return output, activate
+        else:
+            return final_featmap, None
