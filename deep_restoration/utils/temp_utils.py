@@ -340,4 +340,3 @@ def show_patches_by_channel(raw_mat_dir, raw_mat_name, n_patches, ph, pw, n_chan
 
         plot_img_mats(to_plot[mat_idx, :, :, :], color=False, rescale=True, show=False,
                       save_path=raw_mat_dir + 'patch{}.png'.format(pat_idx))
-

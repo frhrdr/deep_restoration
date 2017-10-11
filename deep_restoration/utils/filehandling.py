@@ -11,6 +11,9 @@ import warnings
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import tensorflow as tf
+from tf_alexnet.alexnet import AlexNet
+from tf_vgg.vgg16 import Vgg16
 
 
 DATA_PATH = '../data/imagenet2012-validationset/'
@@ -208,3 +211,71 @@ def mat_to_img(mat_file, rescale=True, cols=1, rows=1):
     plt.savefig(mat_file[:-len('npy')] + 'png',
                 format='png', dpi=224)
     plt.close()
+
+
+def correctly_classified_validation_subset(classifier='alexnet', batch_size=50, topx=1):
+    if classifier.lower() == 'vgg16':
+        model = Vgg16()
+        image_subdir = 'images_resized_224/'
+        img_dims = [batch_size, 224, 224, 3]
+    elif classifier.lower() == 'alexnet':
+        model = AlexNet()
+        image_subdir = 'images_resized_227/'
+        img_dims = [batch_size, 227, 227, 3]
+    else:
+        raise ValueError
+
+    image_set_file = 'validate_2k_images.txt'
+    label_keys = 'validate_2k_labels.txt'
+    
+    # compute actual labels
+    with open(DATA_PATH + label_keys) as f:
+        labels = label_strings_to_ints([k.rstrip() for k in f.readlines()])
+    
+    with open(DATA_PATH + image_set_file) as f:
+        image_files = [k.rstrip()[:-len('JPEG')] + 'bmp' for k in f.readlines()]
+        image_files = [DATA_PATH + image_subdir + k for k in image_files]
+    assert len(image_files) % batch_size == 0
+
+    image_batches = [image_files[k:k+batch_size] for k in range(len(image_files) // batch_size)]
+    label_batches = [labels[k:k+batch_size] for k in range(len(labels) // batch_size)]
+    matches = []
+
+    with tf.Graph().as_default() as graph:
+        img_pl = tf.placeholder(dtype=tf.float32, shape=img_dims)
+        model.build(img_pl)
+
+        softmax = graph.get_tensor_by_name('softmax:0')
+
+        with tf.Session() as sess:
+            for batch_paths, batch_labels in zip(image_batches, label_batches):
+                batch_mat = np.asarray([load_image(k) for k in batch_paths])
+                pred = sess.run(softmax, feed_dict={img_pl: batch_mat})
+
+                pred_min = np.min(pred)
+                batch_matches = [False] * batch_size
+                for count in range(topx):
+                    pred_labels = list(np.argmax(pred, axis=1))
+                    pred_matches = [k[0] == k[1] for k in zip(pred_labels, batch_labels)]
+                    batch_matches = [k[0] or k[1] for k in zip(batch_matches, pred_matches)]
+
+                    max_ids = [(k[0], k[1]) for k in enumerate(pred_labels)]
+                    pred[list(zip(*max_ids))] = pred_min - 1
+                matches.extend(batch_matches)
+    correct_images = [image_files[k] + '\n' for k in range(len(image_files)) if matches[k]]
+    print(len(correct_images))
+    with open(DATA_PATH + '{}_val_2k_top{}_correct.txt'.format(classifier, topx), mode='w') as f:
+        f.writelines(correct_images)
+
+
+def label_strings_to_ints(label_str_list):
+    with open(DATA_PATH + 'label_names.txt') as f:
+        label_dict = dict()
+        for idx, label in enumerate([k.split(' ')[0] for k in f.readlines()]):
+            label_dict[label] = idx
+
+    return [label_dict[l] for l in label_str_list]
+
+
+def collect_correct_subset(collection, correct):
+    subset = [collection[k] for k in range(len(collection)) if correct[k]]

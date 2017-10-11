@@ -357,12 +357,12 @@ def stability_statistics():
     log_freq = range(1, 21)
     print('log points after n iterations', log_freq)
 
-    # path = '../logs/adversarial_examples/deepfool_oblivious_198/'
-    # img_log = np.load(path + 'img_log_198_fine.npy')
-    # adv_log = np.load(path + 'adv_log_198_fine.npy')
-    path = '../logs/adversarial_examples/deepfool_oblivious_dropout_198/'
-    img_log = np.load(path + 'img_log_dropout_198.npy')
-    adv_log = np.load(path + 'adv_log_dropout_198.npy')
+    path = '../logs/adversarial_examples/deepfool_oblivious_198/'
+    img_log = np.load(path + 'img_log_198.npy')
+    adv_log = np.load(path + 'adv_log_198.npy')
+    # path = '../logs/adversarial_examples/deepfool_oblivious_dropout_198/'
+    # img_log = np.load(path + 'img_log_dropout_198.npy')
+    # adv_log = np.load(path + 'adv_log_dropout_198.npy')
 
     print(img_log.shape)
     n_samples, n_logpoints = img_log.shape
@@ -402,6 +402,14 @@ def stability_statistics():
         src_range[src_count[idx]] += src_found[idx, src_count[idx]]
 
     print('count of first changes to original label in adv ex', list(src_range.astype(np.int))[1:])
+
+    # count number of original labels at each time step for img and adv
+    src_preserved = 1 - np.minimum(np.abs(img_log.T - src_labels).T, 1)
+    count_preserved = np.sum(src_preserved, axis=0)
+    print('count of preserved images at each time step', list(count_preserved.astype(np.int)))
+
+    count_restored = np.sum(src_found, axis=0)
+    print('count of restored advex at each time step', list(count_restored.astype(np.int)))
 
     # plt.plot(log_freq, src_range[1:], 'ro')
     # plt.show()
