@@ -112,7 +112,7 @@ def make_untargeted_examples(source_images, save_dir,
                 src_label = np.argmax(pred)
                 if verbose:
                     src_label_name = get_class_name(src_label)
-                    # print('source image classified as {}. (label {})'.format(src_label_name, src_label))
+                    print('source image classified as {}. (label {})'.format(src_label_name, src_label))
 
                 criterion = foolbox.criteria.Misclassification()
                 attack = get_attack(attack_name, model, criterion)
@@ -127,7 +127,7 @@ def make_untargeted_examples(source_images, save_dir,
                 fooled_label = np.argmax(fooled_pred)
                 if verbose:
                     fooled_label_name = get_class_name(fooled_label)
-                    # print('adversarial image classified as {}. (label {})'.format(fooled_label_name, fooled_label))
+                    print('adversarial image classified as {}. (label {})'.format(fooled_label_name, fooled_label))
                 save_file = get_adv_ex_filename(src_image, src_label, fooled_label, save_dir, file_type='npy')
                 # if adversarial.dtype == np.float32:
                 #     adversarial = np.minimum(adversarial / 255, 1.0)
@@ -192,7 +192,7 @@ def make_small_untargeted_dataset():
         os.makedirs(save_dir)
 
     make_untargeted_examples(image_paths, save_dir, classifier='alexnet', attack_name='deepfool',
-                             attack_keys={'steps': 300}, verbose=True)
+                             attack_keys={'steps': 300}, verbose=False)
 
 
 def make_untargeted_dataset(image_subset='alexnet_val_2k_top1_correct.txt',
@@ -211,7 +211,7 @@ def make_untargeted_dataset(image_subset='alexnet_val_2k_top1_correct.txt',
         os.makedirs(save_dir)
 
     make_untargeted_examples(image_paths, save_dir, classifier='alexnet', attack_name=attack_name,
-                             attack_keys=attack_keys, verbose=True)
+                             attack_keys=attack_keys, verbose=False)
 
 
 def compare_images_to_untargeted_adv_ex(priors):
@@ -251,23 +251,22 @@ def compare_images_to_untargeted_adv_ex(priors):
     print(np.min(image_losses))
 
 
-def eval_class_stability(image_file, priors, learning_rate, n_iterations, log_freq,
-                         optimizer='sgd', classifier='alexnet', verbose=False):
+def eval_class_stability(image_files, priors, learning_rate, n_iterations, log_freq,
+                         optimizer='adam', classifier='alexnet', verbose=False):
     if not isinstance(log_freq, list):
         log_freq = list(range(log_freq, n_iterations, log_freq))
     log_list = []
 
-    if image_file.endswith('bmp') or image_file.endswith('png'):
-        image = load_image(image_file, resize=False)
-    elif image_file.endswith('npy'):
-        image = np.load(image_file)
+    if classifier == 'alexnet':
+        image_shape = (1, 227, 227, 3)
     else:
-        raise NotImplementedError
-    image = np.expand_dims(image.astype(dtype=np.float32), axis=0)
-    # print(image)
-    with tf.Graph().as_default():
+        image_shape = (1, 224, 224, 3)
 
-        input_var, logit_tsr = get_classifier_io(classifier, input_init=image, input_type='variable')
+    with tf.Graph().as_default():
+        image_pl = tf.placeholder(dtype=tf.float32, shape=image_shape)
+        image_var = tf.get_variable('input_image', shape=image_shape, dtype=tf.float32)
+        _, logit_tsr = get_classifier_io(classifier, input_init=image_var, input_type='tensor')
+        feed_op = tf.assign(image_var, image_pl)
 
         loss_tsr = 0
         for prior in priors:
@@ -278,47 +277,57 @@ def eval_class_stability(image_file, priors, learning_rate, n_iterations, log_fr
         train_op = optimizer.minimize(loss_tsr)
 
         init_op = tf.global_variables_initializer()
-        with tf.Session() as sess:
-            sess.run(init_op)
-            for prior in priors:
-                if isinstance(prior, LearnedPriorLoss):
-                    prior.load_weights(sess)
+        for img_no, file in enumerate(image_files):
+            print('image no.', img_no)
+            image_mat = load_image(file, resize=False)
+            image_mat = np.expand_dims(image_mat.astype(dtype=np.float32), axis=0)
+            image_log_list = []
+            with tf.Session() as sess:
+                sess.run(init_op)
+                for prior in priors:
+                    if isinstance(prior, LearnedPriorLoss):
+                        prior.load_weights(sess)
+                sess.run(feed_op, feed_dict={image_pl: image_mat})
 
-            pred = sess.run(logit_tsr)
-            current_label = np.argmax(pred)
-            log_list.append(current_label)
-            if verbose:
-                current_label_name = get_class_name(current_label)
-                print('image initially classified as {}. (label {})'.format(current_label_name, current_label))
+                pred = sess.run(logit_tsr)
+                current_label = np.argmax(pred)
+                image_log_list.append(current_label)
+                if verbose:
+                    current_label_name = get_class_name(current_label)
+                    print('image initially classified as {}. (label {})'.format(current_label_name, current_label))
 
-            for count in range(n_iterations + 1):
-                _, loss = sess.run([train_op, loss_tsr])
+                for count in range(n_iterations + 1):
+                    _, loss = sess.run([train_op, loss_tsr])
 
-                if log_freq and count == log_freq[0]:
-                    log_freq = log_freq[1:]
-                    pred = sess.run(logit_tsr)
-                    new_label = np.argmax(pred)
-                    log_list.append(new_label)
-                    if verbose and new_label != current_label:
-                        new_label_name = get_class_name(new_label)
-                        print(('label changed at iteration {}: ' +
-                              'now classified as {} (label {})').format(count, new_label_name, new_label))
-                        print('Loss:', loss)
-                    current_label = new_label
+                    if log_freq and count == log_freq[0]:
+                        log_freq = log_freq[1:]
+                        pred = sess.run(logit_tsr)
+                        new_label = np.argmax(pred)
+                        image_log_list.append(new_label)
+                        if verbose and new_label != current_label:
+                            new_label_name = get_class_name(new_label)
+                            print(('label changed at iteration {}: ' +
+                                  'now classified as {} (label {})').format(count, new_label_name, new_label))
+                            print('Loss:', loss)
+                        current_label = new_label
+            log_list.append(image_log_list)
     return log_list
 
 
-def advex_match_paths_200():
+def advex_match_paths(images_file='subset_cutoff_200_images.txt', advex_subdir='200_dataset/deepfool_oblivious/'):
     data_dir = '../data/imagenet2012-validationset/'
-    images_file = 'subset_cutoff_200_images.txt'
-    subdir = 'images_resized_227/'
-    advex_dir = '../data/adversarial_examples/foolbox_images/200_dataset/deepfool_oblivious/'
+    image_subdir = 'images_resized_227/'
+    advex_dir = '../data/adversarial_examples/foolbox_images/' + advex_subdir
 
     with open(data_dir + images_file) as f:
         image_files = [k.rstrip() for k in f.readlines()]
-        image_paths = [data_dir + subdir + k[:-len('JPEG')] + 'bmp' for k in image_files]
 
-    image_stems = [k[:-len('.JPEG')] for k in image_files]
+    if '/' not in image_files[0]:
+        image_paths = [data_dir + image_subdir + k[:-len('JPEG')] + 'bmp' for k in image_files]
+    else:
+        image_paths = image_files
+
+    image_stems = [k.split('/')[-1][:-len('.bmp')] for k in image_paths]
     advex_files = sorted(os.listdir(advex_dir))
     advex_paths = [advex_dir + k for k in advex_files]
     img_idx = 0
@@ -330,7 +339,8 @@ def advex_match_paths_200():
     return advex_matches
 
 
-def stability_experiment_200():
+def stability_experiment_fullprior(images_file='subset_cutoff_200_images.txt',
+                                   advex_subdir='200_dataset/deepfool_oblivious/'):
     imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
                             n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                             whiten_mode='pca',
@@ -343,28 +353,24 @@ def stability_experiment_200():
     n_iterations = 20
     log_freq = 1
 
-    advex_matches = advex_match_paths_200()
+    advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
     print('number of matches:', len(advex_matches))
-    count = 0
-    img_list = []
-    adv_list = []
-    for img_path, adv_path in advex_matches[:100]:
-        count += 1
-        print('match no.', count)
-        # noinspection PyTypeChecker
-        log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
-                                        optimizer=optimizer, classifier='alexnet', verbose=True)
-        img_list.append(log_list)
-        imgprior.reset()
-        # noinspection PyTypeChecker
-        log_list = eval_class_stability(adv_path, [imgprior], learning_rate, n_iterations, log_freq,
-                                        optimizer=optimizer, classifier='alexnet', verbose=True)
-        adv_list.append(log_list)
-        imgprior.reset()
+
+    img_paths, adv_paths = list(zip(advex_matches))
+
+    # noinspection PyTypeChecker
+    img_list = eval_class_stability(img_paths, [imgprior], learning_rate, n_iterations, log_freq,
+                                    optimizer=optimizer, classifier='alexnet', verbose=True)
     print(img_list)
+    np.save('img_log.npy', np.asarray(img_list))
+
+    imgprior.reset()
+
+    # noinspection PyTypeChecker
+    adv_list = eval_class_stability(adv_paths, [imgprior], learning_rate, n_iterations, log_freq,
+                                    optimizer=optimizer, classifier='alexnet', verbose=True)
     print(adv_list)
-    np.save('img_log_sgd_1.npy', np.asarray(img_list))
-    np.save('adv_log_sgd_1.npy', np.asarray(adv_list))
+    np.save('adv_log.npy', np.asarray(adv_list))
 
 
 def stability_statistics():
@@ -430,10 +436,10 @@ def stability_statistics():
     # plt.show()
 
 
-def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_name, attack_keys, src_label,
+def eval_adaptive_forward_opt(image, prior, learning_rate, n_iterations, attack_name, attack_keys, src_label,
                               classifier='alexnet', verbose=False):
     """
-    runs baseline with prior, then whitebox attack
+    runs baseline with prior, then adaptive attack
     :param image:
     :param prior:
     :param learning_rate:
@@ -486,7 +492,7 @@ def eval_whitebox_forward_opt(image, prior, learning_rate, n_iterations, attack_
                 return adversarial, noise_norm
 
 
-def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deepfool', attack_keys=None, verbose=True):
+def adaptive_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deepfool', attack_keys=None, verbose=True):
     """
     constructs adaptive attacks for the prior, records necessary perturbation for oblivious and adaptive attack
     separately records, which inputs are misclassified as result of the regularization alone.
@@ -499,10 +505,9 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
     """
     path = '../logs/adversarial_examples/deepfool_oblivious_198/'
     img_log = np.load(path + 'img_log_198_fine.npy')
-    # adv_log = np.load(path + 'adv_log_198_fine.npy')
     classifier = 'alexnet'
     image_shape = (1, 227, 227, 3)
-    advex_matches = advex_match_paths_200()
+    advex_matches = advex_match_paths()
 
     imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
                             n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
@@ -510,7 +515,6 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
                             name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
 
     with tf.Graph().as_default():
-        # input_featmap = tf.constant(image, dtype=tf.float32)
         input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
         featmap, _ = imgprior.forward_opt_adam(input_featmap, learning_rate, n_iterations)
         _, logit_tsr = get_classifier_io(classifier, input_init=featmap, input_type='tensor')
@@ -559,20 +563,20 @@ def whitebox_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
                         src_invariant.append(0)
                 adversarial = attack(image=img, label=img_pred_label, **attack_keys)
                 if adversarial is None:
-                    whitebox_norm = np.inf
+                    adaptive_norm = np.inf
                     if verbose:
                         print('no adversary found for source label {} using {}'.format(img_pred_label, attack_name))
                 else:
                     fooled_pred = model.predictions(adversarial)
                     fooled_label = np.argmax(fooled_pred)
                     fooled_label_name = get_class_name(fooled_label)
-                    whitebox_norm = np.linalg.norm((img - adversarial).flatten(), ord=2)
+                    adaptive_norm = np.linalg.norm((img - adversarial).flatten(), ord=2)
                     if verbose:
                         print('adversarial image classified as {}. (label {}) '
-                              'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, whitebox_norm))
-                    whitebox_save_path = adv_path.replace('oblivious', 'whitebox')
-                    np.save(whitebox_save_path, adversarial)
-                noise_norms.append((oblivious_norm, whitebox_norm))
+                              'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, adaptive_norm))
+                    adaptive_save_path = adv_path.replace('oblivious', 'adaptive')
+                    np.save(adaptive_save_path, adversarial)
+                noise_norms.append((oblivious_norm, adaptive_norm))
 
         np.save('noise_norms.npy', np.asarray(noise_norms))
         np.save('src_invariants.npy', np.asarray(src_invariant))
@@ -601,7 +605,7 @@ def mean_filter_model(make_switch=True):
 def mean_filter_benchmark(classifier='alexnet', verbose=False):
     log_list = []
 
-    advex_matches = advex_match_paths_200()
+    advex_matches = advex_match_paths()
     print('number of matches:', len(advex_matches))
     count = 0
 
@@ -670,12 +674,12 @@ def mean_log_statistics(log_path='smooth_log.npy'):
     print('image and advex smoothed to same label', a)
 
 
-def mean_whitebox_attacks_200(attack_name='deepfool', attack_keys=None, verbose=True):
+def mean_adaptive_attacks_200(attack_name='deepfool', attack_keys=None, verbose=True):
     path = '../logs/adversarial_examples/deepfool_oblivious_198/'
     img_log = np.load(path + 'img_log_198_fine.npy')
     # adv_log = np.load(path + 'adv_log_198_fine.npy')
     classifier = 'alexnet'
-    advex_matches = advex_match_paths_200()
+    advex_matches = advex_match_paths()
 
     with tf.Graph().as_default():
 
@@ -725,20 +729,20 @@ def mean_whitebox_attacks_200(attack_name='deepfool', attack_keys=None, verbose=
                         src_invariant.append(0)
                 adversarial = attack(image=img, label=src_label, **attack_keys)
                 if adversarial is None:
-                    whitebox_norm = None
+                    adaptive_norm = None
                     if verbose:
                         print('no adversary found for source label {} using {}'.format(img_pred_label, attack_name))
                 else:
                     fooled_pred = model.predictions(adversarial)
                     fooled_label = np.argmax(fooled_pred)
                     fooled_label_name = get_class_name(fooled_label)
-                    whitebox_norm = np.linalg.norm((img - adversarial).flatten(), ord=2)
+                    adaptive_norm = np.linalg.norm((img - adversarial).flatten(), ord=2)
                     if verbose:
                         print('adversarial image classified as {}. (label {}) '
-                              'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, whitebox_norm))
-                    # whitebox_save_path = adv_path.replace('oblivious', 'whitebox')
-                    # np.save(whitebox_save_path, adversarial)
-                noise_norms.append((oblivious_norm, whitebox_norm))
+                              'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, adaptive_norm))
+                    # adaptive_save_path = adv_path.replace('oblivious', 'adaptive'
+                    # np.save(adaptive_save_path, adversarial)
+                noise_norms.append((oblivious_norm, adaptive_norm))
 
 
 def dropout_prior_stability_experiment_200():
@@ -755,7 +759,7 @@ def dropout_prior_stability_experiment_200():
     n_iterations = 20
     log_freq = 1
 
-    advex_matches = advex_match_paths_200()
+    advex_matches = advex_match_paths()
     print('number of matches:', len(advex_matches))
     count = 0
     img_list = []
