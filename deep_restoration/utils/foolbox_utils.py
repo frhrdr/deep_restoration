@@ -106,18 +106,13 @@ def make_untargeted_examples(source_images, save_dir,
                 input_pl, logit_tsr = get_classifier_io(classifier)
                 model = foolbox.models.TensorFlowModel(input_pl, logit_tsr, bounds=(0, 255))
 
-                if src_image.endswith('bmp') or src_image.endswith('png'):
-                    image = load_image(src_image, resize=False)
-                elif src_image.endswith('npy'):
-                    image = np.load(src_image)
-                else:
-                    raise NotImplementedError
+                image = load_image(src_image)
 
                 pred = model.predictions(image)
                 src_label = np.argmax(pred)
                 if verbose:
                     src_label_name = get_class_name(src_label)
-                    print('source image classified as {}. (label {})'.format(src_label_name, src_label))
+                    # print('source image classified as {}. (label {})'.format(src_label_name, src_label))
 
                 criterion = foolbox.criteria.Misclassification()
                 attack = get_attack(attack_name, model, criterion)
@@ -125,13 +120,14 @@ def make_untargeted_examples(source_images, save_dir,
                     attack_keys = dict()
                 adversarial = attack(image=image, label=src_label, **attack_keys)
                 if adversarial is None:
-                    print('no adversary found for source label {} using {}'.format(src_label, attack_name))
+                    # print('no adversary found for source label {} using {}'.format(src_label, attack_name))
+                    print('no adversary found for source image {}'.format(src_image))
                     continue
                 fooled_pred = model.predictions(adversarial)
                 fooled_label = np.argmax(fooled_pred)
                 if verbose:
                     fooled_label_name = get_class_name(fooled_label)
-                    print('adversarial image classified as {}. (label {})'.format(fooled_label_name, fooled_label))
+                    # print('adversarial image classified as {}. (label {})'.format(fooled_label_name, fooled_label))
                 save_file = get_adv_ex_filename(src_image, src_label, fooled_label, save_dir, file_type='npy')
                 # if adversarial.dtype == np.float32:
                 #     adversarial = np.minimum(adversarial / 255, 1.0)
@@ -197,6 +193,25 @@ def make_small_untargeted_dataset():
 
     make_untargeted_examples(image_paths, save_dir, classifier='alexnet', attack_name='deepfool',
                              attack_keys={'steps': 300}, verbose=True)
+
+
+def make_untargeted_dataset(image_subset='alexnet_val_2k_top1_correct.txt',
+                            attack_name='deepfool', attack_keys=None):
+    if attack_name == 'deepfool':
+        attack_keys = {'steps': 300}
+
+    data_dir = '../data/imagenet2012-validationset/'
+
+    with open(data_dir + image_subset) as f:
+        image_paths = [k.rstrip() for k in f.readlines()]
+
+    save_dir = '../data/adversarial_examples/foolbox_images/alexnet_val_2k_top1_correct/{}/'.format(attack_name)
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    make_untargeted_examples(image_paths, save_dir, classifier='alexnet', attack_name=attack_name,
+                             attack_keys=attack_keys, verbose=True)
 
 
 def compare_images_to_untargeted_adv_ex(priors):

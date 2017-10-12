@@ -275,7 +275,3 @@ def label_strings_to_ints(label_str_list):
             label_dict[label] = idx
 
     return [label_dict[l] for l in label_str_list]
-
-
-def collect_correct_subset(collection, correct):
-    subset = [collection[k] for k in range(len(collection)) if correct[k]]
