@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
 from tf_alexnet.alexnet import AlexNet
 from tf_vgg.vgg16 import Vgg16
 from utils.temp_utils import load_image, get_optimizer
@@ -329,7 +330,7 @@ def eval_class_stability(image_files, priors, learning_rate, n_iterations, log_f
     return log_list
 
 
-def advex_match_paths(images_file='subset_cutoff_200_images.txt', advex_subdir='200_dataset/deepfool_oblivious/'):
+def advex_match_paths(images_file, advex_subdir):
     data_dir = '../data/imagenet2012-validationset/'
     image_subdir = 'images_resized_227/'
     advex_dir = '../data/adversarial_examples/foolbox_images/' + advex_subdir
@@ -354,8 +355,8 @@ def advex_match_paths(images_file='subset_cutoff_200_images.txt', advex_subdir='
     return advex_matches
 
 
-def stability_experiment_fullprior(images_file='subset_cutoff_200_images.txt',
-                                   advex_subdir='200_dataset/deepfool_oblivious/'):
+def stability_experiment_fullprior(images_file='alexnet_val_2k_top1_correct.txt',
+                                   advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/'):
     imgprior = get_default_prior(mode='full')
     optimizer = 'adam'
     # learning_rate = 1e-0
@@ -364,6 +365,24 @@ def stability_experiment_fullprior(images_file='subset_cutoff_200_images.txt',
     learning_rate = 1e-1
     n_iterations = 20
     log_freq = 1
+    # noinspection PyTypeChecker
+    stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
+                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq)
+
+
+def stability_experiment_dropoutprior(images_file='alexnet_val_2k_top1_correct.txt',
+                                      advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/'):
+    imgprior = get_default_prior(mode='dropout')
+    optimizer = 'adam'
+    learning_rate = 1e-1
+    n_iterations = 20
+    log_freq = 1
+    # noinspection PyTypeChecker
+    stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
+                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq)
+
+
+def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learning_rate, n_iterations, log_freq):
 
     advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
     print('number of matches:', len(advex_matches))
@@ -387,15 +406,18 @@ def stability_experiment_fullprior(images_file='subset_cutoff_200_images.txt',
 
 def stability_statistics():
     # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
-    log_freq = range(1, 21)
+    log_freq = range(20)
     print('log points after n iterations', log_freq)
 
-    path = '../logs/adversarial_examples/deepfool_oblivious_198/'
-    img_log = np.load(path + 'img_log_198.npy')
-    adv_log = np.load(path + 'adv_log_198.npy')
+    # path = '../logs/adversarial_examples/deepfool_oblivious_198/'
+    # img_log = np.load(path + 'img_log_198.npy')
+    # adv_log = np.load(path + 'adv_log_198.npy')
     # path = '../logs/adversarial_examples/deepfool_oblivious_dropout_198/'
     # img_log = np.load(path + 'img_log_dropout_198.npy')
     # adv_log = np.load(path + 'adv_log_dropout_198.npy')
+    path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
+    img_log = np.load(path + 'img_log.npy')
+    adv_log = np.load(path + 'adv_log.npy')
 
     print(img_log.shape)
     n_samples, n_logpoints = img_log.shape
@@ -444,8 +466,19 @@ def stability_statistics():
     count_restored = np.sum(src_found, axis=0)
     print('count of restored advex at each time step', list(count_restored.astype(np.int)))
 
-    # plt.plot(log_freq, src_range[1:], 'ro')
-    # plt.show()
+    plot_stability_tradeoff(count_preserved, count_restored, log_freq)
+
+
+def plot_stability_tradeoff(count_preserved, count_restored, log_freq):
+    # log_freq = [0] + log_freq
+    plt.figure()
+    plt.plot(log_freq, count_preserved, 'r-', label='image')
+    plt.plot(log_freq, count_restored, 'b-', label='advex')
+    plt.xlabel('regularization steps')
+    plt.ylabel('classified correctly')
+    plt.xticks(log_freq)
+    plt.legend()
+    plt.show()
 
 
 def eval_adaptive_forward_opt(image, prior, learning_rate, n_iterations, attack_name, attack_keys, src_label,
@@ -505,6 +538,39 @@ def eval_adaptive_forward_opt(image, prior, learning_rate, n_iterations, attack_
 
 
 def adaptive_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deepfool', attack_keys=None, verbose=True):
+    path = '../logs/adversarial_examples/deepfool_oblivious_198/'
+    img_log_file = 'img_log_198_fine.npy'
+    classifier = 'alexnet'
+    image_shape = (1, 227, 227, 3)
+    images_file = 'subset_cutoff_200_images.txt'
+    advex_subdir = '200_dataset/deepfool_oblivious/'
+    prior_mode = 'full'
+    adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
+                        attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
+                        classifier=classifier,
+                        image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
+                        verbose=verbose)
+
+
+def adaptive_experiment_alex_top1(learning_rate=0.1, n_iterations=5, attack_name='deepfool',
+                                  attack_keys=None, verbose=True):
+
+    path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
+    img_log_file = 'img_log.npy'
+    classifier = 'alexnet'
+    image_shape = (1, 227, 227, 3)
+    images_file = 'alexnet_val_2k_top1_correct.txt'
+    advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_oblivious/'
+    prior_mode = 'full'
+    adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
+                        attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
+                        classifier=classifier,
+                        image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
+                        verbose=verbose)
+
+
+def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, prior_mode,
+                        path, img_log_file, classifier, image_shape, images_file, advex_subdir, verbose):
     """
     constructs adaptive attacks for the prior, records necessary perturbation for oblivious and adaptive attack
     separately records, which inputs are misclassified as result of the regularization alone.
@@ -512,16 +578,20 @@ def adaptive_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
     :param n_iterations:
     :param attack_name:
     :param attack_keys:
+    :param prior_mode:
+    :param path:
+    :param img_log_file:
+    :param classifier:
+    :param image_shape:
+    :param images_file:
+    :param advex_subdir:
     :param verbose:
     :return:
     """
-    path = '../logs/adversarial_examples/deepfool_oblivious_198/'
-    img_log = np.load(path + 'img_log_198_fine.npy')
-    classifier = 'alexnet'
-    image_shape = (1, 227, 227, 3)
-    advex_matches = advex_match_paths()
 
-    imgprior = get_default_prior(mode='full')
+    advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
+    img_log = np.load(path + img_log_file)
+    imgprior = get_default_prior(mode=prior_mode)
 
     with tf.Graph().as_default():
         input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
@@ -623,7 +693,8 @@ def mean_filter_model(make_switch=True):
 def mean_filter_benchmark(classifier='alexnet', verbose=False):
     log_list = []
 
-    advex_matches = advex_match_paths()
+    advex_matches = advex_match_paths(images_file='subset_cutoff_200_images.txt',
+                                      advex_subdir='200_dataset/deepfool_oblivious/')
     print('number of matches:', len(advex_matches))
     count = 0
 
@@ -697,7 +768,8 @@ def mean_adaptive_attacks_200(attack_name='deepfool', attack_keys=None, verbose=
     img_log = np.load(path + 'img_log_198_fine.npy')
     # adv_log = np.load(path + 'adv_log_198_fine.npy')
     classifier = 'alexnet'
-    advex_matches = advex_match_paths()
+    advex_matches = advex_match_paths(images_file='subset_cutoff_200_images.txt',
+                                      advex_subdir='200_dataset/deepfool_oblivious/')
 
     with tf.Graph().as_default():
 
@@ -761,38 +833,3 @@ def mean_adaptive_attacks_200(attack_name='deepfool', attack_keys=None, verbose=
                     # adaptive_save_path = adv_path.replace('oblivious', 'adaptive'
                     # np.save(adaptive_save_path, adversarial)
                 noise_norms.append((oblivious_norm, adaptive_norm))
-
-
-def dropout_prior_stability_experiment_200():
-    imgprior = get_default_prior(mode='dropout')
-
-    optimizer = 'adam'
-    # learning_rate = 1e-0
-    # n_iterations = 100
-    # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
-    learning_rate = 1e-1
-    n_iterations = 20
-    log_freq = 1
-
-    advex_matches = advex_match_paths()
-    print('number of matches:', len(advex_matches))
-    count = 0
-    img_list = []
-    adv_list = []
-    for img_path, adv_path in advex_matches[100:]:
-        count += 1
-        print('match no.', count)
-        # noinspection PyTypeChecker
-        log_list = eval_class_stability(img_path, [imgprior], learning_rate, n_iterations, log_freq,
-                                        optimizer=optimizer, classifier='alexnet', verbose=True)
-        img_list.append(log_list)
-        imgprior.reset()
-        # noinspection PyTypeChecker
-        log_list = eval_class_stability(adv_path, [imgprior], learning_rate, n_iterations, log_freq,
-                                        optimizer=optimizer, classifier='alexnet', verbose=True)
-        adv_list.append(log_list)
-        imgprior.reset()
-    print(img_list)
-    print(adv_list)
-    np.save('img_log_dropout_2.npy', np.asarray(img_list))
-    np.save('adv_log_dropout_2.npy', np.asarray(adv_list))

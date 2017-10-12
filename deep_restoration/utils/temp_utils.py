@@ -1,12 +1,10 @@
 import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 import skimage
 import tensorflow as tf
 from sklearn.decomposition import FastICA
 from tf_alexnet.alexnet import AlexNet
-
 from utils.filehandling import load_image
 from utils.whitening import pca_whiten_mats, zca_whiten_mats
 
