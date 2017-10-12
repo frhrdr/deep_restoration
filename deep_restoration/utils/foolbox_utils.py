@@ -12,6 +12,20 @@ import skimage.io
 import os
 
 
+def get_default_prior(mode):
+    assert mode in ('full', 'dropout')
+    if mode == 'full':
+        return FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
+                            n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
+                            whiten_mode='pca',
+                            name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
+    else:
+        return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
+                               n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
+                               whiten_mode='pca',
+                               activate_dropout=True, make_switch=False, dropout_prob=0.5)
+
+
 def get_attack(name, model, criterion):
     attacks = {'lbfgs': foolbox.attacks.LBFGSAttack,
                'gradient': foolbox.attacks.GradientAttack,
@@ -296,11 +310,12 @@ def eval_class_stability(image_files, priors, learning_rate, n_iterations, log_f
                     current_label_name = get_class_name(current_label)
                     print('image initially classified as {}. (label {})'.format(current_label_name, current_label))
 
+                log_idx = 0
                 for count in range(n_iterations + 1):
                     _, loss = sess.run([train_op, loss_tsr])
 
-                    if log_freq and count == log_freq[0]:
-                        log_freq = log_freq[1:]
+                    if log_idx < len(log_freq) and count == log_freq[log_idx]:
+                        log_idx += 1
                         pred = sess.run(logit_tsr)
                         new_label = np.argmax(pred)
                         image_log_list.append(new_label)
@@ -341,10 +356,7 @@ def advex_match_paths(images_file='subset_cutoff_200_images.txt', advex_subdir='
 
 def stability_experiment_fullprior(images_file='subset_cutoff_200_images.txt',
                                    advex_subdir='200_dataset/deepfool_oblivious/'):
-    imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
-                            n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
-                            whiten_mode='pca',
-                            name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
+    imgprior = get_default_prior(mode='full')
     optimizer = 'adam'
     # learning_rate = 1e-0
     # n_iterations = 100
@@ -509,10 +521,7 @@ def adaptive_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
     image_shape = (1, 227, 227, 3)
     advex_matches = advex_match_paths()
 
-    imgprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
-                            n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
-                            whiten_mode='pca',
-                            name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
+    imgprior = get_default_prior(mode='full')
 
     with tf.Graph().as_default():
         input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
@@ -524,7 +533,10 @@ def adaptive_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
             criterion = foolbox.criteria.Misclassification()
             attack = get_attack(attack_name, model, criterion)
             if attack_keys is None:
-                attack_keys = dict()
+                if attack == 'deepfool':
+                    attack_keys = {'steps': 300}
+                else:
+                    attack_keys = dict()
 
             init_op = tf.global_variables_initializer()
             sess.run(init_op)
@@ -561,21 +573,27 @@ def adaptive_experiment_200(learning_rate=0.1, n_iterations=5, attack_name='deep
                         print('image with prior misclassified as {}. (label {})'.format(noisy_label_name,
                                                                                         img_pred_label))
                         src_invariant.append(0)
-                adversarial = attack(image=img, label=img_pred_label, **attack_keys)
-                if adversarial is None:
-                    adaptive_norm = np.inf
-                    if verbose:
-                        print('no adversary found for source label {} using {}'.format(img_pred_label, attack_name))
-                else:
-                    fooled_pred = model.predictions(adversarial)
-                    fooled_label = np.argmax(fooled_pred)
-                    fooled_label_name = get_class_name(fooled_label)
-                    adaptive_norm = np.linalg.norm((img - adversarial).flatten(), ord=2)
-                    if verbose:
-                        print('adversarial image classified as {}. (label {}) '
-                              'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, adaptive_norm))
-                    adaptive_save_path = adv_path.replace('oblivious', 'adaptive')
-                    np.save(adaptive_save_path, adversarial)
+                try:
+                    adversarial = attack(image=img, label=img_pred_label, **attack_keys)
+                    if adversarial is None:
+                        adaptive_norm = np.inf
+                        if verbose:
+                            print('no adversary found for source label {} using {}'.format(img_pred_label, attack_name))
+
+                    else:
+                        fooled_pred = model.predictions(adversarial)
+                        fooled_label = np.argmax(fooled_pred)
+                        fooled_label_name = get_class_name(fooled_label)
+                        adaptive_norm = np.linalg.norm((img - adversarial).flatten(), ord=2)
+                        if verbose:
+                            print('adversarial image classified as {}. (label {}) '
+                                  'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, adaptive_norm))
+                        adaptive_save_path = adv_path.replace('oblivious', 'adaptive')
+                        np.save(adaptive_save_path, adversarial)
+                except AssertionError as err:
+                    adaptive_norm = -np.inf
+                    print('FoolBox failed Assertion: {}'.format(err))
+
                 noise_norms.append((oblivious_norm, adaptive_norm))
 
         np.save('noise_norms.npy', np.asarray(noise_norms))
@@ -746,10 +764,7 @@ def mean_adaptive_attacks_200(attack_name='deepfool', attack_keys=None, verbose=
 
 
 def dropout_prior_stability_experiment_200():
-    imgprior = FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
-                               n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
-                               whiten_mode='pca',
-                               activate_dropout=True, make_switch=False, dropout_prob=0.5)
+    imgprior = get_default_prior(mode='dropout')
 
     optimizer = 'adam'
     # learning_rate = 1e-0
