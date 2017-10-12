@@ -665,7 +665,9 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
                     print('FoolBox failed Assertion: {}'.format(err))
 
                 noise_norms.append((oblivious_norm, adaptive_norm))
-
+                if idx + 1 % 100 == 0:
+                    np.save('noise_norms.npy', np.asarray(noise_norms))
+                    np.save('src_invariants.npy', np.asarray(src_invariant))
         np.save('noise_norms.npy', np.asarray(noise_norms))
         np.save('src_invariants.npy', np.asarray(src_invariant))
 
