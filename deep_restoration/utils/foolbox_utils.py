@@ -356,7 +356,7 @@ def stability_experiment_fullprior(images_file='subset_cutoff_200_images.txt',
     advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
     print('number of matches:', len(advex_matches))
 
-    img_paths, adv_paths = list(zip(advex_matches))
+    img_paths, adv_paths = list(zip(*advex_matches))
 
     # noinspection PyTypeChecker
     img_list = eval_class_stability(img_paths, [imgprior], learning_rate, n_iterations, log_freq,
