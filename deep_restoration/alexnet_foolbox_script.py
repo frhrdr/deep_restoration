@@ -3,7 +3,7 @@ import tensorflow as tf
 from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_dataset, get_prior_scores_per_image, \
     compare_images_to_untargeted_adv_ex, eval_class_stability, stability_experiment_fullprior, stability_statistics,\
     adaptive_experiment_200, mean_filter_benchmark, mean_log_statistics, mean_adaptive_attacks_200,\
-    make_untargeted_dataset
+    make_untargeted_dataset, adaptive_experiment_alex_top1
 from modules.foe_full_prior import FoEFullPrior
 
 
@@ -50,7 +50,7 @@ from modules.foe_full_prior import FoEFullPrior
 #                                 optimizer='adam', classifier='alexnet', verbose=True)
 # print(log_list)
 # stability_experiment_fullprior()
-stability_statistics()
+# stability_statistics()
 # adaptive_experiment_200()
 # mean_filter_benchmark(verbose=False)
 # mean_log_statistics()
@@ -60,3 +60,4 @@ stability_statistics()
 #                         attack_name='deepfool', attack_keys=None)
 # stability_experiment_fullprior(images_file='alexnet_val_2k_top1_correct.txt',
 #                                advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/')
+adaptive_experiment_alex_top1()
