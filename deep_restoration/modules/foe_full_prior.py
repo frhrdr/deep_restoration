@@ -53,10 +53,10 @@ class FoEFullPrior(LearnedPriorLoss):
         student_names = ('FoEStudentFullPrior', 'FoEStudentFullPrior', 'student_full_prior')
         logistic_names = ('FoELogisticFullPrior', 'FoELogisticFullPrior', 'logistic_full_prior')
         dist_names = student_names if dist == 'student' else logistic_names
-        name = name if name is not None else dist_names[0]
-        load_name = load_name if load_name is not None else dist_names[1]
-        dir_name = dir_name if dir_name is not None else dist_names[2]
-        load_tensor_names = load_tensor_names if load_tensor_names is not None else tensor_names
+        name = name or dist_names[0]
+        load_name = load_name or dist_names[1]
+        dir_name = dir_name or dist_names[2]
+        load_tensor_names = load_tensor_names or tensor_names
 
         return name, load_name, dir_name, load_tensor_names
 
