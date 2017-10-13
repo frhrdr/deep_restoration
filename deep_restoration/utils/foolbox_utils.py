@@ -29,7 +29,7 @@ def get_default_prior(mode):
         return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                                whiten_mode='pca', dir_name='student_dropout_prior_nodrop_training',
-                               activate_dropout=False, make_switch=False, dropout_prob=0.5)
+                               activate_dropout=True, make_switch=False, dropout_prob=0.5)
 
 
 def get_attack(name, model, criterion):
@@ -642,9 +642,10 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
             src_invariant = []
 
             adv_path = advex_matches[0][1]
-            adv_dir = '/'.join(adv_path.split('/')[:-1])
-            if not os.path.exists(adv_dir):
-                os.makedirs(adv_dir)
+            adaptive_save_path = adv_path.replace('oblivious', 'adaptive_' + prior_mode)
+            adaptive_save_dir = '/'.join(adaptive_save_path.split('/')[:-1])
+            if not os.path.exists(adaptive_save_dir):
+                os.makedirs(adaptive_save_dir)
 
             for idx, match in enumerate(advex_matches):
                 img_path, adv_path = match
