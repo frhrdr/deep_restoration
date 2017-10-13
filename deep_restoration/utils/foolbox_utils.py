@@ -29,7 +29,7 @@ def get_default_prior(mode):
         return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                                whiten_mode='pca', dir_name='student_dropout_prior_nodrop_training',
-                               activate_dropout=True, make_switch=False, dropout_prob=0.5)
+                               activate_dropout=False, make_switch=False, dropout_prob=0.5)
 
 
 def get_attack(name, model, criterion):
@@ -424,7 +424,7 @@ def stability_statistics():
     # path = '../logs/adversarial_examples/deepfool_oblivious_dropout_198/'
     # img_log = np.load(path + 'img_log_dropout_198.npy')
     # adv_log = np.load(path + 'adv_log_dropout_198.npy')
-    path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
+    path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train/'
     img_log = np.load(path + 'img_log.npy')
     adv_log = np.load(path + 'adv_log.npy')
 
@@ -578,6 +578,23 @@ def adaptive_experiment_alex_top1(learning_rate=0.1, n_iterations=5, attack_name
                         verbose=verbose)
 
 
+def adaptive_experiment_alex_top1_dropout_prior_nodrop_train(learning_rate=0.1, n_iterations=5, attack_name='deepfool',
+                                                             attack_keys=None, verbose=True):
+
+    path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train/'
+    img_log_file = 'img_log.npy'
+    classifier = 'alexnet'
+    image_shape = (1, 227, 227, 3)
+    images_file = 'alexnet_val_2k_top1_correct.txt'
+    advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_oblivious/'
+    prior_mode = 'dropout_nodrop_train'
+    adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
+                        attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
+                        classifier=classifier,
+                        image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
+                        verbose=verbose)
+
+
 def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, prior_mode,
                         path, img_log_file, classifier, image_shape, images_file, advex_subdir, verbose):
     """
@@ -667,7 +684,7 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
                         if verbose:
                             print('adversarial image classified as {}. (label {}) '
                                   'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, adaptive_norm))
-                        adaptive_save_path = adv_path.replace('oblivious', 'adaptive')
+                        adaptive_save_path = adv_path.replace('oblivious', 'adaptive_' + prior_mode)
                         np.save(adaptive_save_path, adversarial)
                 except AssertionError as err:
                     adaptive_norm = -np.inf
