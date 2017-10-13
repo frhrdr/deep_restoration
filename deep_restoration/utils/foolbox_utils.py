@@ -640,6 +640,12 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
 
             noise_norms = []
             src_invariant = []
+
+            adv_path = advex_matches[0][1]
+            adv_dir = '/'.join(adv_path.split('/')[:-1])
+            if not os.path.exists(adv_dir):
+                os.makedirs(adv_dir)
+
             for idx, match in enumerate(advex_matches):
                 img_path, adv_path = match
                 src_label = img_log[idx][0]
@@ -685,6 +691,7 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
                             print('adversarial image classified as {}. (label {}) '
                                   'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, adaptive_norm))
                         adaptive_save_path = adv_path.replace('oblivious', 'adaptive_' + prior_mode)
+
                         np.save(adaptive_save_path, adversarial)
                 except AssertionError as err:
                     adaptive_norm = -np.inf

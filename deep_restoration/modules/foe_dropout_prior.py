@@ -75,11 +75,15 @@ class FoEDropoutPrior(FoEFullPrior):
         loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, ica_w=ica_w_drop, ica_a=ica_a)
         return loss, term_1, term_2, x_pl, ica_a, ica_w, extra_op
 
-    def add_dropout(self, weights):
+    def add_dropout(self, weights, debug=True):
         weight_shape = [k.value for k in weights.get_shape()]
         assert len(weight_shape) == 2 and weight_shape[1] == self.n_components
         seed = 42
         dropped_out_weights = tf.nn.dropout(weights, self.dropout_prob, noise_shape=[1, self.n_components], seed=seed)
+
+        if debug:
+            dropout_vis = tf.greater(tf.abs(dropped_out_weights[0, :]), tf.constant(0.0))
+            dropped_out_weights = tf.Print(dropped_out_weights, dropout_vis, summarize=20)
 
         if self.make_switch:
             self.activate_dropout = tf.placeholder(dtype=tf.bool)
