@@ -83,7 +83,7 @@ class FoEDropoutPrior(FoEFullPrior):
 
         if debug:
             dropout_vis = tf.greater(tf.abs(dropped_out_weights[0, :]), tf.constant(0.0))
-            dropped_out_weights = tf.Print(dropped_out_weights, dropout_vis, summarize=20)
+            dropped_out_weights = tf.Print(dropped_out_weights, [dropout_vis], summarize=20)
 
         if self.make_switch:
             self.activate_dropout = tf.placeholder(dtype=tf.bool)
