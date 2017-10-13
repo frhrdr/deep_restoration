@@ -399,12 +399,12 @@ def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learnin
     img_paths, adv_paths = list(zip(*advex_matches))
 
     # noinspection PyTypeChecker
-    img_list = eval_class_stability(img_paths, [imgprior], learning_rate, n_iterations, log_freq,
-                                    optimizer=optimizer, classifier='alexnet', verbose=True)
-    print(img_list)
-    np.save('img_log.npy', np.asarray(img_list))
-
-    imgprior.reset()
+    # img_list = eval_class_stability(img_paths, [imgprior], learning_rate, n_iterations, log_freq,
+    #                                 optimizer=optimizer, classifier='alexnet', verbose=True)
+    # print(img_list)
+    # np.save('img_log.npy', np.asarray(img_list))
+    #
+    # imgprior.reset()
 
     # noinspection PyTypeChecker
     adv_list = eval_class_stability(adv_paths, [imgprior], learning_rate, n_iterations, log_freq,
