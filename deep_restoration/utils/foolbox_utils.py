@@ -588,15 +588,17 @@ def adaptive_experiment_alex_top1_dropout_prior_nodrop_train(learning_rate=0.1, 
     images_file = 'alexnet_val_2k_top1_correct.txt'
     advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_oblivious/'
     prior_mode = 'dropout_nodrop_train'
+    deactivate_dropout = True
     adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
                         attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
                         classifier=classifier,
                         image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
-                        verbose=verbose)
+                        verbose=verbose, deactivate_dropout=deactivate_dropout)
 
 
 def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, prior_mode,
-                        path, img_log_file, classifier, image_shape, images_file, advex_subdir, verbose):
+                        path, img_log_file, classifier, image_shape, images_file, advex_subdir, verbose,
+                        deactivate_dropout=False):
     """
     constructs adaptive attacks for the prior, records necessary perturbation for oblivious and adaptive attack
     separately records, which inputs are misclassified as result of the regularization alone.
@@ -612,12 +614,15 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
     :param images_file:
     :param advex_subdir:
     :param verbose:
+    :param deactivate_dropout:
     :return:
     """
 
     advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
     img_log = np.load(path + img_log_file)
     imgprior = get_default_prior(mode=prior_mode)
+    if deactivate_dropout:
+        imgprior.activate_dropout = False
 
     with tf.Graph().as_default():
         input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)

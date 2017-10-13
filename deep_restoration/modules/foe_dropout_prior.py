@@ -75,7 +75,7 @@ class FoEDropoutPrior(FoEFullPrior):
         loss, term_1, term_2 = self.score_matching_loss(x_mat=x_pl, ica_w=ica_w_drop, ica_a=ica_a)
         return loss, term_1, term_2, x_pl, ica_a, ica_w, extra_op
 
-    def add_dropout(self, weights, debug=True):
+    def add_dropout(self, weights, debug=False):
         weight_shape = [k.value for k in weights.get_shape()]
         assert len(weight_shape) == 2 and weight_shape[1] == self.n_components
         seed = 42
