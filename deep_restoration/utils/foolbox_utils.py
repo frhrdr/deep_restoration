@@ -14,16 +14,21 @@ import os
 
 
 def get_default_prior(mode):
-    assert mode in ('full', 'dropout')
+    assert mode in ('full', 'dropout', 'dropout_nodrop_train')
     if mode == 'full':
         return FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
                             n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                             whiten_mode='pca',
                             name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
-    else:
+    elif mode == 'dropout':
         return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                                whiten_mode='pca',
+                               activate_dropout=True, make_switch=False, dropout_prob=0.5)
+    else:
+        return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
+                               n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
+                               whiten_mode='pca', dir_name='student_dropout_prior_nodrop_training',
                                activate_dropout=True, make_switch=False, dropout_prob=0.5)
 
 
@@ -371,8 +376,12 @@ def stability_experiment_fullprior(images_file='alexnet_val_2k_top1_correct.txt'
 
 
 def stability_experiment_dropoutprior(images_file='alexnet_val_2k_top1_correct.txt',
-                                      advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/'):
-    imgprior = get_default_prior(mode='dropout')
+                                      advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/',
+                                      nodrop_train=False):
+    if nodrop_train:
+        imgprior = get_default_prior(mode='dropout_nodrop_train')
+    else:
+        imgprior = get_default_prior(mode='dropout')
     optimizer = 'adam'
     learning_rate = 1e-1
     n_iterations = 20
@@ -835,3 +844,32 @@ def mean_adaptive_attacks_200(attack_name='deepfool', attack_keys=None, verbose=
                     # adaptive_save_path = adv_path.replace('oblivious', 'adaptive'
                     # np.save(adaptive_save_path, adversarial)
                 noise_norms.append((oblivious_norm, adaptive_norm))
+
+
+def read_adaptive_log(path):
+    noise_norms = np.load(path + 'noise_norms.npy')
+    src_invariants = np.load(path + 'src_invariants.npy')
+
+    print(noise_norms.shape)
+    print(src_invariants.shape)
+
+    print(np.sum(src_invariants))
+    oblivious_norms = noise_norms[:, 0]
+    adaptive_norms = noise_norms[:, 1]
+
+    print('attack failed within allowed steps', np.sum(adaptive_norms == np.inf))
+    print('error during attack', np.sum(adaptive_norms == -np.inf))
+    success_ids = (adaptive_norms != np.inf) * (adaptive_norms != -np.inf)
+    print('# successful attacks', np.sum(success_ids))
+
+    oblivious_norms = oblivious_norms[success_ids]
+    adaptive_norms = adaptive_norms[success_ids]
+    print(np.max(adaptive_norms), np.min(adaptive_norms))
+    diff = adaptive_norms - oblivious_norms
+    frac = adaptive_norms / oblivious_norms
+    print(np.mean(diff), np.median(diff))
+    print(np.mean(frac), np.median(frac))
+    print(np.sum(diff > 0))
+    print(np.sum(diff < 0))
+
+
