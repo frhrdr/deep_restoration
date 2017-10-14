@@ -4,7 +4,7 @@ from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_da
     compare_images_to_untargeted_adv_ex, eval_class_stability, stability_experiment_fullprior, stability_statistics,\
     adaptive_experiment_200, mean_filter_benchmark, mean_log_statistics, mean_adaptive_attacks_200,\
     make_untargeted_dataset, adaptive_experiment_alex_top1, stability_experiment_dropoutprior,\
-    adaptive_experiment_alex_top1_dropout_prior_nodrop_train
+    adaptive_experiment_alex_top1_dropout_prior_nodrop_train, read_adaptive_log
 from modules.foe_full_prior import FoEFullPrior
 
 
@@ -63,4 +63,5 @@ from modules.foe_full_prior import FoEFullPrior
 #                                advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/')
 # adaptive_experiment_alex_top1()
 # read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior/')
-adaptive_experiment_alex_top1_dropout_prior_nodrop_train()
+# adaptive_experiment_alex_top1_dropout_prior_nodrop_train()
+read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/')

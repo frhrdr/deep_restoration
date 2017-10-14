@@ -391,6 +391,18 @@ def stability_experiment_dropoutprior(images_file='alexnet_val_2k_top1_correct.t
                          optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq)
 
 
+def stability_experiment_dodrop_adaptive(images_file='alexnet_val_2k_top1_correct.txt',
+                                         advex_subdir='alexnet_val_2k_top1_correct/deepfool_adaptive_dropout_nodrop_train/'):
+    imgprior = get_default_prior(mode='dropout_nodrop_train')
+    optimizer = 'adam'
+    learning_rate = 1e-1
+    n_iterations = 20
+    log_freq = 1
+    # noinspection PyTypeChecker
+    stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
+                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq)
+
+
 def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learning_rate, n_iterations, log_freq):
 
     advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
@@ -399,12 +411,12 @@ def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learnin
     img_paths, adv_paths = list(zip(*advex_matches))
 
     # noinspection PyTypeChecker
-    # img_list = eval_class_stability(img_paths, [imgprior], learning_rate, n_iterations, log_freq,
-    #                                 optimizer=optimizer, classifier='alexnet', verbose=True)
-    # print(img_list)
-    # np.save('img_log.npy', np.asarray(img_list))
-    #
-    # imgprior.reset()
+    img_list = eval_class_stability(img_paths, [imgprior], learning_rate, n_iterations, log_freq,
+                                    optimizer=optimizer, classifier='alexnet', verbose=True)
+    print(img_list)
+    np.save('img_log.npy', np.asarray(img_list))
+
+    imgprior.reset()
 
     # noinspection PyTypeChecker
     adv_list = eval_class_stability(adv_paths, [imgprior], learning_rate, n_iterations, log_freq,
@@ -880,26 +892,23 @@ def read_adaptive_log(path):
     noise_norms = np.load(path + 'noise_norms.npy')
     src_invariants = np.load(path + 'src_invariants.npy')
 
-    print(noise_norms.shape)
-    print(src_invariants.shape)
-
-    print(np.sum(src_invariants))
+    print('# correct classifiations with prior', np.sum(src_invariants))
     oblivious_norms = noise_norms[:, 0]
     adaptive_norms = noise_norms[:, 1]
 
-    print('attack failed within allowed steps', np.sum(adaptive_norms == np.inf))
-    print('error during attack', np.sum(adaptive_norms == -np.inf))
+    print('# attacks failed within allowed steps', np.sum(adaptive_norms == np.inf))
+    print('# errors during attack', np.sum(adaptive_norms == -np.inf))
     success_ids = (adaptive_norms != np.inf) * (adaptive_norms != -np.inf)
     print('# successful attacks', np.sum(success_ids))
 
     oblivious_norms = oblivious_norms[success_ids]
     adaptive_norms = adaptive_norms[success_ids]
-    print(np.max(adaptive_norms), np.min(adaptive_norms))
+    print('maxmin of adaptive noise', np.max(adaptive_norms), np.min(adaptive_norms))
     diff = adaptive_norms - oblivious_norms
     frac = adaptive_norms / oblivious_norms
-    print(np.mean(diff), np.median(diff))
-    print(np.mean(frac), np.median(frac))
-    print(np.sum(diff > 0))
-    print(np.sum(diff < 0))
+    print('meanmedian diff', np.mean(diff), np.median(diff))
+    print('meanmedian frac', np.mean(frac), np.median(frac))
+    print('# adative noise > oblibious noise', np.sum(diff > 0))
+    print('# adative noise < oblibious noise', np.sum(diff < 0))
 
 
