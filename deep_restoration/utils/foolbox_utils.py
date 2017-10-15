@@ -436,7 +436,7 @@ def stability_statistics():
     # path = '../logs/adversarial_examples/deepfool_oblivious_dropout_198/'
     # img_log = np.load(path + 'img_log_dropout_198.npy')
     # adv_log = np.load(path + 'adv_log_dropout_198.npy')
-    path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train/'
+    path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/'
     img_log = np.load(path + 'img_log.npy')
     adv_log = np.load(path + 'adv_log.npy')
 
@@ -911,4 +911,8 @@ def read_adaptive_log(path):
     print('# adative noise > oblibious noise', np.sum(diff > 0))
     print('# adative noise < oblibious noise', np.sum(diff < 0))
 
+
+def verify_advex_claims(advex_dir='../data/adversarial_examples/foolbox_images/alexnet_val_2k_top1_correct/deepfool_adaptive_dropout_nodrop_train/'):
+    advex_files = sorted(os.listdir(advex_dir))
+    print(advex_files)
 
