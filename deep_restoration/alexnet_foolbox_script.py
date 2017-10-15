@@ -68,4 +68,5 @@ from modules.foe_full_prior import FoEFullPrior
 # read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/')
 # stability_experiment_dodrop_adaptive()
 # verify_advex_claims()
-stability_experiment_nodrop_adaptive()
+# stability_experiment_nodrop_adaptive()
+stability_experiment_dropoutprior()

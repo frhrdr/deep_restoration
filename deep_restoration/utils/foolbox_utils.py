@@ -297,12 +297,13 @@ def eval_class_stability(image_files, priors, learning_rate, n_iterations, log_f
         train_op = optimizer.minimize(loss_tsr)
 
         init_op = tf.global_variables_initializer()
-        for img_no, file in enumerate(image_files):
-            print('image no.', img_no)
-            image_mat = load_image(file, resize=False)
-            image_mat = np.expand_dims(image_mat.astype(dtype=np.float32), axis=0)
-            image_log_list = []
-            with tf.Session() as sess:
+        with tf.Session() as sess:
+            for img_no, file in enumerate(image_files):
+                print('image no.', img_no)
+                image_mat = load_image(file, resize=False)
+                image_mat = np.expand_dims(image_mat.astype(dtype=np.float32), axis=0)
+                image_log_list = []
+
                 sess.run(init_op)
                 for prior in priors:
                     if isinstance(prior, LearnedPriorLoss):
@@ -331,7 +332,7 @@ def eval_class_stability(image_files, priors, learning_rate, n_iterations, log_f
                                   'now classified as {} (label {})').format(count, new_label_name, new_label))
                             print('Loss:', loss)
                         current_label = new_label
-            log_list.append(image_log_list)
+                log_list.append(image_log_list)
     return log_list
 
 
@@ -368,7 +369,7 @@ def stability_experiment_fullprior(images_file='alexnet_val_2k_top1_correct.txt'
     # n_iterations = 100
     # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
     learning_rate = 1e-1
-    n_iterations = 20
+    n_iterations = 30
     log_freq = 1
     # noinspection PyTypeChecker
     stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
@@ -384,8 +385,9 @@ def stability_experiment_dropoutprior(images_file='alexnet_val_2k_top1_correct.t
         imgprior = get_default_prior(mode='dropout')
     optimizer = 'adam'
     learning_rate = 1e-1
-    n_iterations = 20
+    n_iterations = 30
     log_freq = 1
+    imgprior.activate_dropout = False
     # noinspection PyTypeChecker
     stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
                          optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq)
@@ -397,7 +399,7 @@ def stability_experiment_dodrop_adaptive(images_file='alexnet_val_2k_top1_correc
     imgprior = get_default_prior(mode='dropout_nodrop_train')
     optimizer = 'adam'
     learning_rate = 1e-1
-    n_iterations = 20
+    n_iterations = 30
     log_freq = 1
     # noinspection PyTypeChecker
     stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
@@ -410,7 +412,7 @@ def stability_experiment_nodrop_adaptive(images_file='alexnet_val_2k_top1_correc
     imgprior = get_default_prior(mode='dropout_nodrop_train')
     optimizer = 'adam'
     learning_rate = 1e-1
-    n_iterations = 20
+    n_iterations = 30
     log_freq = 1
     imgprior.activate_dropout = False
     # noinspection PyTypeChecker
@@ -451,7 +453,7 @@ def stability_statistics():
     # path = '../logs/adversarial_examples/deepfool_oblivious_dropout_198/'
     # img_log = np.load(path + 'img_log_dropout_198.npy')
     # adv_log = np.load(path + 'adv_log_dropout_198.npy')
-    path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/'
+    path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/nodrop_test/'
     img_log = np.load(path + 'img_log.npy')
     adv_log = np.load(path + 'adv_log.npy')
 
@@ -509,7 +511,7 @@ def plot_stability_tradeoff(count_preserved, count_restored, log_freq):
     # log_freq = [0] + log_freq
     plt.figure()
     plt.plot(log_freq, count_preserved, 'r-', label='image')
-    plt.plot(log_freq, count_restored, 'b-', label='advex')
+    plt.plot(log_freq, count_restored, 'b-', label='adversarial')
     plt.xlabel('regularization steps')
     plt.ylabel('classified correctly')
     plt.xticks(log_freq)
@@ -925,6 +927,10 @@ def read_adaptive_log(path):
     print('meanmedian frac', np.mean(frac), np.median(frac))
     print('# adative noise > oblibious noise', np.sum(diff > 0))
     print('# adative noise < oblibious noise', np.sum(diff < 0))
+
+
+def noise_norm_histograms(noise_norms):
+    pass
 
 
 def verify_advex_claims(advex_dir='../data/adversarial_examples/foolbox_images/alexnet_val_2k_top1_correct/'
