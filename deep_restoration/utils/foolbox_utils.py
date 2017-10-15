@@ -392,7 +392,8 @@ def stability_experiment_dropoutprior(images_file='alexnet_val_2k_top1_correct.t
 
 
 def stability_experiment_dodrop_adaptive(images_file='alexnet_val_2k_top1_correct.txt',
-                                         advex_subdir='alexnet_val_2k_top1_correct/deepfool_adaptive_dropout_nodrop_train/'):
+                                         advex_subdir='alexnet_val_2k_top1_correct/'
+                                                      'deepfool_adaptive_dropout_nodrop_train/'):
     imgprior = get_default_prior(mode='dropout_nodrop_train')
     optimizer = 'adam'
     learning_rate = 1e-1
@@ -912,7 +913,37 @@ def read_adaptive_log(path):
     print('# adative noise < oblibious noise', np.sum(diff < 0))
 
 
-def verify_advex_claims(advex_dir='../data/adversarial_examples/foolbox_images/alexnet_val_2k_top1_correct/deepfool_adaptive_dropout_nodrop_train/'):
+def verify_advex_claims(advex_dir='../data/adversarial_examples/foolbox_images/alexnet_val_2k_top1_correct/'
+                                  'deepfool_adaptive_dropout_nodrop_train/'):
     advex_files = sorted(os.listdir(advex_dir))
-    print(advex_files)
+    classifier = 'alexnet'
+    image_shape = (1, 227, 227, 3)
+    n_fooled_correctly = 0
+    n_fooled_differently = 0
+    n_not_fooled = 0
 
+    with tf.Graph().as_default():
+        image_pl = tf.placeholder(dtype=tf.float32, shape=image_shape)
+        _, logit_tsr = get_classifier_io(classifier, input_init=image_pl, input_type='placeholder')
+        with tf.Session() as sess:
+            for file_name in advex_files:
+                path = advex_dir + file_name
+                print(file_name)
+                image_mat = load_image(path, resize=False)
+                image_mat = np.expand_dims(image_mat.astype(dtype=np.float32), axis=0)
+
+                pred = sess.run(logit_tsr, feed_dict={image_pl: image_mat})
+                current_label = str(np.argmax(pred))
+                print('label:', current_label)
+
+                if 't' + current_label in file_name:
+                    n_not_fooled += 1
+                    print('not fooled')
+                elif 'f' + current_label in file_name:
+                    n_fooled_correctly += 1
+                    print('fooled correctly')
+                else:
+                    n_fooled_differently += 1
+                    print('fooled differently')
+        print('not fooled: {}  fooled correctly: {}  fooled differently: {}'.format(n_not_fooled, n_fooled_correctly,
+                                                                                    n_fooled_differently))
