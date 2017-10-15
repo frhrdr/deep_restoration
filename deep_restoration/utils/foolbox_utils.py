@@ -388,9 +388,11 @@ def stability_experiment_dropoutprior(images_file='alexnet_val_2k_top1_correct.t
     n_iterations = 30
     log_freq = 1
     imgprior.activate_dropout = False
+    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_dodrop_train/'
     # noinspection PyTypeChecker
     stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
-                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq)
+                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,
+                         log_path=log_path)
 
 
 def stability_experiment_dodrop_adaptive(images_file='alexnet_val_2k_top1_correct.txt',
@@ -420,7 +422,11 @@ def stability_experiment_nodrop_adaptive(images_file='alexnet_val_2k_top1_correc
                          optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq)
 
 
-def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learning_rate, n_iterations, log_freq):
+def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learning_rate,
+                         n_iterations, log_freq, log_path):
+
+    if not os.path.exists(log_path):
+        os.mkdir(log_path)
 
     advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
     print('number of matches:', len(advex_matches))
@@ -431,7 +437,7 @@ def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learnin
     img_list = eval_class_stability(img_paths, [imgprior], learning_rate, n_iterations, log_freq,
                                     optimizer=optimizer, classifier='alexnet', verbose=True)
     print(img_list)
-    np.save('img_log.npy', np.asarray(img_list))
+    np.save(log_path + 'img_log.npy', np.asarray(img_list))
 
     imgprior.reset()
 
@@ -439,12 +445,12 @@ def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learnin
     adv_list = eval_class_stability(adv_paths, [imgprior], learning_rate, n_iterations, log_freq,
                                     optimizer=optimizer, classifier='alexnet', verbose=True)
     print(adv_list)
-    np.save('adv_log.npy', np.asarray(adv_list))
+    np.save(log_path + 'adv_log.npy', np.asarray(adv_list))
 
 
 def stability_statistics():
     # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
-    log_freq = range(20)
+    log_freq = range(30)
     print('log points after n iterations', log_freq)
 
     # path = '../logs/adversarial_examples/deepfool_oblivious_198/'
@@ -453,7 +459,9 @@ def stability_statistics():
     # path = '../logs/adversarial_examples/deepfool_oblivious_dropout_198/'
     # img_log = np.load(path + 'img_log_dropout_198.npy')
     # adv_log = np.load(path + 'adv_log_dropout_198.npy')
-    path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/nodrop_test/'
+    # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
+    # path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/nodrop_test/'
+    path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train/nodrop_test/'
     img_log = np.load(path + 'img_log.npy')
     adv_log = np.load(path + 'adv_log.npy')
 
@@ -617,6 +625,24 @@ def adaptive_experiment_alex_top1_dropout_prior_nodrop_train(learning_rate=0.1, 
     images_file = 'alexnet_val_2k_top1_correct.txt'
     advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_oblivious/'
     prior_mode = 'dropout_nodrop_train'
+    deactivate_dropout = True
+    adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
+                        attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
+                        classifier=classifier,
+                        image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
+                        verbose=verbose, deactivate_dropout=deactivate_dropout)
+
+
+def adaptive_experiment_alex_top1_dropout_prior_dodrop_train(learning_rate=0.1, n_iterations=5, attack_name='deepfool',
+                                                             attack_keys=None, verbose=True):
+
+    path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_dodrop_train/'
+    img_log_file = 'img_log.npy'
+    classifier = 'alexnet'
+    image_shape = (1, 227, 227, 3)
+    images_file = 'alexnet_val_2k_top1_correct.txt'
+    advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_oblivious/'
+    prior_mode = 'dropout'
     deactivate_dropout = True
     adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
                         attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,

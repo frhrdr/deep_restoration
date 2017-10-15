@@ -5,7 +5,7 @@ from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_da
     adaptive_experiment_200, mean_filter_benchmark, mean_log_statistics, mean_adaptive_attacks_200,\
     make_untargeted_dataset, adaptive_experiment_alex_top1, stability_experiment_dropoutprior,\
     adaptive_experiment_alex_top1_dropout_prior_nodrop_train, read_adaptive_log, stability_experiment_dodrop_adaptive, \
-    verify_advex_claims, stability_experiment_nodrop_adaptive
+    verify_advex_claims, stability_experiment_nodrop_adaptive, adaptive_experiment_alex_top1_dropout_prior_dodrop_train
 from modules.foe_full_prior import FoEFullPrior
 
 
@@ -52,7 +52,9 @@ from modules.foe_full_prior import FoEFullPrior
 #                                 optimizer='adam', classifier='alexnet', verbose=True)
 # print(log_list)
 # stability_experiment_fullprior()
+
 # stability_statistics()
+
 # adaptive_experiment_200()
 # mean_filter_benchmark(verbose=False)
 # mean_log_statistics()
@@ -70,3 +72,4 @@ from modules.foe_full_prior import FoEFullPrior
 # verify_advex_claims()
 # stability_experiment_nodrop_adaptive()
 stability_experiment_dropoutprior()
+adaptive_experiment_alex_top1_dropout_prior_dodrop_train()
