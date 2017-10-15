@@ -917,14 +917,13 @@ def verify_advex_claims(advex_dir='../data/adversarial_examples/foolbox_images/a
                                   'deepfool_adaptive_dropout_nodrop_train/'):
     advex_files = sorted(os.listdir(advex_dir))
     classifier = 'alexnet'
-    image_shape = (1, 227, 227, 3)
     n_fooled_correctly = 0
     n_fooled_differently = 0
     n_not_fooled = 0
 
     with tf.Graph().as_default():
-        image_pl = tf.placeholder(dtype=tf.float32, shape=image_shape)
-        _, logit_tsr = get_classifier_io(classifier, input_init=image_pl, input_type='placeholder')
+
+        image_pl, logit_tsr = get_classifier_io(classifier, input_type='placeholder')
         with tf.Session() as sess:
             for file_name in advex_files:
                 path = advex_dir + file_name
