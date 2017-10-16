@@ -53,7 +53,7 @@ from modules.foe_full_prior import FoEFullPrior
 # print(log_list)
 # stability_experiment_fullprior()
 
-stability_statistics()
+# stability_statistics()
 
 # adaptive_experiment_200()
 # mean_filter_benchmark(verbose=False)
@@ -66,7 +66,7 @@ stability_statistics()
 #                                advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/')
 # adaptive_experiment_alex_top1()
 # read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior/')
-# adaptive_experiment_alex_top1_dropout_prior_nodrop_train()
+adaptive_experiment_alex_top1_dropout_prior_nodrop_train()
 # read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/')
 # stability_experiment_dodrop_adaptive()
 # verify_advex_claims()
