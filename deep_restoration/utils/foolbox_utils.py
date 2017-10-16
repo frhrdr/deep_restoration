@@ -336,6 +336,71 @@ def eval_class_stability(image_files, priors, learning_rate, n_iterations, log_f
     return log_list
 
 
+def eval_class_stability_rolled_out(image_files, priors, learning_rate, n_iterations, log_freq,
+                                    optimizer='adam', classifier='alexnet', verbose=False):
+    if not isinstance(log_freq, list):
+        log_freq = list(range(log_freq, n_iterations, log_freq))
+    log_list = []
+
+    if classifier == 'alexnet':
+        image_shape = (1, 227, 227, 3)
+    else:
+        image_shape = (1, 224, 224, 3)
+
+    with tf.Graph().as_default():
+        image_pl = tf.placeholder(dtype=tf.float32, shape=image_shape)
+        image_var = tf.get_variable('input_image', shape=image_shape, dtype=tf.float32)
+        _, logit_tsr = get_classifier_io(classifier, input_init=image_var, input_type='tensor')
+        feed_op = tf.assign(image_var, image_pl)
+
+        loss_tsr = 0
+        for prior in priors:
+            prior.build()
+            loss_tsr += prior.get_loss()
+
+        optimizer = get_optimizer(optimizer, learning_rate)
+        train_op = optimizer.minimize(loss_tsr)
+
+        init_op = tf.global_variables_initializer()
+        with tf.Session() as sess:
+            for img_no, file in enumerate(image_files):
+                print('image no.', img_no)
+                image_mat = load_image(file, resize=False)
+                image_mat = np.expand_dims(image_mat.astype(dtype=np.float32), axis=0)
+                image_log_list = []
+
+                sess.run(init_op)
+                for prior in priors:
+                    if isinstance(prior, LearnedPriorLoss):
+                        prior.load_weights(sess)
+                sess.run(feed_op, feed_dict={image_pl: image_mat})
+
+                pred = sess.run(logit_tsr)
+                current_label = np.argmax(pred)
+                image_log_list.append(current_label)
+                if verbose:
+                    current_label_name = get_class_name(current_label)
+                    print('image initially classified as {}. (label {})'.format(current_label_name, current_label))
+
+                log_idx = 0
+                for count in range(n_iterations + 1):
+                    _, loss = sess.run([train_op, loss_tsr])
+
+                    if log_idx < len(log_freq) and count == log_freq[log_idx]:
+                        log_idx += 1
+                        pred = sess.run(logit_tsr)
+                        new_label = np.argmax(pred)
+                        image_log_list.append(new_label)
+                        if verbose and new_label != current_label:
+                            new_label_name = get_class_name(new_label)
+                            print(('label changed at iteration {}: ' +
+                                  'now classified as {} (label {})').format(count, new_label_name, new_label))
+                            print('Loss:', loss)
+                        current_label = new_label
+                log_list.append(image_log_list)
+    return log_list
+
+
 def advex_match_paths(images_file, advex_subdir):
     data_dir = '../data/imagenet2012-validationset/'
     image_subdir = 'images_resized_227/'
@@ -461,7 +526,7 @@ def stability_statistics():
     # adv_log = np.load(path + 'adv_log_dropout_198.npy')
     # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
     # path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/nodrop_test/'
-    path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train/nodrop_test/'
+    path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_dodrop_train/'
     img_log = np.load(path + 'img_log.npy')
     adv_log = np.load(path + 'adv_log.npy')
 

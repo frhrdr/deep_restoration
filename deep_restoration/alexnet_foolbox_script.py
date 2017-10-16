@@ -53,7 +53,7 @@ from modules.foe_full_prior import FoEFullPrior
 # print(log_list)
 # stability_experiment_fullprior()
 
-# stability_statistics()
+stability_statistics()
 
 # adaptive_experiment_200()
 # mean_filter_benchmark(verbose=False)
@@ -71,5 +71,5 @@ from modules.foe_full_prior import FoEFullPrior
 # stability_experiment_dodrop_adaptive()
 # verify_advex_claims()
 # stability_experiment_nodrop_adaptive()
-stability_experiment_dropoutprior()
-adaptive_experiment_alex_top1_dropout_prior_dodrop_train()
+# stability_experiment_dropoutprior()
+# adaptive_experiment_alex_top1_dropout_prior_dodrop_train()
