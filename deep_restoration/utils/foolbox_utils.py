@@ -468,9 +468,11 @@ def stability_experiment_dodrop_adaptive(images_file='alexnet_val_2k_top1_correc
     learning_rate = 1e-1
     n_iterations = 30
     log_freq = 1
+    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/dodrop_test/'
     # noinspection PyTypeChecker
     stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
-                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq)
+                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,
+                         log_path=log_path)
 
 
 def stability_experiment_nodrop_adaptive(images_file='alexnet_val_2k_top1_correct.txt',
@@ -482,9 +484,11 @@ def stability_experiment_nodrop_adaptive(images_file='alexnet_val_2k_top1_correc
     n_iterations = 30
     log_freq = 1
     imgprior.activate_dropout = False
+    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/nodrop_test/'
     # noinspection PyTypeChecker
     stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
-                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq)
+                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,
+                         log_path=log_path)
 
 
 def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learning_rate,
