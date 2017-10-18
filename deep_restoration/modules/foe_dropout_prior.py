@@ -33,7 +33,7 @@ class FoEDropoutPrior(FoEFullPrior):
 
         return name, load_name, dir_name, load_tensor_names
 
-    def build(self, scope_suffix='', featmap_tensor=None, masks=None):
+    def build(self, scope_suffix='', featmap_tensor=None):
 
         with tf.variable_scope(self.name):
 
@@ -45,8 +45,7 @@ class FoEDropoutPrior(FoEFullPrior):
 
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
 
-            if masks is None:
-                whitened_mixing = self.add_dropout(whitened_mixing)  # DROPOUT
+            whitened_mixing = self.add_dropout(whitened_mixing)  # DROPOUT
 
             featmap = featmap_tensor or self.get_tensors()
 
@@ -65,15 +64,6 @@ class FoEDropoutPrior(FoEFullPrior):
                 n_patches = normed_patches.get_shape()[0].value
                 normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
                 xw = tf.matmul(normed_patches, whitened_mixing)
-
-            if masks is not None:
-                # xw shape [n_cliques, n_components] -> [ensemble_size, n_cliques, n_components]
-                n_cliques = xw.get_shape()[0].value
-                xw = tf.reshape(xw, shape=(1, n_cliques, self.n_components))
-                ensemble_size = masks.get_shape()[0].value
-                masks = tf.reshape(masks, shape=(ensemble_size, 1, self.n_components))
-                xw = tf.transpose(tf.transpose(xw) @ tf.transpose(masks))
-                print('should be [ensemble_size, n_cliques, n_components]:', xw.get_shape())
 
             self.loss = self.mrf_loss(xw, ica_a)
             self.var_list.append(whitening_tensor)
@@ -146,9 +136,9 @@ class FoEDropoutPrior(FoEFullPrior):
             it_masks = masks[count, :, :]
 
             count += 1
-            self.build(featmap_tensor=featmap, masks=it_masks)
+            self.build(featmap_tensor=featmaps, masks=it_masks)
             losses = tf.split(self.loss, self.loss.get_shape()[0].value)
-            featmap_grads = [tf.gradients(ys=k, xs=featmap) for k in losses]
+            featmap_grads = [tf.gradients(ys=l, xs=f) for l, f in zip(losses, featmaps)]
             featmap_grads = tf.stack(featmap_grads, axis=0)
             featmap, m_acc, v_acc = apply_adam(featmaps, featmap_grads, m_acc, v_acc, count)
             return count, featmap, m_acc, v_acc
@@ -162,3 +152,42 @@ class FoEDropoutPrior(FoEFullPrior):
                                                loop_vars=[count_init, input_featmaps, m_init, v_init])
 
         return final_featmap
+
+    def build_masked(self, masks, featmap_tensors, scope_suffix=''):
+
+        with tf.variable_scope(self.name):
+
+            n_features_raw = self.ph * self.pw * self.n_channels
+            whitening_tensor = tf.get_variable('whiten_mat', shape=[self.n_features_white, n_features_raw],
+                                               dtype=tf.float32, trainable=False)
+
+            ica_a, ica_w, _, _ = self.make_normed_filters(trainable=False, squeeze_alpha=True)
+
+            whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
+
+            if self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf'):
+                normed_featmap = self.norm_feat_map_directly(featmap_tensors)  # shape [1, h, w, n_channels]
+
+                whitened_mixing = tf.reshape(whitened_mixing, shape=[self.n_channels, self.ph,
+                                                                     self.pw, self.n_components])
+                whitened_mixing = tf.transpose(whitened_mixing, perm=[1, 2, 0, 3])
+
+                xw = tf.nn.conv2d(normed_featmap, whitened_mixing, strides=[1, 1, 1, 1], padding='VALID')
+                xw = tf.reshape(xw, shape=[-1, self.n_components])
+
+            else:
+                normed_patches = self.shape_and_norm_featmap(featmap_tensors)
+                n_patches = normed_patches.get_shape()[0].value
+                normed_patches = tf.reshape(normed_patches, shape=[n_patches, n_features_raw])
+                xw = tf.matmul(normed_patches, whitened_mixing)
+
+            # xw shape [n_cliques, n_components] -> [ensemble_size, n_cliques, n_components]
+            n_cliques = xw.get_shape()[0].value
+            xw = tf.reshape(xw, shape=(1, n_cliques, self.n_components))
+            ensemble_size = masks.get_shape()[0].value
+            masks = tf.reshape(masks, shape=(ensemble_size, 1, self.n_components))
+            xw = tf.transpose(tf.transpose(xw) @ tf.transpose(masks))
+            print('should be [ensemble_size, n_cliques, n_components]:', xw.get_shape())
+
+            self.loss = self.mrf_loss(xw, ica_a)
+            self.var_list.append(whitening_tensor)
