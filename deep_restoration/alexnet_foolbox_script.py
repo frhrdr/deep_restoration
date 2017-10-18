@@ -81,7 +81,7 @@ from modules.foe_full_prior import FoEFullPrior
 # make_untargeted_dataset()
 # stability_experiment_dropoutprior_nodrop_train_100()
 # print('exp 1 DONE')
-adaptive_experiment_100_dropout_prior_nodrop_train()
-print('exp 2 DONE')
+# adaptive_experiment_100_dropout_prior_nodrop_train()
+# print('exp 2 DONE')
 stability_experiment_dodrop_adaptive_100()
-print('exp 3 DONE')
+
