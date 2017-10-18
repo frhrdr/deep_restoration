@@ -227,7 +227,8 @@ def make_untargeted_dataset(image_subset='subset_100_images.txt',
 
     with open(data_dir + image_subset) as f:
         image_paths = [k.rstrip() for k in f.readlines()]
-        image_paths = [data_dir + images_subdir + k[:-len('JPEG')] + 'bmp' for k in image_paths]
+        if '/' not in image_paths[0]:
+            image_paths = [data_dir + images_subdir + k[:-len('JPEG')] + 'bmp' for k in image_paths]
 
     save_dir = '../data/adversarial_examples/foolbox_images/100_dataset/{}_oblivious/'.format(attack_name)
 
