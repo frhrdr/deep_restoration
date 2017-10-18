@@ -6,7 +6,8 @@ from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_da
     make_untargeted_dataset, adaptive_experiment_alex_top1, stability_experiment_dropoutprior,\
     adaptive_experiment_alex_top1_dropout_prior_nodrop_train, read_adaptive_log, stability_experiment_dodrop_adaptive, \
     verify_advex_claims, stability_experiment_nodrop_adaptive, adaptive_experiment_alex_top1_dropout_prior_dodrop_train, \
-    stability_experiment_dropoutprior_100, stability_experiment_dodrop_adaptive_100
+    stability_experiment_dropoutprior_100, stability_experiment_dodrop_adaptive_100, \
+    adaptive_experiment_100_dropout_prior_nodrop_train
 from modules.foe_full_prior import FoEFullPrior
 
 
@@ -79,6 +80,10 @@ from modules.foe_full_prior import FoEFullPrior
 # stability_experiment_dropoutprior()
 # adaptive_experiment_alex_top1_dropout_prior_dodrop_train()
 
-make_untargeted_dataset()
-# stability_experiment_dropoutprior_100()
-# stability_experiment_dodrop_adaptive_100()
+# make_untargeted_dataset()
+stability_experiment_dropoutprior_100()
+print('exp 1 DONE')
+adaptive_experiment_100_dropout_prior_nodrop_train()
+print('exp 2 DONE')
+stability_experiment_dodrop_adaptive_100()
+print('exp 3 DONE')
