@@ -594,12 +594,12 @@ class FoEFullPrior(LearnedPriorLoss):
             m_new = beta1_tsr * m_acc + (1.0 - beta1_tsr) * gradients
             v_new = beta2_tsr * v_acc + (1.0 - beta2_tsr) * gradients ** 2
             # if explicit_notation:  # unoptimized form, with epsilon as given in the paper
-            m_hat = m_new / (1.0 - beta1_tsr ** iteration)
-            v_hat = v_new / (1.0 - beta2_tsr ** iteration)
-            variable -= learning_rate * m_hat / (tf.sqrt(v_hat) + eps)
+            # m_hat = m_new / (1.0 - beta1_tsr ** iteration)
+            # v_hat = v_new / (1.0 - beta2_tsr ** iteration)
+            # variable -= learning_rate * m_hat / (tf.sqrt(v_hat) + eps)
             # else:  # different epsilon (hat): this mimics the behaviour of the tf.AdamOptimizer
-            # learning_rate_t = learning_rate * tf.sqrt(1 - beta2_tsr ** iteration) / (1 - beta2_tsr ** iteration)
-            # variable -= learning_rate_t * m_new / (tf.sqrt(v_new) + eps)
+            learning_rate_t = learning_rate * tf.sqrt(1 - beta2_tsr ** iteration) / (1 - beta2_tsr ** iteration)
+            variable -= learning_rate_t * m_new / (tf.sqrt(v_new) + eps)
             return variable, m_new, v_new
 
         def cond(*args):
@@ -616,6 +616,7 @@ class FoEFullPrior(LearnedPriorLoss):
         m_init = tf.constant(np.zeros(featmap_shape), dtype=tf.float32)
         v_init = tf.constant(np.zeros(featmap_shape), dtype=tf.float32)
         count_init = tf.constant(0, dtype=tf.float32)
+
         _, final_featmap, _, _ = tf.while_loop(cond=cond, body=body,
                                                loop_vars=[count_init, input_featmap, m_init, v_init])
         if make_switch:

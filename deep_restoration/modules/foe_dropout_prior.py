@@ -47,7 +47,7 @@ class FoEDropoutPrior(FoEFullPrior):
 
             whitened_mixing = self.add_dropout(whitened_mixing)  # DROPOUT
 
-            featmap = featmap_tensor or self.get_tensors()
+            featmap = featmap_tensor if featmap_tensor is not None else self.get_tensors()
 
             if self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf'):
                 normed_featmap = self.norm_feat_map_directly(featmap)  # shape [1, h, w, n_channels]
