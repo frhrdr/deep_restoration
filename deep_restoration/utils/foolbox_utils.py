@@ -220,11 +220,12 @@ def make_untargeted_dataset(image_subset='subset_100_images.txt',
     if attack_name == 'deepfool':
         attack_keys = {'steps': 300}
 
-    data_dir = '../data/imagenet2012-validationset/images_resized_227/'
+    data_dir = '../data/imagenet2012-validationset/'
+    images_subdir = 'images_resized_227/'
 
     with open(data_dir + image_subset) as f:
         image_paths = [k.rstrip() for k in f.readlines()]
-        image_paths = [data_dir + k[:-len('JPEG')] + 'bmp' for k in image_paths]
+        image_paths = [data_dir + images_subdir + k[:-len('JPEG')] + 'bmp' for k in image_paths]
 
     save_dir = '../data/adversarial_examples/foolbox_images/100_dataset/{}/'.format(attack_name)
 
