@@ -530,7 +530,7 @@ def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learnin
                          n_iterations, log_freq, log_path):
 
     if not os.path.exists(log_path):
-        os.mkdir(log_path)
+        os.makedirs(log_path)
 
     advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
     print('number of matches:', len(advex_matches))
