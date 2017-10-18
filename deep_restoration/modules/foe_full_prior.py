@@ -588,15 +588,18 @@ class FoEFullPrior(LearnedPriorLoss):
     def forward_opt_adam(self, input_featmap, learning_rate, n_iterations,
                          make_switch=False, beta1=0.9, beta2=0.999, eps=1e-8):
 
-        def apply_adam(variable, gradients, m_acc, v_acc, iteration):
+        def apply_adam(variable, gradients, m_acc, v_acc, iteration, explicit_notation=False):
             beta1_tsr = tf.constant(beta1, dtype=tf.float32)
             beta2_tsr = tf.constant(beta2, dtype=tf.float32)
             m_new = beta1_tsr * m_acc + (1.0 - beta1_tsr) * gradients
             v_new = beta2_tsr * v_acc + (1.0 - beta2_tsr) * gradients ** 2
-            m_hat = m_new / (1.0 - beta1_tsr ** iteration)
-            v_hat = v_new / (1.0 - beta2_tsr ** iteration)
-            variable -= learning_rate * m_hat / (tf.sqrt(v_hat) + eps)
-
+            if explicit_notation:  # unoptimized form, with epsilon as given in the paper
+                m_hat = m_new / (1.0 - beta1_tsr ** iteration)
+                v_hat = v_new / (1.0 - beta2_tsr ** iteration)
+                variable -= learning_rate * m_hat / (tf.sqrt(v_hat) + eps)
+            else:  # different epsilon (hat): this mimics the behaviour of the tf.AdamOptimizer
+                learning_rate_t = learning_rate * tf.sqrt(1 - beta2_tsr ** iteration) / (1 - beta2_tsr ** iteration)
+                variable -= learning_rate_t * m_new / (tf.sqrt(v_new) + eps)
             return variable, m_new, v_new
 
         def cond(*args):
