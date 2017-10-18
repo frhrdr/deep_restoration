@@ -152,8 +152,8 @@ class FoEDropoutPrior(FoEFullPrior):
         count_init = tf.constant(0, dtype=tf.float32)
         _, final_featmaps, _, _ = tf.while_loop(cond=cond, body=body,
                                                 loop_vars=[count_init, input_featmaps, m_init, v_init])
-
-        return final_featmaps
+        print(final_featmaps[0].get_shape())
+        return tf.concat(final_featmaps, axis=0)
 
     def build_masked_ensemble(self, masks, featmap_tensors, scope_suffix=''):
 
@@ -181,6 +181,6 @@ class FoEDropoutPrior(FoEFullPrior):
 
                 masked_xw = xw * mask
                 return masked_xw
-            
+
             self.loss = [self.mrf_loss(single_case(f, m), ica_a) for f, m in zip(featmap_tensors, masks)]
             self.var_list.append(whitening_tensor)

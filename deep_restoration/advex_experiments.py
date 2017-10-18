@@ -1,4 +1,5 @@
-from utils.foolbox_utils import get_default_prior, stability_experiment, adaptive_experiment
+from utils.foolbox_utils import get_default_prior, stability_experiment, adaptive_experiment, \
+    ensemble_adaptive_experiment
 
 
 def stability_experiment_fullprior(images_file='alexnet_val_2k_top1_correct.txt',
@@ -183,3 +184,21 @@ def adaptive_experiment_100_dropout_prior_nodrop_train(learning_rate=0.1, n_iter
                         classifier=classifier,
                         image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
                         verbose=verbose, deactivate_dropout=deactivate_dropout)
+
+
+def ensemble_adaptive_experiment_100_dropout_prior_nodrop_train(learning_rate=0.1, n_iterations=5,
+                                                                attack_name='deepfool', attack_keys=None, verbose=True):
+
+    path = '../logs/adversarial_examples/100_dataset/deepfool/oblivious_dropoutprior_nodrop_train/'
+    img_log_file = 'img_log.npy'
+    classifier = 'alexnet'
+    image_shape = (1, 227, 227, 3)
+    images_file = 'subset_100_images.txt'
+    advex_subdir = '100_dataset/deepfool_oblivious/'
+    prior_mode = 'dropout_nodrop_train'
+    ensemble_size = 3
+    ensemble_adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
+                                 attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
+                                 classifier=classifier,
+                                 image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
+                                 verbose=verbose, ensemble_size=ensemble_size)

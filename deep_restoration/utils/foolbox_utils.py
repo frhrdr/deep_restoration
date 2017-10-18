@@ -604,7 +604,8 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
     :return:
     """
 
-    advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
+    advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)[50:]
+    print(advex_matches[0])
     img_log = np.load(path + img_log_file)
     imgprior = get_default_prior(mode=prior_mode)
     if deactivate_dropout:
@@ -924,4 +925,127 @@ def verify_advex_claims(advex_dir='../data/adversarial_examples/foolbox_images/a
         print('not fooled: {}  fooled correctly: {}  fooled differently: {}'.format(n_not_fooled, n_fooled_correctly,
                                                                                     n_fooled_differently))
 
-def ensemble_adaptive_attack():
+
+def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, prior_mode,
+                                 path, img_log_file, classifier, image_shape, images_file, advex_subdir, verbose,
+                                 ensemble_size):
+        """
+        constructs adaptive attacks for the prior, records necessary perturbation for oblivious and adaptive attack
+        separately records, which inputs are misclassified as result of the regularization alone.
+        :param learning_rate:
+        :param n_iterations:
+        :param attack_name:
+        :param attack_keys:
+        :param prior_mode:
+        :param path:
+        :param img_log_file:
+        :param classifier:
+        :param image_shape:
+        :param images_file:
+        :param advex_subdir:
+        :param verbose:
+        :param ensemble_size:
+        :return:
+        """
+
+        advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
+        img_log = np.load(path + img_log_file)
+        imgprior = get_default_prior(mode=prior_mode)
+        assert isinstance(imgprior, FoEDropoutPrior)
+
+        with tf.Graph().as_default():
+            input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
+            masks = imgprior.make_dropout_masks(ensemble_size, n_iterations)
+            featmaps, _ = imgprior.masked_ensemble_forward_opt_adam(input_featmap, learning_rate, n_iterations, masks)
+            _, logit_tsr = get_classifier_io(classifier, input_init=featmaps, input_type='tensor')
+
+            logit_tsr = aggregate_ensemble_logits(logit_tsr, method='default')
+
+            with tf.Session() as sess:
+                model = foolbox.models.TensorFlowModel(input_featmap, logit_tsr, bounds=(0, 255))
+
+                criterion = foolbox.criteria.Misclassification()
+
+                attack = get_attack(attack_name, model, criterion)
+                if attack_keys is None:
+                    if attack == 'deepfool':
+                        attack_keys = {'steps': 300}
+                    else:
+                        attack_keys = dict()
+
+                init_op = tf.global_variables_initializer()
+                sess.run(init_op)
+                imgprior.load_weights(sess)
+
+                noise_norms = []
+                src_invariant = []
+
+                adv_path = advex_matches[0][1]
+                adaptive_save_path = adv_path.replace('oblivious', 'adaptive_' + prior_mode)
+                adaptive_save_dir = '/'.join(adaptive_save_path.split('/')[:-1])
+                if not os.path.exists(adaptive_save_dir):
+                    os.makedirs(adaptive_save_dir)
+
+                for idx, match in enumerate(advex_matches):
+                    img_path, adv_path = match
+                    src_label = img_log[idx][0]
+
+                    img = load_image(img_path)
+                    adv = load_image(adv_path)
+
+                    oblivious_norm = np.linalg.norm((img - adv).flatten(), ord=2)
+                    print('oblivious norm', oblivious_norm)
+
+                    img_pred = model.predictions(img)
+                    img_pred_label = np.argmax(img_pred)
+                    adv_pred = model.predictions(adv)
+                    adv_pred_label = np.argmax(adv_pred)
+
+                    if verbose:
+                        noisy_label_name = get_class_name(img_pred_label)
+                        if img_pred_label == src_label:
+                            print('noisy label {} same as source: {}'.format(img_pred_label, noisy_label_name))
+                            src_invariant.append(1)
+                            if adv_pred_label == img_pred_label:
+                                print('oblivious attack averted')
+                            else:
+
+                                print('WARNING: oblivious attack succeeded!')
+                        else:
+                            print('image with prior misclassified as {}. (label {})'.format(noisy_label_name,
+                                                                                            img_pred_label))
+                            src_invariant.append(0)
+                    try:
+                        adversarial = attack(image=img, label=img_pred_label, **attack_keys)
+                        if adversarial is None:
+                            adaptive_norm = np.inf
+                            if verbose:
+                                print('no adversary found for source label {} using {}'.format(img_pred_label,
+                                                                                               attack_name))
+
+                        else:
+                            fooled_pred = model.predictions(adversarial)
+                            fooled_label = np.argmax(fooled_pred)
+                            fooled_label_name = get_class_name(fooled_label)
+                            adaptive_norm = np.linalg.norm((img - adversarial).flatten(), ord=2)
+                            if verbose:
+                                print('adversarial image classified as {}. (label {}) '
+                                      'Necessary perturbation: {}'.format(fooled_label_name, fooled_label,
+                                                                          adaptive_norm))
+                            adaptive_save_path = adv_path.replace('oblivious', 'adaptive_' + prior_mode)
+
+                            np.save(adaptive_save_path, adversarial)
+                    except AssertionError as err:
+                        adaptive_norm = -np.inf
+                        print('FoolBox failed Assertion: {}'.format(err))
+
+                    noise_norms.append((oblivious_norm, adaptive_norm))
+                    if idx + 1 % 100 == 0:
+                        np.save('noise_norms.npy', np.asarray(noise_norms))
+                        np.save('src_invariants.npy', np.asarray(src_invariant))
+            np.save('noise_norms.npy', np.asarray(noise_norms))
+            np.save('src_invariants.npy', np.asarray(src_invariant))
+
+
+def aggregate_ensemble_logits(logits, method):
+    return tf.reduce_sum(logits, axis=0)
