@@ -1087,8 +1087,8 @@ def compare_adams(advex_dir, prior_mode='dropout_nodrop_train', learning_rate=0.
         print([v.name for v in glob_vars])
         init_op = tf.variables_initializer(glob_vars)
 
-        for file_name in advex_files[:5]:
-            with tf.Session() as sess:
+        with tf.Session() as sess:
+            for file_name in advex_files[:5]:
 
                 sess.run(init_op)
                 iterative_prior.load_weights(sess)
