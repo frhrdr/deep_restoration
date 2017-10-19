@@ -55,9 +55,9 @@ from modules.foe_full_prior import FoEFullPrior
 
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/nodrop_test/'
-path = '../logs/adversarial_examples/100_dataset/deepfool/adaptive_dropoutprior_nodrop_train/dodrop_test/'
-
-stability_statistics(path)
+# path = '../logs/adversarial_examples/100_dataset/deepfool/adaptive_dropoutprior_nodrop_train/dodrop_test/'
+#
+# stability_statistics(path)
 
 # adaptive_experiment_200()
 # mean_filter_benchmark(verbose=False)
