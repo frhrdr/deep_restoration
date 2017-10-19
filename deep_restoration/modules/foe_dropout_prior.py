@@ -132,7 +132,7 @@ class FoEDropoutPrior(FoEFullPrior):
             return variable, m_new, v_new
 
         def cond(*args):
-            return tf.not_equal(args[0], tf.constant(n_iterations, dtype=tf.float32))
+            return tf.not_equal(args[0], tf.constant(n_iterations, dtype=tf.int32))
 
         def body(count, featmaps, m_accs, v_accs):
             it_masks = tf.split(masks[count, :, :], ensemble_size, axis=0)
