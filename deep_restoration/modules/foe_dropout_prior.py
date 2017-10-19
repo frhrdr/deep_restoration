@@ -149,7 +149,7 @@ class FoEDropoutPrior(FoEFullPrior):
         input_featmaps = [input_featmap] * ensemble_size
         m_init = [tf.constant(np.zeros([ensemble_size] + featmap_shape), dtype=tf.float32)] * ensemble_size
         v_init = [tf.constant(np.zeros([ensemble_size] + featmap_shape), dtype=tf.float32)] * ensemble_size
-        count_init = tf.constant(0, dtype=tf.float32)
+        count_init = tf.constant(0, dtype=tf.int32)
         _, final_featmaps, _, _ = tf.while_loop(cond=cond, body=body,
                                                 loop_vars=[count_init, input_featmaps, m_init, v_init])
         print(final_featmaps[0].get_shape())
