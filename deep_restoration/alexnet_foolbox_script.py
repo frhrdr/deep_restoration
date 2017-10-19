@@ -55,7 +55,7 @@ from modules.foe_full_prior import FoEFullPrior
 
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/nodrop_test/'
-# path = '../logs/adversarial_examples/100_dataset/deepfool/adaptive_dropoutprior_nodrop_train/dodrop_test/'
+# path = '../logs/adversarial_examples/100_dataset/deepfool/oblivious_dropoutprior_nodrop_train/'
 #
 # stability_statistics(path)
 
@@ -81,9 +81,9 @@ from modules.foe_full_prior import FoEFullPrior
 # make_untargeted_dataset()
 # stability_experiment_dropoutprior_nodrop_train_100()
 # # print('exp 1 DONE')
-adaptive_experiment_100_dropout_prior_nodrop_train()
+# adaptive_experiment_100_dropout_prior_nodrop_train()
 # # print('exp 2 DONE')
-# stability_experiment_nodrop_adaptive_100()
+stability_experiment_nodrop_adaptive_100()
 
 # path = '../data/adversarial_examples/foolbox_images/100_dataset/deepfool_adaptive_dropout_nodrop_train/'
 # compare_adams(path, n_iterations=5)
