@@ -605,7 +605,7 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
     :return:
     """
 
-    advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)  # [45:]
+    advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
     print(advex_matches[0])
     img_log = np.load(path + img_log_file)
     imgprior = get_default_prior(mode=prior_mode)
