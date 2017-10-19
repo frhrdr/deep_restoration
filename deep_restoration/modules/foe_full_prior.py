@@ -595,8 +595,9 @@ class FoEFullPrior(LearnedPriorLoss):
             m_new = beta1_tsr * m_acc + (1.0 - beta1_tsr) * gradients
             v_new = beta2_tsr * v_acc + (1.0 - beta2_tsr) * (gradients ** 2)
 
-            explicit_notation = False
+            explicit_notation = True
             if explicit_notation:  # unoptimized form, with epsilon as given in the paper
+                eps_tsr = eps_tsr / tf.sqrt(1.0 - (beta1_tsr ** iteration))
                 m_hat = m_new / (1.0 - (beta1_tsr ** iteration))
                 v_hat = v_new / (1.0 - (beta2_tsr ** iteration))
                 variable -= learning_rate * m_hat / (tf.sqrt(v_hat) + eps_tsr)
