@@ -86,4 +86,4 @@ from modules.foe_full_prior import FoEFullPrior
 # stability_experiment_nodrop_adaptive_100()
 
 path = '../data/adversarial_examples/foolbox_images/100_dataset/deepfool_adaptive_dropout_nodrop_train/'
-compare_adams(path, n_iterations=3)
+compare_adams(path, n_iterations=1)
