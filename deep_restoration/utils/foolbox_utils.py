@@ -1035,7 +1035,7 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
                                 print('adversarial image classified as {}. (label {}) '
                                       'Necessary perturbation: {}'.format(fooled_label_name, fooled_label,
                                                                           adaptive_norm))
-                            adaptive_save_path = adv_path.replace('oblivious', 'adaptive_' + prior_mode)
+                            adaptive_save_path = adv_path.replace('oblivious', 'ensemble_adaptive_' + prior_mode)
 
                             np.save(adaptive_save_path, adversarial)
                     except AssertionError as err:
