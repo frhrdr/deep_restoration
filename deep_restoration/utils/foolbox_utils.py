@@ -1070,7 +1070,7 @@ def compare_adams(advex_dir, prior_mode='dropout_nodrop_train', learning_rate=0.
 
     with tf.Graph().as_default():
         image_var = tf.get_variable('advex', shape=image_shape, dtype=tf.float32)
-        image_regularized, _ = rollout_prior.forward_opt_adam(image_var, 0.001, n_iterations)
+        image_regularized, _ = rollout_prior.forward_opt_adam(image_var, learning_rate, n_iterations)
 
         iterative_prior.build(featmap_tensor=image_var)
         iterative_loss = iterative_prior.get_loss()
