@@ -609,7 +609,8 @@ class FoEFullPrior(LearnedPriorLoss):
         def body(count, featmap, m_acc, v_acc):
             count += 1
             self.build(featmap_tensor=featmap)
-            featmap_grad = tf.gradients(ys=self.get_loss(), xs=featmap)[0]
+            featmap_grad = tf.train.AdamOptimizer().compute_gradients(self.get_loss(), [featmap])[0][0]
+            # featmap_grad = tf.gradients(ys=self.get_loss(), xs=featmap)[0]
             featmap_grad = tf.Print(featmap_grad, [featmap_grad], message='rolledout_grad:', summarize=10)
             featmap, m_acc, v_acc = apply_adam(featmap, featmap_grad, m_acc, v_acc, count)
             return count, featmap, m_acc, v_acc
