@@ -597,7 +597,7 @@ class FoEFullPrior(LearnedPriorLoss):
             beta1_t_term = (1.0 - (beta1_tsr ** iteration))
             beta2_t_term = (1.0 - (beta2_tsr ** iteration))
 
-            explicit_notation = True
+            explicit_notation = False
             if explicit_notation:  # unoptimized form, with epsilon as given in the paper
                 # eps_tsr = eps_tsr / tf.sqrt(1.0 - (beta1_tsr ** iteration))
                 m_hat = m_new / beta1_t_term
