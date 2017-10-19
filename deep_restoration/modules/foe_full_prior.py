@@ -586,7 +586,7 @@ class FoEFullPrior(LearnedPriorLoss):
             return final_featmap, None
 
     def forward_opt_adam(self, input_featmap, learning_rate, n_iterations,
-                         make_switch=False, beta1=0.9, beta2=0.999, eps=1e-8):
+                         make_switch=False, beta1=0.9, beta2=0.999, eps=1e-5):
 
         def apply_adam(variable, gradients, m_acc, v_acc, iteration):
             beta1_tsr = tf.constant(beta1, dtype=tf.float32)
