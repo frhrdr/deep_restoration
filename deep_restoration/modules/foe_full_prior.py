@@ -594,13 +594,17 @@ class FoEFullPrior(LearnedPriorLoss):
             eps_tsr = tf.constant(eps, dtype=tf.float32)
             m_new = beta1_tsr * m_acc + (1.0 - beta1_tsr) * gradients
             v_new = beta2_tsr * v_acc + (1.0 - beta2_tsr) * (gradients ** 2)
-            # if explicit_notation:  # unoptimized form, with epsilon as given in the paper
-            m_hat = m_new / (1.0 - (beta1_tsr ** iteration))
-            v_hat = v_new / (1.0 - (beta2_tsr ** iteration))
-            variable -= learning_rate * m_hat / (tf.sqrt(v_hat) + eps_tsr)
-            # else:  # different epsilon (hat): this mimics the behaviour of the tf.AdamOptimizer
-            # learning_rate_t = learning_rate * tf.sqrt(1.0 - (beta2_tsr ** iteration)) / (1.0 - (beta2_tsr ** iteration))
-            # variable -= learning_rate_t * m_new / (tf.sqrt(v_new) + eps_tsr)
+
+            explicit_notation = False
+            if explicit_notation:  # unoptimized form, with epsilon as given in the paper
+                m_hat = m_new / (1.0 - (beta1_tsr ** iteration))
+                v_hat = v_new / (1.0 - (beta2_tsr ** iteration))
+                variable -= learning_rate * m_hat / (tf.sqrt(v_hat) + eps_tsr)
+
+            else:  # different epsilon (hat): this mimics the behaviour of the tf.AdamOptimizer
+                lr_mod = tf.sqrt(1.0 - (beta2_tsr ** iteration)) / (1.0 - (beta2_tsr ** iteration))
+                variable -= learning_rate * lr_mod * m_new / (tf.sqrt(v_new) + eps_tsr)
+
             return variable, m_new, v_new
 
         def cond(*args):
@@ -609,8 +613,7 @@ class FoEFullPrior(LearnedPriorLoss):
         def body(count, featmap, m_acc, v_acc):
             count += 1
             self.build(featmap_tensor=featmap)
-            featmap_grad = tf.train.AdamOptimizer().compute_gradients(self.get_loss(), [featmap])[0][0]
-            # featmap_grad = tf.gradients(ys=self.get_loss(), xs=featmap)[0]
+            featmap_grad = tf.gradients(ys=self.get_loss(), xs=featmap)[0]
             featmap_grad = tf.Print(featmap_grad, [featmap_grad], message='rolledout_grad:', summarize=10)
             featmap, m_acc, v_acc = apply_adam(featmap, featmap_grad, m_acc, v_acc, count)
             return count, featmap, m_acc, v_acc
