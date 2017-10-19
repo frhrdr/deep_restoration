@@ -611,6 +611,8 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
     imgprior = get_default_prior(mode=prior_mode)
     if deactivate_dropout:
         imgprior.activate_dropout = False
+    elif isinstance(imgprior, FoEDropoutPrior):
+        raise ValueError
 
     with tf.Graph().as_default():
         input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
@@ -1052,3 +1054,49 @@ def aggregate_ensemble_logits(logits, method):
     lse = tf.reduce_logsumexp(logits, axis=1)
     scaled_logits = logits - lse
     return tf.reduce_mean(scaled_logits, axis=0)
+
+
+def compare_adams(advex_dir, prior_mode='dropout_nodrop_train', learning_rate=0.1, n_iterations=2):
+    """
+    compares gradients and updates of rolled out and built in adam optimizer (potentially also accumulator values)
+    """
+
+    advex_files = sorted(os.listdir(advex_dir))
+    iterative_prior = get_default_prior(prior_mode)
+    rollout_prior = get_default_prior(prior_mode)
+    image_shape = (1, 227, 227, 3)
+
+    with tf.Graph().as_default():
+        image_var = tf.get_variable('advex', shape=image_shape, dtype=tf.float32)
+        image_regularized, _ = rollout_prior.forward_opt_adam(image_var, learning_rate, n_iterations)
+
+        iterative_prior.build(featmap_tensor=image_var)
+        iterative_loss = iterative_prior.get_loss()
+        adam_opt = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        grad_var_pairs = adam_opt.compute_gradients(iterative_loss, [])
+        print(grad_var_pairs)
+        iterative_image_grad = grad_var_pairs[0][0]
+        train_op = adam_opt.apply_gradients(grad_var_pairs)
+
+        image_pl = tf.placeholder(dtype=tf.float32, shape=image_shape)
+        feed_op = tf.assign(image_var, image_pl)
+        with tf.Session() as sess:
+            for file_name in advex_files:
+                path = advex_dir + file_name
+                print(file_name)
+                image_mat = load_image(path, resize=False)
+                image_mat = np.expand_dims(image_mat.astype(dtype=np.float32), axis=0)
+                sess.run(feed_op, feed_dict={image_pl: image_mat})
+                rollout_reg = sess.run(image_regularized)
+
+                iterative_grads = []
+                for count in range(n_iterations):
+                    grad, _ = sess.run([iterative_image_grad, train_op])
+                    iterative_grads.append(grad)
+                iterative_reg = sess.run(image_var)
+
+                rollout_diff = image_mat - rollout_reg
+                iterative_diff = image_mat - iterative_reg
+                rollout_norm = np.linalg.norm(rollout_diff)
+                iterative_norm = np.linalg.norm(iterative_diff)
+                print('diff norms: rollout {}  iterative {}'.format(rollout_norm, iterative_norm))

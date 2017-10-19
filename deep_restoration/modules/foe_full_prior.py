@@ -598,7 +598,7 @@ class FoEFullPrior(LearnedPriorLoss):
             # v_hat = v_new / (1.0 - beta2_tsr ** iteration)
             # variable -= learning_rate * m_hat / (tf.sqrt(v_hat) + eps)
             # else:  # different epsilon (hat): this mimics the behaviour of the tf.AdamOptimizer
-            learning_rate_t = learning_rate * tf.sqrt(1 - beta2_tsr ** iteration) / (1 - beta2_tsr ** iteration)
+            learning_rate_t = learning_rate * tf.sqrt(1.0 - beta2_tsr ** iteration) / (1.0 - beta2_tsr ** iteration)
             variable -= learning_rate_t * m_new / (tf.sqrt(v_new) + eps)
             return variable, m_new, v_new
 
