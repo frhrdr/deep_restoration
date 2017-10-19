@@ -1082,8 +1082,15 @@ def compare_adams(advex_dir, prior_mode='dropout_nodrop_train', learning_rate=0.
 
         image_pl = tf.placeholder(dtype=tf.float32, shape=image_shape)
         feed_op = tf.assign(image_var, image_pl)
+        init_op = tf.global_variables_initializer()
         with tf.Session() as sess:
+
             for file_name in advex_files:
+
+                sess.run(init_op)
+                iterative_prior.load_weights(sess)
+                rollout_prior.load_weights(sess)
+
                 path = advex_dir + file_name
                 print(file_name)
                 image_mat = load_image(path, resize=False)
