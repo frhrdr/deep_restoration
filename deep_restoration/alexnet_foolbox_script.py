@@ -83,7 +83,7 @@ from modules.foe_full_prior import FoEFullPrior
 # # # print('exp 1 DONE')
 # adaptive_experiment_100_dropout_prior_nodrop_train()
 # # print('exp 2 DONE')
-stability_experiment_nodrop_adaptive_100()
+# stability_experiment_nodrop_adaptive_100()
 
 path = '../data/adversarial_examples/foolbox_images/100_dataset/deepfool_adaptive_dropout_nodrop_train/'
 compare_adams(path, n_iterations=1)
