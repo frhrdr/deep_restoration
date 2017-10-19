@@ -7,7 +7,7 @@ from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_da
     verify_advex_claims, compare_adams
 from advex_experiments import stability_experiment_dropoutprior_nodrop_train_100, \
     stability_experiment_nodrop_adaptive_100, adaptive_experiment_100_dropout_prior_nodrop_train, \
-    stability_experiment_dodrop_adaptive_100
+    stability_experiment_dodrop_adaptive_100, ensemble_adaptive_experiment_100_dropout_prior_nodrop_train
 from modules.foe_full_prior import FoEFullPrior
 
 # image_dir = '../data/adversarial_examples/foolbox_images/small_dataset/lbfgs/'
@@ -55,10 +55,10 @@ from modules.foe_full_prior import FoEFullPrior
 # stability_experiment_fullprior()
 
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
-# path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/nodrop_test/'
+path = '../logs/adversarial_examples/100_dataset/deepfool/adaptive_dropoutprior_nodrop_train/dodrop_test/'
 # path = '../logs/adversarial_examples/100_dataset/deepfool/oblivious_dropoutprior_nodrop_train/'
 #
-# stability_statistics(path)
+stability_statistics(path)
 
 # adaptive_experiment_200()
 # mean_filter_benchmark(verbose=False)
@@ -85,6 +85,8 @@ from modules.foe_full_prior import FoEFullPrior
 # adaptive_experiment_100_dropout_prior_nodrop_train()
 # # print('exp 2 DONE')
 # stability_experiment_nodrop_adaptive_100()
-stability_experiment_dodrop_adaptive_100()
+# stability_experiment_dodrop_adaptive_100()
 # path = '../data/adversarial_examples/foolbox_images/100_dataset/deepfool_adaptive_dropout_nodrop_train/'
 # compare_adams(path, n_iterations=5)
+
+ensemble_adaptive_experiment_100_dropout_prior_nodrop_train()
