@@ -55,10 +55,10 @@ from modules.foe_full_prior import FoEFullPrior
 # stability_experiment_fullprior()
 
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
-path = '../logs/adversarial_examples/100_dataset/deepfool/adaptive_dropoutprior_nodrop_train/dodrop_test/'
+# path = '../logs/adversarial_examples/100_dataset/deepfool/adaptive_dropoutprior_nodrop_train/dodrop_test/'
 # path = '../logs/adversarial_examples/100_dataset/deepfool/oblivious_dropoutprior_nodrop_train/'
 #
-stability_statistics(path)
+# stability_statistics(path)
 
 # adaptive_experiment_200()
 # mean_filter_benchmark(verbose=False)
