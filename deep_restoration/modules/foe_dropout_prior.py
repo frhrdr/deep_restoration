@@ -111,7 +111,7 @@ class FoEDropoutPrior(FoEFullPrior):
         # every part of the ensemble needs one mask per iteration of size n_components -> shape [n_it, n_ens, n_comp]
         masks_size = (n_iterations, ensemble_size, self.n_components)
         mask_mat = np.random.randint(0, 2, size=masks_size).astype(np.float32)
-        return tf.constant(mask_mat, name='dropout masks')
+        return tf.constant(mask_mat, name='dropout_masks')
 
     def masked_ensemble_forward_opt_adam(self, input_featmap, learning_rate, n_iterations, masks,
                                          beta1=0.9, beta2=0.999, eps=1e-8):
