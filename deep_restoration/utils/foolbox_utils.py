@@ -1074,7 +1074,7 @@ def compare_adams(advex_dir, prior_mode='dropout_nodrop_train', learning_rate=0.
 
         iterative_prior.build(featmap_tensor=image_var)
         iterative_loss = iterative_prior.get_loss()
-        adam_opt = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        adam_opt = tf.train.AdamOptimizer(learning_rate=0.001)
         grad_var_pairs = adam_opt.compute_gradients(iterative_loss, [image_var])
         iterative_image_grad = grad_var_pairs[0][0]
         iterative_image_grad = tf.Print(iterative_image_grad, [iterative_image_grad],
