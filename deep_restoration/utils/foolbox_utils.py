@@ -1063,7 +1063,9 @@ def compare_adams(advex_dir, prior_mode='dropout_nodrop_train', learning_rate=0.
 
     advex_files = sorted(os.listdir(advex_dir))
     iterative_prior = get_default_prior(prior_mode)
+    iterative_prior.name = 'IterativePrior'
     rollout_prior = get_default_prior(prior_mode)
+    rollout_prior.name = 'RollooutPrior'
     image_shape = (1, 227, 227, 3)
 
     with tf.Graph().as_default():
