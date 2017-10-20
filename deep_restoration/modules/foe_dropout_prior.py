@@ -196,7 +196,7 @@ class FoEDropoutPrior(FoEFullPrior):
         normed_featmaps, mean_sdev_lists = self.preprocess_featmap_list(featmaps, self.mean_mode, self.sdev_mode)
         normed_featmaps = [tf.expand_dims(f, axis=0) for f in normed_featmaps]
         for l in mean_sdev_lists:
-            self.var_list.extend(l)
+            self.var_list.append(l)
         return normed_featmaps
 
     @staticmethod
