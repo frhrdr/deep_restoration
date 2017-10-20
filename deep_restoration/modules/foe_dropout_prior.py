@@ -139,7 +139,7 @@ class FoEDropoutPrior(FoEFullPrior):
             return tf.not_equal(args[0], tf.constant(n_iterations, dtype=tf.float32))
 
         def body(count, featmaps, m_accs, v_accs):
-            it_masks = tf.split(masks[count, :, :], ensemble_size, axis=0)
+            it_masks = tf.split(masks[tf.to_int32(count), :, :], ensemble_size, axis=0)
 
             count += 1
             self.build_masked_ensemble(featmap_tensors=featmaps, masks=it_masks)
