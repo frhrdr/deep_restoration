@@ -174,13 +174,52 @@ class FoEDropoutPrior(FoEFullPrior):
             whitened_mixing = tf.transpose(whitened_mixing, perm=[1, 2, 0, 3])
 
             def single_case(featmap, mask):
-                normed_featmap = self.norm_feat_map_directly(featmap)  # shape [1, h, w, n_channels]
-
-                xw = tf.nn.conv2d(normed_featmap, whitened_mixing, strides=[1, 1, 1, 1], padding='VALID')
+                xw = tf.nn.conv2d(featmap, whitened_mixing, strides=[1, 1, 1, 1], padding='VALID')
                 xw = tf.reshape(xw, shape=[-1, self.n_components])
 
                 masked_xw = xw * mask
                 return masked_xw
 
-            self.loss = [self.mrf_loss(single_case(f, m), ica_a) for f, m in zip(featmap_tensors, masks)]
+            normed_featmaps = self.norm_feat_map_list(featmap_tensors)  # shape [1, h, w, n_channels]
+            self.loss = [self.mrf_loss(single_case(f, m), ica_a) for f, m in zip(normed_featmaps, masks)]
             self.var_list.append(whitening_tensor)
+
+    def norm_feat_map_list(self, featmaps):
+        """
+        if both mean and sdev modes use training set values (gc or gf),
+        norming can be applied directly to the feature map (shape [bs, h, w, c])
+
+        :return:
+        """
+        assert self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf')
+        featmaps = [tf.squeeze(f) * tf.constant(self.input_scaling, dtype=tf.float32) for f in featmaps]
+        normed_featmaps, mean_sdev_lists = self.preprocess_featmap_list(featmaps, self.mean_mode, self.sdev_mode)
+        normed_featmaps = [tf.expand_dims(f, axis=0) for f in normed_featmaps]
+        for l in mean_sdev_lists:
+            self.var_list.extend(l)
+        return normed_featmaps
+
+    @staticmethod
+    def preprocess_featmap_list(patch_tensors, mean_mode, sdev_mode):
+        """
+        to be called on a TensorFlow graph. takes patch tensor and loads means and sdevs.
+        then applies the same preprocessing as used on the training set (whitening is done after)
+        takes in tensor with n_channels as last dimension. outputs tensor with n_feats_per_channel as last dimension.
+
+        :param patch_tensors: tensors of shape [n_patches, n_feats_per_channel, n_channels] to be processed
+        :param mean_mode: mode for centering
+        :param sdev_mode: mode for rescaling
+        otherwise, values must be loaded from checkpoints
+        :return: normalized tensor of shape [n_patches, n_channels, n_feats_per_channel]
+        """
+        modes = ('global_channel', 'gc')
+        assert mean_mode in modes
+        assert sdev_mode in modes
+        n_patches, n_feats_per_channel, n_channels = [k.value for k in patch_tensors[0].get_shape()]
+
+        mean_tensor = tf.get_variable('centering_mean', shape=(n_channels,), trainable=False, dtype=tf.float32)
+        sdev_tensor = tf.get_variable('rescaling_sdev', shape=(n_channels,), trainable=False, dtype=tf.float32)
+        init_list = [mean_tensor, sdev_tensor]
+
+        patch_tensors = [(t - mean_tensor) / sdev_tensor for t in patch_tensors]
+        return patch_tensors, init_list
