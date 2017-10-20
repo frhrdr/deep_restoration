@@ -118,6 +118,7 @@ class FoEDropoutPrior(FoEFullPrior):
         ensemble_size = masks.get_shape()[1].value
 
         def apply_adam(variable, gradients, m_acc, v_acc, iteration, explicit_notation=False):
+            print(variable, gradients, m_acc, v_acc)
             beta1_tsr = tf.constant(beta1, dtype=tf.float32)
             beta2_tsr = tf.constant(beta2, dtype=tf.float32)
             eps_tsr = tf.constant(eps, dtype=tf.float32)
@@ -146,9 +147,7 @@ class FoEDropoutPrior(FoEFullPrior):
             featmap_grads = [tf.gradients(ys=l * self.weighting, xs=f)[0] for l, f in zip(self.loss, featmaps)]
             # featmap_grads = tf.stack(featmap_grads, axis=0)
             adam_apps = [apply_adam(f, g, m, v, count) for f, g, m, v in zip(featmaps, featmap_grads, m_accs, v_accs)]
-            print(1, featmaps)
             featmaps, m_accs, v_accs = list(zip(*adam_apps))
-            print(2, featmaps)
             return count, featmaps, m_accs, v_accs
 
         featmap_shape = [k.value for k in input_featmap.get_shape()]
