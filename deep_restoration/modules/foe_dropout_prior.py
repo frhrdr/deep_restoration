@@ -146,8 +146,10 @@ class FoEDropoutPrior(FoEFullPrior):
             featmap_grads = [tf.gradients(ys=l * self.weighting, xs=f)[0] for l, f in zip(self.loss, featmaps)]
             # featmap_grads = tf.stack(featmap_grads, axis=0)
             adam_apps = [apply_adam(f, g, m, v, count) for f, g, m, v in zip(featmaps, featmap_grads, m_accs, v_accs)]
-            featmap, m_accs, v_accs = list(zip(*adam_apps))
-            return count, featmap, m_accs, v_accs
+            print(1, featmaps)
+            featmaps, m_accs, v_accs = list(zip(*adam_apps))
+            print(2, featmaps)
+            return count, featmaps, m_accs, v_accs
 
         featmap_shape = [k.value for k in input_featmap.get_shape()]
         input_featmaps = tuple([input_featmap] * ensemble_size)
