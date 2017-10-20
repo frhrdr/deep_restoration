@@ -963,6 +963,7 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
             _, logit_tsr = get_classifier_io(classifier, input_init=featmaps, input_type='tensor')
 
             logit_tsr = aggregate_ensemble_logits(logit_tsr, method='default')
+            logit_tsr = tf.expand_dims(logit_tsr, axis=0)
 
             with tf.Session() as sess:
                 model = foolbox.models.TensorFlowModel(input_featmap, logit_tsr, bounds=(0, 255))
