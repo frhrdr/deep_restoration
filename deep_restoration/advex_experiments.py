@@ -210,8 +210,8 @@ def ensemble_adaptive_experiment_100_dropout_prior_nodrop_train(learning_rate=0.
     image_shape = (1, 227, 227, 3)
     images_file = 'subset_100_images.txt'
     advex_subdir = '100_dataset/deepfool_oblivious/'
-    prior_mode = 'dropout_nodrop_train'
-    ensemble_size = 3
+    prior_mode = 'full'
+    ensemble_size = 2
     ensemble_adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
                                  attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
                                  classifier=classifier,
