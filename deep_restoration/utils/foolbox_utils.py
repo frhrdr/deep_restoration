@@ -990,7 +990,7 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
                 src_invariant = []
 
                 adv_path = advex_matches[0][1]
-                adaptive_save_path = adv_path.replace('oblivious', 'adaptive_' + prior_mode)
+                adaptive_save_path = adv_path.replace('oblivious', 'ensemble_adaptive_' + prior_mode)
                 adaptive_save_dir = '/'.join(adaptive_save_path.split('/')[:-1])
                 if not os.path.exists(adaptive_save_dir):
                     os.makedirs(adaptive_save_dir)
