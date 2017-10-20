@@ -1052,7 +1052,7 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
 
 def aggregate_ensemble_logits(logits, method):
     lse = tf.reduce_logsumexp(logits, axis=1)
-    scaled_logits = logits - lse
+    scaled_logits = tf.transpose(tf.transpose(logits) - lse)
     return tf.reduce_mean(scaled_logits, axis=0)
 
 
