@@ -123,9 +123,7 @@ class FoEDropoutPrior(FoEFullPrior):
             eps_tsr = tf.constant(eps, dtype=tf.float32)
             m_new = beta1_tsr * m_acc + (1.0 - beta1_tsr) * gradients
             v_new = beta2_tsr * v_acc + (1.0 - beta2_tsr) * gradients ** 2
-            temp = (beta1_tsr ** iteration)
-            print(temp)
-            beta1_t_term = (1.0 - temp)
+            beta1_t_term = (1.0 - (beta1_tsr ** iteration))
             beta2_t_term = (1.0 - (beta2_tsr ** iteration))
 
             if explicit_notation:  # unoptimized form, with epsilon as given in the paper
@@ -155,7 +153,7 @@ class FoEDropoutPrior(FoEFullPrior):
         input_featmaps = [input_featmap] * ensemble_size
         m_init = [tf.constant(np.zeros([ensemble_size] + featmap_shape), dtype=tf.float32)] * ensemble_size
         v_init = [tf.constant(np.zeros([ensemble_size] + featmap_shape), dtype=tf.float32)] * ensemble_size
-        count_init = tf.constant(0, dtype=tf.int32)
+        count_init = tf.constant(0, dtype=tf.float32)
         _, final_featmaps, _, _ = tf.while_loop(cond=cond, body=body,
                                                 loop_vars=[count_init, input_featmaps, m_init, v_init])
         print(final_featmaps[0].get_shape())
