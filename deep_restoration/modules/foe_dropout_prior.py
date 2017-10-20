@@ -123,7 +123,9 @@ class FoEDropoutPrior(FoEFullPrior):
             eps_tsr = tf.constant(eps, dtype=tf.float32)
             m_new = beta1_tsr * m_acc + (1.0 - beta1_tsr) * gradients
             v_new = beta2_tsr * v_acc + (1.0 - beta2_tsr) * gradients ** 2
-            beta1_t_term = (1.0 - (beta1_tsr ** iteration))
+            temp = (beta1_tsr ** iteration)
+            print(temp)
+            beta1_t_term = (1.0 - temp)
             beta2_t_term = (1.0 - (beta2_tsr ** iteration))
 
             if explicit_notation:  # unoptimized form, with epsilon as given in the paper
