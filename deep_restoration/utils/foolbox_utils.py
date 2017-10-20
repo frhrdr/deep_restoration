@@ -959,7 +959,7 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
         with tf.Graph().as_default():
             input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
             masks = imgprior.make_dropout_masks(ensemble_size, n_iterations)
-            featmaps, _ = imgprior.masked_ensemble_forward_opt_adam(input_featmap, learning_rate, n_iterations, masks)
+            featmaps = imgprior.masked_ensemble_forward_opt_adam(input_featmap, learning_rate, n_iterations, masks)
             _, logit_tsr = get_classifier_io(classifier, input_init=featmaps, input_type='tensor')
 
             logit_tsr = aggregate_ensemble_logits(logit_tsr, method='default')

@@ -118,7 +118,6 @@ class FoEDropoutPrior(FoEFullPrior):
         ensemble_size = masks.get_shape()[1].value
 
         def apply_adam(variable, gradients, m_acc, v_acc, iteration, explicit_notation=False):
-            print(variable, gradients, m_acc, v_acc)
             beta1_tsr = tf.constant(beta1, dtype=tf.float32)
             beta2_tsr = tf.constant(beta2, dtype=tf.float32)
             eps_tsr = tf.constant(eps, dtype=tf.float32)
@@ -160,7 +159,7 @@ class FoEDropoutPrior(FoEFullPrior):
         print(final_featmaps[0].get_shape())
         return tf.concat(final_featmaps, axis=0)
 
-    def build_masked_ensemble(self, masks, featmap_tensors, scope_suffix=''):
+    def build_masked_ensemble(self, masks, featmap_tensors):
 
         with tf.variable_scope(self.name):
 
