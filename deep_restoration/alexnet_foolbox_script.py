@@ -71,7 +71,7 @@ from modules.foe_full_prior import FoEFullPrior
 # adaptive_experiment_alex_top1()
 # read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior/')
 
-# adaptive_experiment_alex_top1_dropout_prior_nodrop_train()
+adaptive_experiment_alex_top1_dropout_prior_nodrop_train()
 
 # read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/')
 # stability_experiment_dodrop_adaptive()
@@ -90,4 +90,4 @@ from modules.foe_full_prior import FoEFullPrior
 # path = '../data/adversarial_examples/foolbox_images/100_dataset/deepfool_adaptive_dropout_nodrop_train/'
 # compare_adams(path, n_iterations=5)
 
-ensemble_adaptive_experiment_100_dropout_prior_nodrop_train()
+# ensemble_adaptive_experiment_100_dropout_prior_nodrop_train()
