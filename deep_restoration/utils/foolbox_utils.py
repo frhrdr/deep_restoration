@@ -16,17 +16,22 @@ from utils.temp_utils import load_image, get_optimizer
 
 
 def get_default_prior(mode):
-    assert mode in ('full', 'dropout', 'dropout_nodrop_train')
-    if mode == 'full':
+    assert mode in ('full512', 'dropout1024', 'dropout_nodrop_train1024', 'dropout_nodrop_train512')
+    if mode == 'full512':
         return FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
                             n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                             whiten_mode='pca',
                             name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
-    elif mode == 'dropout':
+    elif mode == 'dropout1024':
         return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                                whiten_mode='pca',
                                activate_dropout=True, make_switch=False, dropout_prob=0.5)
+    elif mode == 'dropout_nodrop_train512':
+        return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
+                               n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
+                               whiten_mode='pca', dir_name='student_dropout_prior_nodrop_training',
+                               activate_dropout=False, make_switch=False, dropout_prob=0.5)
     else:
         return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
