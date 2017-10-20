@@ -21,9 +21,9 @@ def stability_experiment_dropoutprior(images_file='alexnet_val_2k_top1_correct.t
                                       advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/',
                                       nodrop_train=False):
     if nodrop_train:
-        imgprior = get_default_prior(mode='dropout_nodrop_train')
+        imgprior = get_default_prior(mode='dropout_nodrop_train1024')
     else:
-        imgprior = get_default_prior(mode='dropout')
+        imgprior = get_default_prior(mode='dropout1024')
     optimizer = 'adam'
     learning_rate = 1e-1
     n_iterations = 30
