@@ -35,7 +35,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
 
-            for img_path, adv_path in advex_matches[:5]:
+            for img_path, adv_path in advex_matches[:2]:
                 print(img_path, adv_path)
                 count += 1
                 print('match no.', count)
@@ -61,7 +61,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                     adv_smoothed_pred, adv_smoothed = sess.run([logit_tsr, smoothed_img], feed_dict={img_pl: advex})
                     adv_smoothed_label = np.argmax(adv_smoothed_pred)
                     adv_log_list.append(adv_smoothed_label)
-                    print('norms', np.linalg.norm(advex - adv_smoothed), np.linalg.norm(image - img_smoothed))
+                    print(weight, 'norms', np.linalg.norm(advex - adv_smoothed), np.linalg.norm(image - img_smoothed))
 
                     print(img_smoothed_label, adv_smoothed_label)
                 log_list.append([img_log_list, adv_log_list])
