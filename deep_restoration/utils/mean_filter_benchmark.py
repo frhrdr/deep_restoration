@@ -41,7 +41,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                 adv_log_list = []
                 for weight in weightings:
                     filter_mat = make_weighted_mean_filter(weight, filter_hw)
-                    sess.run(filter_feed_op, feed_dict={mean_filter_pl, filter_mat})
+                    sess.run(filter_feed_op, feed_dict={mean_filter_pl: filter_mat})
 
                     img_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: image})
                     img_smoothed_label = np.argmax(img_smoothed_pred)
