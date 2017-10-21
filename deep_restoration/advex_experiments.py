@@ -38,7 +38,7 @@ def stability_experiment_dropoutprior(images_file='alexnet_val_2k_top1_correct.t
 
 def stability_experiment_dodrop_adaptive(images_file='alexnet_val_2k_top1_correct.txt',
                                          advex_subdir='alexnet_val_2k_top1_correct/'
-                                                      'deepfool_adaptive_dropout_nodrop_train/'):
+                                                      'deepfool_adaptive_dropout_nodrop_train1024/'):
     imgprior = get_default_prior(mode='dropout_nodrop_train1024')
     optimizer = 'adam'
     learning_rate = 0.4
