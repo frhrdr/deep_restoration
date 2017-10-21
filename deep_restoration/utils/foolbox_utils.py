@@ -78,7 +78,7 @@ def get_classifier_io(name, input_init=None, input_type='placeholder'):
         input_tensor = input_init
 
     classifier.build(input_tensor)
-    logit_tsr = classifier.tensors['fc8/lin:0']
+    logit_tsr = classifier.tensors['fc8/lin']
 
     return input_tensor, logit_tsr
 
