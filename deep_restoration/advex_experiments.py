@@ -86,7 +86,7 @@ def adaptive_experiment_alex_top1(learning_rate=0.6, n_iterations=5, attack_name
                         verbose=verbose)
 
 
-def adaptive_experiment_alex_top1_dropout_prior_nodrop_train(learning_rate=0.1, n_iterations=5, attack_name='deepfool',
+def adaptive_experiment_alex_top1_dropout_prior_nodrop_train(learning_rate=0.6, n_iterations=5, attack_name='deepfool',
                                                              attack_keys=None, verbose=True):
 
     path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train/'
@@ -104,7 +104,7 @@ def adaptive_experiment_alex_top1_dropout_prior_nodrop_train(learning_rate=0.1, 
                         verbose=verbose, deactivate_dropout=deactivate_dropout)
 
 
-def adaptive_experiment_alex_top1_dropout_prior_dodrop_train(learning_rate=0.1, n_iterations=5, attack_name='deepfool',
+def adaptive_experiment_alex_top1_dropout_prior_dodrop_train(learning_rate=0.6, n_iterations=5, attack_name='deepfool',
                                                              attack_keys=None, verbose=True):
 
     path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_dodrop_train/'
