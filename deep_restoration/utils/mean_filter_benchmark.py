@@ -10,14 +10,12 @@ from utils.imagenet_classnames import get_class_name
 def default_mean_filter_exp():
     weighings = (0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.)
     mean_filter_benchmark(classifier='alexnet', filter_hw=2, weightings=weighings)
+    mean_log_statistics(plot=False)
 
 
 def mean_filter_benchmark(classifier, filter_hw, weightings):
     """
     evaluates weighted mean filter performances on oblivious adversarials
-    :param classifier:
-    :param filter_hw:
-    :return:
     """
     log_list = []
 
@@ -31,58 +29,44 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
         smoothed_img, img_pl, mean_filter_pl, filter_feed_op = mean_filter_model(filter_hw)
         _, logit_tsr = get_classifier_io(classifier, input_init=smoothed_img, input_type='tensor')
         with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+
             for img_path, adv_path in advex_matches:
                 count += 1
                 print('match no.', count)
-
                 image = np.expand_dims(load_image(img_path).astype(dtype=np.float32), axis=0)
                 advex = np.expand_dims(load_image(adv_path).astype(dtype=np.float32), axis=0)
 
-                img_naive_pred = sess.run(logit_tsr, feed_dict={img_pl: image, activate: False})
-                img_naive_label = np.argmax(img_naive_pred)
+                img_log_list = []
+                adv_log_list = []
+                for weight in weightings:
+                    filter_mat = make_weighted_mean_filter(weight, filter_hw)
+                    sess.run(filter_feed_op, feed_dict={mean_filter_pl, filter_mat})
 
-                img_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: image, activate: True})
-                img_smoothed_label = np.argmax(img_smoothed_pred)
+                    img_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: image})
+                    img_smoothed_label = np.argmax(img_smoothed_pred)
+                    img_log_list.append(img_smoothed_label)
 
-                if verbose:
-                    img_naive_label_name = get_class_name(img_naive_label)
-                    print('image initially classified as {}. (label {})'.format(img_naive_label_name, img_naive_label))
-                    if img_smoothed_label == img_naive_label:
-                        print('Smoothed label matches')
-                    else:
-                        print('smoothing changes it to {}. (label {})'.format(img_naive_label_name, img_naive_label))
+                    adv_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: advex})
+                    adv_smoothed_label = np.argmax(adv_smoothed_pred)
+                    adv_log_list.append(adv_smoothed_label)
 
-                adv_naive_pred = sess.run(logit_tsr, feed_dict={img_pl: advex, activate: False})
-                adv_naive_label = np.argmax(adv_naive_pred)
-
-                adv_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: advex, activate: True})
-                adv_smoothed_label = np.argmax(adv_smoothed_pred)
-
-                if verbose:
-                    adv_naive_label_name = get_class_name(adv_naive_label)
-                    print('advex initially classified as {}. (label {})'.format(adv_naive_label_name, adv_naive_label))
-                    if adv_smoothed_label == adv_naive_label:
-                        print('Smoothed label matches')
-                    elif adv_smoothed_label == img_naive_label:
-                        print('Smoothing restored original label')
-                    else:
-                        print('smoothing changes label to {}. (label {})'.format(adv_naive_label_name, adv_naive_label))
-
-                log_list.append((img_naive_label, img_smoothed_label, adv_naive_label, adv_smoothed_label))
-    np.save('smooth_log.npy', np.asarray(log_list))
-    print(log_list)
+                log_list.append([img_log_list, adv_log_list])
+    log_mat = np.asarray(log_list)
+    np.save('smooth_log.npy', log_mat)
 
 
-def mean_log_statistics(log_path='smooth_log.npy'):
+def mean_log_statistics(log_path='smooth_log.npy', plot=True, weightings=None):
+    weightings = weightings or (0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.)
     log = np.load(log_path)
+    print('log shape', log.shape)
     print('number of samples contained:', log.shape[0])
-    a = np.sum(log[:, 0] == log[:, 1])
+    orgiginal_labels = log[:, 0, 0]
+    a = np.sum(orgiginal_labels == log[:, 0, :], axis=0)
     print('labels retained after smoothing image', a)
-    a = np.sum(log[:, 0] == log[:, 2])
-    print('labels retained after adversarial attack', a)
-    a = np.sum(log[:, 0] == log[:, 3])
+    a = np.sum(orgiginal_labels == log[:, 1, :], axis=0)
     print('labels restored after smoothing advex', a)
-    a = np.sum(log[:, 1] == log[:, 3])
+    a = np.sum(log[:, 0, :] == log[:, 1, :], axis=0)
     print('image and advex smoothed to same label', a)
 
 
