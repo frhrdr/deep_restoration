@@ -30,7 +30,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
     with tf.Graph().as_default():
 
         smoothed_img, img_pl, mean_filter_pl, filter_feed_op = mean_filter_model(filter_hw)
-        # _, logit_tsr = get_classifier_io(classifier, input_init=smoothed_img, input_type='tensor')
+        _, logit_tsr = get_classifier_io(classifier, input_init=smoothed_img, input_type='tensor')
         ref_in, ref_out = get_classifier_io(classifier, input_type='placeholder')
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
@@ -42,28 +42,25 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                 image = np.expand_dims(load_image(img_path).astype(dtype=np.float32), axis=0)
                 advex = np.expand_dims(load_image(adv_path).astype(dtype=np.float32), axis=0)
                 print(np.linalg.norm(image - advex))
+
                 ref_img = sess.run(ref_out, feed_dict={ref_in: image})
                 ref_adv = sess.run(ref_out, feed_dict={ref_in: advex})
 
                 print(np.argmax(ref_img), np.argmax(ref_adv))
                 print(ref_in, ref_out)
-                fb_model = foolbox.models.TensorFlowModel(ref_in, ref_out, bounds=(0, 255))
-                fb_img_pred = fb_model.predictions(image[0, :, :, :])
-                fb_adv_pred = fb_model.predictions(advex[0, :, :, :])
-                print(np.argmax(fb_img_pred), np.argmax(fb_adv_pred))
                 img_log_list = []
                 adv_log_list = []
                 for weight in weightings:
                     filter_mat = make_weighted_mean_filter(weight, filter_hw)
                     sess.run(filter_feed_op, feed_dict={mean_filter_pl: filter_mat})
 
-                    # img_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: image})
-                    # img_smoothed_label = np.argmax(img_smoothed_pred)
-                    # img_log_list.append(img_smoothed_label)
-                    #
-                    # adv_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: advex})
-                    # adv_smoothed_label = np.argmax(adv_smoothed_pred)
-                    # adv_log_list.append(adv_smoothed_label)
+                    img_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: image})
+                    img_smoothed_label = np.argmax(img_smoothed_pred)
+                    img_log_list.append(img_smoothed_label)
+
+                    adv_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: advex})
+                    adv_smoothed_label = np.argmax(adv_smoothed_pred)
+                    adv_log_list.append(adv_smoothed_label)
 
                 log_list.append([img_log_list, adv_log_list])
     log_mat = np.asarray(log_list)
