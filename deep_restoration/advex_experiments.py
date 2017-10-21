@@ -175,7 +175,7 @@ def adaptive_experiment_alex_top1_dropout_prior_dodrop_train(learning_rate=0.1, 
     images_file = 'alexnet_val_2k_top1_correct.txt'
     advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_oblivious/'
     prior_mode = 'dropout1024'
-    deactivate_dropout = False
+    deactivate_dropout = True
     adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
                         attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
                         classifier=classifier,
