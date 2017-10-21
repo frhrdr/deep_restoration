@@ -51,64 +51,16 @@ def stability_experiment_dodrop_adaptive(images_file='alexnet_val_2k_top1_correc
                          log_path=log_path)
 
 
-def stability_experiment_dropoutprior_nodrop_train_100(images_file='subset_100_images.txt',
-                                                       advex_subdir='100_dataset/deepfool_oblivious/',
-                                                       nodrop_train=True):
-    if nodrop_train:
-        imgprior = get_default_prior(mode='dropout_nodrop_train')
-    else:
-        imgprior = get_default_prior(mode='dropout')
-    optimizer = 'adam'
-    learning_rate = 1e-1
-    n_iterations = 30
-    log_freq = 1
-    imgprior.activate_dropout = False
-    log_path = '../logs/adversarial_examples/100_dataset/deepfool/oblivious_dropoutprior_nodrop_train/'
-    # noinspection PyTypeChecker
-    stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
-                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,
-                         log_path=log_path)
-
-
-def stability_experiment_nodrop_adaptive_100(images_file='subset_100_images.txt',
-                                             advex_subdir='100_dataset/deepfool_adaptive_dropout_nodrop_train/'):
-    imgprior = get_default_prior(mode='dropout_nodrop_train')
-    optimizer = 'adam'
-    learning_rate = 1e-1
-    n_iterations = 30
-    log_freq = 1
-    log_path = '../logs/adversarial_examples/100_dataset/deepfool/adaptive_dropoutprior_nodrop_train/nodrop_test/'
-    imgprior.activate_dropout = False
-    # noinspection PyTypeChecker
-    stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
-                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,
-                         log_path=log_path)
-
-
-def stability_experiment_dodrop_adaptive_100(images_file='subset_100_images.txt',
-                                             advex_subdir='100_dataset/deepfool_adaptive_dropout_nodrop_train/'):
-    imgprior = get_default_prior(mode='dropout_nodrop_train')
-    optimizer = 'adam'
-    learning_rate = 1e-1
-    n_iterations = 30
-    log_freq = 1
-    log_path = '../logs/adversarial_examples/100_dataset/deepfool/adaptive_dropoutprior_nodrop_train/dodrop_test/'
-    # noinspection PyTypeChecker
-    stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
-                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,
-                         log_path=log_path)
-
-
 def stability_experiment_nodrop_adaptive(images_file='alexnet_val_2k_top1_correct.txt',
                                          advex_subdir='alexnet_val_2k_top1_correct/'
-                                                      'deepfool_adaptive_dropout_nodrop_train/'):
+                                                      'deepfool_adaptive_dropout_nodrop_train1024/'):
     imgprior = get_default_prior(mode='dropout_nodrop_train')
     optimizer = 'adam'
-    learning_rate = 1e-1
-    n_iterations = 30
+    learning_rate = 0.4
+    n_iterations = 10
     log_freq = 1
     imgprior.activate_dropout = False
-    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/nodrop_test/'
+    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/nodrop_test/lr04'
     # noinspection PyTypeChecker
     stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
                          optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,

@@ -7,7 +7,7 @@ from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_da
     verify_advex_claims, compare_adams
 from advex_experiments import adaptive_experiment_alex_top1_dropout_prior_dodrop_train, \
     stability_experiment_dropoutprior, ensemble_adaptive_experiment_100_dropout_prior_nodrop_train, \
-    stability_experiment_dodrop_adaptive
+    stability_experiment_nodrop_adaptive
 from modules.foe_full_prior import FoEFullPrior
 
 # image_dir = '../data/adversarial_examples/foolbox_images/small_dataset/lbfgs/'
@@ -93,4 +93,4 @@ from modules.foe_full_prior import FoEFullPrior
 
 # ensemble_adaptive_experiment_100_dropout_prior_nodrop_train()
 
-stability_experiment_dodrop_adaptive()
+stability_experiment_nodrop_adaptive()
