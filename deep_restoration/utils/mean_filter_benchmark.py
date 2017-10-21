@@ -42,7 +42,6 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                 adv_log_list = []
                 for weight in weightings:
                     filter_mat = make_weighted_mean_filter(weight, filter_hw)
-                    print(filter_mat)
                     sess.run(filter_feed_op, feed_dict={mean_filter_pl: filter_mat})
 
                     img_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: image})
@@ -160,6 +159,7 @@ def mean_filter_model(filter_hw):
     """
     pad_u = int(np.ceil((filter_hw - 1) / 2))
     pad_d = int(np.floor((filter_hw - 1) / 2))
+    print(pad_d, pad_u)
     image_shape = (1, 227, 227, 3)
     mean_filter_pl = tf.placeholder(dtype=tf.float32, shape=(filter_hw, filter_hw, 3, 1), name='filter_pl')
     mean_filter_var = tf.get_variable('filter_var', shape=(filter_hw, filter_hw, 3, 1),
