@@ -61,7 +61,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                     adv_smoothed_pred = sess.run(logit_tsr, feed_dict={img_pl: advex})
                     adv_smoothed_label = np.argmax(adv_smoothed_pred)
                     adv_log_list.append(adv_smoothed_label)
-
+                    print(img_smoothed_label, adv_smoothed_label)
                 log_list.append([img_log_list, adv_log_list])
     log_mat = np.asarray(log_list)
     print(log_mat)
