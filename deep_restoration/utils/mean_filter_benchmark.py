@@ -62,8 +62,10 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                     adv_log_list.append(adv_smoothed_label)
                     print(weight, np.max(filter_mat), 'norms', np.linalg.norm(advex - adv_smoothed),
                           np.linalg.norm(image - img_smoothed))
-                    print((image - img_smoothed)[0, :10, :10, 0])
-                    print((advex - adv_smoothed)[0, :10, :10, 0])
+                    # print((image - img_smoothed)[0, :10, :10, 0])
+                    # print((advex - adv_smoothed)[0, :10, :10, 0])
+                    print(image[0, :10, :10, 0])
+                    print(img_smoothed[0, :10, :10, 0])
                     print(filter_mat[:, :, 0, :])
                 log_list.append([img_log_list, adv_log_list])
     log_mat = np.asarray(log_list)
