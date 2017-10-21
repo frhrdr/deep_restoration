@@ -41,6 +41,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                 print(np.linalg.norm(image - advex))
                 ref_img = sess.run(ref_out, feed_dict={img_pl: image})
                 ref_adv = sess.run(ref_out, feed_dict={img_pl: advex})
+                print(ref_img - ref_adv)
                 print(np.argmax(ref_img), np.argmax(ref_adv))
                 img_log_list = []
                 adv_log_list = []
