@@ -61,7 +61,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                     adv_smoothed_pred, adv_smoothed = sess.run([logit_tsr, smoothed_img], feed_dict={img_pl: advex})
                     adv_smoothed_label = np.argmax(adv_smoothed_pred)
                     adv_log_list.append(adv_smoothed_label)
-                    print(weight, 'norms', np.linalg.norm(advex - adv_smoothed), np.linalg.norm(image - img_smoothed))
+                    print(weight, np.max(filter_mat), 'norms', np.linalg.norm(advex - adv_smoothed), np.linalg.norm(image - img_smoothed))
 
                     print(img_smoothed_label, adv_smoothed_label)
                 log_list.append([img_log_list, adv_log_list])
