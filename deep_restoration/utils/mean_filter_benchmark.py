@@ -19,8 +19,11 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
     """
     log_list = []
 
-    advex_matches = advex_match_paths(images_file='alexnet_val_2k_top1_correct.txt',
-                                      advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/')
+    # advex_matches = advex_match_paths(images_file='alexnet_val_2k_top1_correct.txt',
+    #                                   advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/')
+    advex_matches = advex_match_paths(images_file='subset_100_images.txt',
+                                      advex_subdir='100_dataset/deepfool_oblivious/')
+
     print('number of matches:', len(advex_matches))
     count = 0
 
