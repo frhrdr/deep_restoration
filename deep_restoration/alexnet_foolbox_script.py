@@ -7,7 +7,8 @@ from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_da
 from utils.mean_filter_benchmark import mean_filter_benchmark, mean_log_statistics, mean_adaptive_attacks_200
 from advex_experiments import adaptive_experiment_alex_top1_dropout_prior_dodrop_train, \
     stability_experiment_dropoutprior, ensemble_adaptive_experiment_100_dropout_prior_nodrop_train, \
-    stability_experiment_nodrop_adaptive, stability_experiment_dropoutprior, adaptive_experiment_alex_top1
+    stability_experiment_nodrop_adaptive, stability_experiment_dropoutprior, adaptive_experiment_alex_top1, \
+    stability_experiment_fullprior
 from modules.foe_full_prior import FoEFullPrior
 
 # image_dir = '../data/adversarial_examples/foolbox_images/small_dataset/lbfgs/'
@@ -52,14 +53,14 @@ from modules.foe_full_prior import FoEFullPrior
 # log_list = eval_class_stability(image_file, priors, learning_rate, n_iterations, log_freq,
 #                                 optimizer='adam', classifier='alexnet', verbose=True)
 # print(log_list)
-# stability_experiment_fullprior()
+stability_experiment_fullprior()
 
-adaptive_experiment_alex_top1()
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/dodrop_test/lr04/'
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train1024/lr06/'
 path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior512/lr06/'
 stability_statistics(path, plot=False)
+adaptive_experiment_alex_top1()
 
 # make_untargeted_dataset(image_subset='alexnet_val_2k_top1_correct.txt',
 #                         attack_name='deepfool', attack_keys=None)
