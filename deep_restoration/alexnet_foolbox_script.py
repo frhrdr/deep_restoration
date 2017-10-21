@@ -61,7 +61,7 @@ from modules.foe_full_prior import FoEFullPrior
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train1024/lr06/'
 path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior512/lr06/'
 # stability_statistics(path, plot=False)
-# adaptive_experiment_alex_top1()
+# adaptive_experim  ent_alex_top1()
 
 # make_untargeted_dataset(image_subset='alexnet_val_2k_top1_correct.txt',
 #                         attack_name='deepfool', attack_keys=None)

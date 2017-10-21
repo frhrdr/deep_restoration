@@ -61,7 +61,7 @@ def mean_log_statistics(log_path='smooth_log.npy', plot=True, weightings=None):
     log = np.load(log_path)
     print('log shape', log.shape)
     print('number of samples contained:', log.shape[0])
-    orgiginal_labels = log[:, 0, 0]
+    orgiginal_labels = np.stack([log[:, 0, 0]] * log.shape[2], axis=1)
     a = np.sum(orgiginal_labels == log[:, 0, :], axis=0)
     print('labels retained after smoothing image', a)
     a = np.sum(orgiginal_labels == log[:, 1, :], axis=0)
