@@ -31,7 +31,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
 
-            for img_path, adv_path in advex_matches[:4]:
+            for img_path, adv_path in advex_matches:
                 count += 1
                 print('match no.', count)
                 image = np.expand_dims(load_image(img_path).astype(dtype=np.float32), axis=0)
