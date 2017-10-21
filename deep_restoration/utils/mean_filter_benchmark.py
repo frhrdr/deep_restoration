@@ -47,7 +47,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
 
                 print(np.argmax(ref_img), np.argmax(ref_adv))
 
-                fb_model = foolbox.models.TensorFlowModel(img_pl, logit_tsr, bounds=(0, 255))
+                fb_model = foolbox.models.TensorFlowModel(ref_in, ref_out, bounds=(0, 255))
                 fb_img_pred = fb_model.predictions(image[0, :, :, :])
                 fb_adv_pred = fb_model.predictions(advex[0, :, :, :])
                 print(np.argmax(fb_img_pred), np.argmax(fb_adv_pred))
