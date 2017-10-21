@@ -60,12 +60,13 @@ def get_attack(name, model, criterion):
 def get_classifier_io(name, input_init=None, input_type='placeholder'):
     assert name in ('alexnet', 'vgg16')
     assert input_type in ('placeholder', 'variable', 'constant', 'tensor')
-    if name == 'vgg16':
-        classifier = Vgg16()
-        hw = 224
-    else:
-        classifier = AlexNet()
-        hw = 227
+    # if name == 'vgg16':
+    #     classifier = Vgg16()
+    #     hw = 224
+    # else:
+    assert name == 'alexnet'
+    classifier = AlexNet(make_dict=True)
+    hw = 227
 
     if input_type == 'placeholder':
         input_tensor = tf.placeholder(tf.float32, (1, hw, hw, 3))
@@ -77,7 +78,7 @@ def get_classifier_io(name, input_init=None, input_type='placeholder'):
         input_tensor = input_init
 
     classifier.build(input_tensor)
-    logit_tsr = tf.get_default_graph().get_tensor_by_name('fc8/lin:0')
+    logit_tsr = classifier.tensors['fc8/lin:0']
 
     return input_tensor, logit_tsr
 
