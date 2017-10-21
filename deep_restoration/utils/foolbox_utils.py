@@ -706,15 +706,26 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
         np.save('src_invariants.npy', np.asarray(src_invariant))
 
 
-def mean_filter_model(make_switch=True):
-    filter_hw = 2
-    pad_u = 0
-    pad_d = 1
+def mean_filter_model(smoothness_weight=1., filter_hw=2, make_switch=True):
+    """
+
+    :param smoothness_weight: interpolates between itentity map (0) and mean filter (1) intermediate values
+    linearly increase the non-identity filter weights
+    :param filter_hw:
+    :param make_switch: makes a placeholder that can turn the filter on and off
+    :return:
+    """
+    pad_u = int(np.ceil((filter_hw - 1) / 2))
+    pad_d = int(np.floor((filter_hw - 1) / 2))
     image_shape = (1, 227, 227, 3)
 
-    img_pl = tf.placeholder(dtype=tf.float32, shape=image_shape)
-    mean_filter_mat = np.ones(shape=[filter_hw, filter_hw, 3, 1]) / filter_hw ** 2
+    center_weight = smoothness_weight / filter_hw ** 2 + 1 - smoothness_weight
+    off_center_weight = smoothness_weight / filter_hw ** 2
+    center_idx_hw = (filter_hw - 1) // 2
+    mean_filter_mat = np.ones(shape=[filter_hw, filter_hw, 3, 1]) * off_center_weight
+    mean_filter_mat[center_idx_hw, center_idx_hw, :, :] = center_weight
     mean_filter_tsr = tf.constant(mean_filter_mat, dtype=tf.float32)
+    img_pl = tf.placeholder(dtype=tf.float32, shape=image_shape)
     img_tsr = tf.pad(img_pl, paddings=[(0, 0), (pad_u, pad_d), (pad_u, pad_d), (0, 0)], mode='REFLECT')
     smoothed_img = tf.nn.depthwise_conv2d(img_tsr, mean_filter_tsr, strides=[1, 1, 1, 1], padding='VALID')
 
