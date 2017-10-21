@@ -56,7 +56,7 @@ from modules.foe_full_prior import FoEFullPrior
 
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/dodrop_test/lr04/'
-# path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train/'
+path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_dodrop_train1024/lr04/'
 #
 # stability_statistics(path)
 
@@ -94,4 +94,4 @@ from modules.foe_full_prior import FoEFullPrior
 # ensemble_adaptive_experiment_100_dropout_prior_nodrop_train()
 
 # stability_experiment_nodrop_adaptive()
-stability_experiment_dropoutprior()
+stability_experiment_dropoutprior(nodrop_train=True)
