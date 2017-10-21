@@ -19,10 +19,8 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
     """
     log_list = []
 
-    # advex_matches = advex_match_paths(images_file='alexnet_val_2k_top1_correct.txt',
-    #                                   advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/')
-    advex_matches = advex_match_paths(images_file='subset_100_images.txt',
-                                      advex_subdir='100_dataset/deepfool_oblivious/')
+    advex_matches = advex_match_paths(images_file='alexnet_val_2k_top1_correct.txt',
+                                      advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/')
 
     print('number of matches:', len(advex_matches))
     count = 0
@@ -36,7 +34,6 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
             sess.run(tf.global_variables_initializer())
 
             for img_path, adv_path in advex_matches:
-                print(img_path, adv_path)
                 count += 1
                 print('match no.', count)
                 image = np.expand_dims(load_image(img_path).astype(dtype=np.float32), axis=0)
