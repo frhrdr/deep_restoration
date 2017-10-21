@@ -28,6 +28,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
 
         smoothed_img, img_pl, mean_filter_pl, filter_feed_op = mean_filter_model(filter_hw)
         _, logit_tsr = get_classifier_io(classifier, input_init=smoothed_img, input_type='tensor')
+        ref_in, ref_out = get_classifier_io(classifier, input_type='placeholder')
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
 
@@ -37,7 +38,10 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                 print('match no.', count)
                 image = np.expand_dims(load_image(img_path).astype(dtype=np.float32), axis=0)
                 advex = np.expand_dims(load_image(adv_path).astype(dtype=np.float32), axis=0)
-
+                print(np.linalg.norm(image - advex))
+                ref_img = sess.run(ref_out, feed_dict={img_pl: image})
+                ref_adv = sess.run(ref_out, feed_dict={img_pl: advex})
+                print(np.argmax(ref_img), np.argmax(ref_adv))
                 img_log_list = []
                 adv_log_list = []
                 for weight in weightings:
