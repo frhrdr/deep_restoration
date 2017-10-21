@@ -43,11 +43,10 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                 advex = np.expand_dims(load_image(adv_path).astype(dtype=np.float32), axis=0)
                 print(np.linalg.norm(image - advex))
 
-                ref_img = sess.run(ref_out, feed_dict={ref_in: image, img_pl: image})
-                ref_adv = sess.run(ref_out, feed_dict={ref_in: advex, img_pl: image})
+                ref_img = sess.run(ref_out, feed_dict={ref_in: image})
+                ref_adv = sess.run(ref_out, feed_dict={ref_in: advex})
 
                 print(np.argmax(ref_img), np.argmax(ref_adv))
-                print(ref_in, ref_out)
                 img_log_list = []
                 adv_log_list = []
                 for weight in weightings:
@@ -61,9 +60,9 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                     adv_smoothed_pred, adv_smoothed = sess.run([logit_tsr, smoothed_img], feed_dict={img_pl: advex})
                     adv_smoothed_label = np.argmax(adv_smoothed_pred)
                     adv_log_list.append(adv_smoothed_label)
-                    print(weight, np.max(filter_mat), 'norms', np.linalg.norm(advex - adv_smoothed), np.linalg.norm(image - img_smoothed))
-
-                    print(img_smoothed_label, adv_smoothed_label)
+                    print(weight, np.max(filter_mat), 'norms', np.linalg.norm(advex - adv_smoothed),
+                          np.linalg.norm(image - img_smoothed))
+                    print((image - img_smoothed)[0, :10, :10, 0])
                 log_list.append([img_log_list, adv_log_list])
     log_mat = np.asarray(log_list)
     print(log_mat)
