@@ -172,8 +172,8 @@ def mean_filter_model(filter_hw):
     :param filter_hw:
     :return:
     """
-    pad_u = int(np.ceil((filter_hw - 1) / 2))
-    pad_d = int(np.floor((filter_hw - 1) / 2))
+    pad_d = int(np.ceil((filter_hw - 1) / 2))
+    pad_u = int(np.floor((filter_hw - 1) / 2))
 
     image_shape = (1, 227, 227, 3)
     mean_filter_pl = tf.placeholder(dtype=tf.float32, shape=(filter_hw, filter_hw, 3, 1), name='filter_pl')
