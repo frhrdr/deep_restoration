@@ -41,8 +41,8 @@ def stability_experiment_dodrop_adaptive(images_file='alexnet_val_2k_top1_correc
                                                       'deepfool_adaptive_dropout_nodrop_train/'):
     imgprior = get_default_prior(mode='dropout_nodrop_train')
     optimizer = 'adam'
-    learning_rate = 1e-1
-    n_iterations = 30
+    learning_rate = 0.4
+    n_iterations = 10
     log_freq = 1
     log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train/dodrop_test/'
     # noinspection PyTypeChecker

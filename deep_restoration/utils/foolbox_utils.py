@@ -32,6 +32,12 @@ def get_default_prior(mode):
                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                                whiten_mode='pca', dir_name='student_dropout_prior_nodrop_training',
                                activate_dropout=False, make_switch=False, dropout_prob=0.5)
+    elif mode == 'fullc1l6000':
+        return FoEFullPrior(tensor_names='conv1/lin:0', weighting=1e-5, classifier='alexnet',
+                            filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
+                            n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
+                            load_name='FoEPrior',
+                            load_tensor_names='conv1/lin:0')
     else:
         return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
