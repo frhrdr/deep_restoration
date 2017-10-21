@@ -31,22 +31,20 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
 
         smoothed_img, img_pl, mean_filter_pl, filter_feed_op = mean_filter_model(filter_hw)
         _, logit_tsr = get_classifier_io(classifier, input_init=smoothed_img, input_type='tensor')
-        ref_in, ref_out = get_classifier_io(classifier, input_type='placeholder')
+        # ref_in, ref_out = get_classifier_io(classifier, input_type='placeholder')
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
 
-            for img_path, adv_path in advex_matches[:2]:
+            for img_path, adv_path in advex_matches:
                 print(img_path, adv_path)
                 count += 1
                 print('match no.', count)
                 image = np.expand_dims(load_image(img_path).astype(dtype=np.float32), axis=0)
                 advex = np.expand_dims(load_image(adv_path).astype(dtype=np.float32), axis=0)
-                print(np.linalg.norm(image - advex))
 
-                ref_img = sess.run(ref_out, feed_dict={ref_in: image})
-                ref_adv = sess.run(ref_out, feed_dict={ref_in: advex})
+                # ref_img = sess.run(ref_out, feed_dict={ref_in: image})
+                # ref_adv = sess.run(ref_out, feed_dict={ref_in: advex})
 
-                print(np.argmax(ref_img), np.argmax(ref_adv))
                 img_log_list = []
                 adv_log_list = []
                 for weight in weightings:
@@ -60,13 +58,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings):
                     adv_smoothed_pred, adv_smoothed = sess.run([logit_tsr, smoothed_img], feed_dict={img_pl: advex})
                     adv_smoothed_label = np.argmax(adv_smoothed_pred)
                     adv_log_list.append(adv_smoothed_label)
-                    print(weight, np.max(filter_mat), 'norms', np.linalg.norm(advex - adv_smoothed),
-                          np.linalg.norm(image - img_smoothed))
-                    # print((image - img_smoothed)[0, :10, :10, 0])
-                    # print((advex - adv_smoothed)[0, :10, :10, 0])
-                    print(image[0, :10, :10, 0])
-                    print(img_smoothed[0, :10, :10, 0])
-                    print(filter_mat[:, :, 0, :])
+
                 log_list.append([img_log_list, adv_log_list])
     log_mat = np.asarray(log_list)
     print(log_mat)
@@ -172,8 +164,8 @@ def mean_filter_model(filter_hw):
     :param filter_hw:
     :return:
     """
-    pad_d = int(np.ceil((filter_hw - 1) / 2))
     pad_u = int(np.floor((filter_hw - 1) / 2))
+    pad_d = int(np.ceil((filter_hw - 1) / 2))
 
     image_shape = (1, 227, 227, 3)
     mean_filter_pl = tf.placeholder(dtype=tf.float32, shape=(filter_hw, filter_hw, 3, 1), name='filter_pl')
