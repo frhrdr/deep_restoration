@@ -229,8 +229,7 @@ def make_small_untargeted_dataset():
                              attack_keys={'steps': 300}, verbose=False)
 
 
-def make_untargeted_dataset(image_subset='subset_100_images.txt',
-                            attack_name='deepfool', attack_keys=None):
+def make_untargeted_dataset(image_subset, attack_name, attack_keys=None):
     if attack_name == 'deepfool':
         attack_keys = {'steps': 300}
 
@@ -242,7 +241,7 @@ def make_untargeted_dataset(image_subset='subset_100_images.txt',
         if '/' not in image_paths[0]:
             image_paths = [data_dir + images_subdir + k[:-len('JPEG')] + 'bmp' for k in image_paths]
 
-    save_dir = '../data/adversarial_examples/foolbox_images/100_dataset/{}_oblivious/'.format(attack_name)
+    save_dir = '../data/adversarial_examples/foolbox_images/alexnet_val_2k_top1_correct/{}_oblivious/'.format(attack_name)
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -816,7 +815,7 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
             with tf.Session() as sess:
                 model = foolbox.models.TensorFlowModel(input_featmap, logit_tsr, bounds=(0, 255))
 
-                criterion = foolbox.criteria.Misclassification()
+                criterion = foolbox.criteria.TargetClassProbability()
 
                 attack = get_attack(attack_name, model, criterion)
                 if attack_keys is None:
