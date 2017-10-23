@@ -25,12 +25,13 @@ def get_default_prior(mode):
     elif mode == 'dropout1024':
         return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
-                               whiten_mode='pca',
+                               whiten_mode='pca', load_tensor_names='image',
                                activate_dropout=True, make_switch=False, dropout_prob=0.5)
     elif mode == 'dropout_nodrop_train512':
         return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
                                n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                                whiten_mode='pca', dir_name='student_dropout_prior_nodrop_training',
+                               load_tensor_names='image',
                                activate_dropout=False, make_switch=False, dropout_prob=0.5)
     elif mode == 'fullc1l6000':
         return FoEFullPrior(tensor_names='conv1/lin:0', weighting=1e-5, classifier='alexnet',
@@ -80,7 +81,7 @@ def get_classifier_io(name, input_init=None, input_type='placeholder'):
     classifier.build(input_tensor)
     logit_tsr = classifier.tensors['fc8/lin']
 
-    return input_tensor, logit_tsr
+    return input_tensor, logit_tsr, classifier
 
 
 def get_adv_ex_filename(source_image, source_label, target_label, save_dir, file_type='png'):
@@ -94,7 +95,7 @@ def make_targeted_examples(source_image, target_class_labels, save_dir,
     for tgt_label in target_class_labels:
         with tf.Graph().as_default():
             with tf.Session():
-                input_pl, logit_tsr = get_classifier_io(classifier)
+                input_pl, logit_tsr, _ = get_classifier_io(classifier)
                 model = foolbox.models.TensorFlowModel(input_pl, logit_tsr, bounds=(0, 255))
 
                 if source_image.endswith('bmp') or source_image.endswith('png'):
@@ -137,7 +138,7 @@ def make_untargeted_examples(source_images, save_dir,
     for src_image in source_images:
         with tf.Graph().as_default():
             with tf.Session():
-                input_pl, logit_tsr = get_classifier_io(classifier)
+                input_pl, logit_tsr, _ = get_classifier_io(classifier)
                 model = foolbox.models.TensorFlowModel(input_pl, logit_tsr, bounds=(0, 255))
 
                 image = load_image(src_image)
@@ -174,7 +175,7 @@ def get_prior_scores_per_image(image_paths, priors, classifier='alexnet', verbos
 
     with tf.Graph().as_default():
 
-        img_pl, _ = get_classifier_io(classifier)
+        img_pl, _, _ = get_classifier_io(classifier)
         loss_list = []
         loss_tsr = 0
         for prior in priors:
@@ -241,7 +242,8 @@ def make_untargeted_dataset(image_subset, attack_name, attack_keys=None):
         if '/' not in image_paths[0]:
             image_paths = [data_dir + images_subdir + k[:-len('JPEG')] + 'bmp' for k in image_paths]
 
-    save_dir = '../data/adversarial_examples/foolbox_images/alexnet_val_2k_top1_correct/{}_oblivious/'.format(attack_name)
+    save_dir = '../data/adversarial_examples/foolbox_images/alexnet_val_2k_top1_correct' \
+               '/{}_oblivious/'.format(attack_name)
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -301,7 +303,7 @@ def eval_class_stability(image_files, priors, learning_rate, n_iterations, log_f
     with tf.Graph().as_default():
         image_pl = tf.placeholder(dtype=tf.float32, shape=image_shape)
         image_var = tf.get_variable('input_image', shape=image_shape, dtype=tf.float32)
-        _, logit_tsr = get_classifier_io(classifier, input_init=image_var, input_type='tensor')
+        _, logit_tsr, _ = get_classifier_io(classifier, input_init=image_var, input_type='tensor')
         feed_op = tf.assign(image_var, image_pl)
 
         loss_tsr = 0
@@ -366,7 +368,7 @@ def eval_class_stability_rolled_out(image_files, priors, learning_rate, n_iterat
     with tf.Graph().as_default():
         image_pl = tf.placeholder(dtype=tf.float32, shape=image_shape)
         image_var = tf.get_variable('input_image', shape=image_shape, dtype=tf.float32)
-        _, logit_tsr = get_classifier_io(classifier, input_init=image_var, input_type='tensor')
+        _, logit_tsr, _ = get_classifier_io(classifier, input_init=image_var, input_type='tensor')
         feed_op = tf.assign(image_var, image_pl)
 
         loss_tsr = 0
@@ -539,8 +541,8 @@ def plot_stability_tradeoff(count_preserved, count_restored, log_freq):
     plt.show()
 
 
-def eval_adaptive_forward_opt(image, prior, learning_rate, n_iterations, attack_name, attack_keys, src_label,
-                              classifier='alexnet', verbose=False):
+def eval_adaptive_forward_opt_dep(image, prior, learning_rate, n_iterations, attack_name, attack_keys, src_label,
+                                  classifier='alexnet', verbose=False):
     """
     runs baseline with prior, then adaptive attack
     :param image:
@@ -559,7 +561,7 @@ def eval_adaptive_forward_opt(image, prior, learning_rate, n_iterations, attack_
         # input_featmap = tf.constant(image, dtype=tf.float32)
         input_featmap = tf.placeholder(tf.float32, image.shape)
         featmap = prior.forward_opt_sgd(input_featmap, learning_rate, n_iterations)
-        _, logit_tsr = get_classifier_io(classifier, input_init=featmap, input_type='tensor')
+        _, logit_tsr, _ = get_classifier_io(classifier, input_init=featmap, input_type='tensor')
 
         with tf.Session() as sess:
             model = foolbox.models.TensorFlowModel(input_featmap, logit_tsr, bounds=(0, 255))
@@ -620,16 +622,24 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
     advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
     print(advex_matches[0])
     img_log = np.load(path + img_log_file)
-    imgprior = get_default_prior(mode=prior_mode)
+    prior = get_default_prior(mode=prior_mode)
+
+    def featmap_transform_fun(x):
+        if prior.in_tensor_names != 'image':
+            return AlexNet().build_partial(in_tensor=x, input_name='input', output_name=prior.in_tensor_names)
+        else:
+            return x
+
     if deactivate_dropout:
-        imgprior.activate_dropout = False
-    elif isinstance(imgprior, FoEDropoutPrior):
+        prior.activate_dropout = False
+    elif isinstance(prior, FoEDropoutPrior):
         raise ValueError
 
     with tf.Graph().as_default():
         input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
-        featmap, _ = imgprior.forward_opt_adam(input_featmap, learning_rate, n_iterations)
-        _, logit_tsr = get_classifier_io(classifier, input_init=featmap, input_type='tensor')
+        featmap, _ = prior.forward_opt_adam(input_featmap, learning_rate, n_iterations,
+                                            in_to_loss_featmap_fun=featmap_transform_fun)
+        _, logit_tsr, _ = get_classifier_io(classifier, input_init=featmap, input_type='tensor')
 
         with tf.Session() as sess:
             model = foolbox.models.TensorFlowModel(input_featmap, logit_tsr, bounds=(0, 255))
@@ -643,7 +653,7 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
 
             init_op = tf.global_variables_initializer()
             sess.run(init_op)
-            imgprior.load_weights(sess)
+            prior.load_weights(sess)
 
             noise_norms = []
             src_invariant = []
@@ -707,10 +717,10 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
 
                 noise_norms.append((oblivious_norm, adaptive_norm))
                 if idx + 1 % 100 == 0:
-                    np.save('noise_norms.npy', np.asarray(noise_norms))
-                    np.save('src_invariants.npy', np.asarray(src_invariant))
-        np.save('noise_norms.npy', np.asarray(noise_norms))
-        np.save('src_invariants.npy', np.asarray(src_invariant))
+                    np.save(path + 'noise_norms.npy', np.asarray(noise_norms))
+                    np.save(path + 'src_invariants.npy', np.asarray(src_invariant))
+        np.save(path + 'noise_norms.npy', np.asarray(noise_norms))
+        np.save(path + 'src_invariants.npy', np.asarray(src_invariant))
 
 
 def read_adaptive_log(path):
@@ -751,7 +761,7 @@ def verify_advex_claims(advex_dir='../data/adversarial_examples/foolbox_images/a
 
     with tf.Graph().as_default():
 
-        image_pl, logit_tsr = get_classifier_io(classifier, input_type='placeholder')
+        image_pl, logit_tsr, _ = get_classifier_io(classifier, input_type='placeholder')
         with tf.Session() as sess:
             for file_name in advex_files:
                 path = advex_dir + file_name
@@ -800,14 +810,14 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
 
         advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
         img_log = np.load(path + img_log_file)
-        imgprior = get_default_prior(mode=prior_mode)
-        assert isinstance(imgprior, FoEDropoutPrior)
+        prior = get_default_prior(mode=prior_mode)
+        assert isinstance(prior, FoEDropoutPrior)
 
         with tf.Graph().as_default():
             input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
-            masks = imgprior.make_dropout_masks(ensemble_size, n_iterations)
-            featmaps = imgprior.masked_ensemble_forward_opt_adam(input_featmap, learning_rate, n_iterations, masks)
-            _, logit_tsr = get_classifier_io(classifier, input_init=featmaps, input_type='tensor')
+            masks = prior.make_dropout_masks(ensemble_size, n_iterations)
+            featmaps = prior.masked_ensemble_forward_opt_adam(input_featmap, learning_rate, n_iterations, masks)
+            _, logit_tsr, _ = get_classifier_io(classifier, input_init=featmaps, input_type='tensor')
 
             logit_tsr = aggregate_ensemble_logits(logit_tsr, method='default')
             logit_tsr = tf.expand_dims(logit_tsr, axis=0)
@@ -826,7 +836,7 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
 
                 init_op = tf.global_variables_initializer()
                 sess.run(init_op)
-                imgprior.load_weights(sess)
+                prior.load_weights(sess)
 
                 noise_norms = []
                 src_invariant = []

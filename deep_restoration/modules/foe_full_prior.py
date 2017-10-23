@@ -585,7 +585,7 @@ class FoEFullPrior(LearnedPriorLoss):
         else:
             return final_featmap, None
 
-    def forward_opt_adam(self, input_featmap, learning_rate, n_iterations,
+    def forward_opt_adam(self, input_featmap, learning_rate, n_iterations, in_to_loss_featmap_fun=None,
                          make_switch=False, beta1=0.9, beta2=0.999, eps=1e-8, explicit_notation=False):
 
         def apply_adam(variable, gradients, m_acc, v_acc, iteration):
@@ -612,7 +612,10 @@ class FoEFullPrior(LearnedPriorLoss):
 
         def body(count, featmap, m_acc, v_acc):
             count += 1
-            self.build(featmap_tensor=featmap)
+            if in_to_loss_featmap_fun is None:
+                self.build(featmap_tensor=featmap)
+            else:
+                self.build(featmap_tensor=in_to_loss_featmap_fun(featmap))
             featmap_grad = tf.gradients(ys=self.get_loss(), xs=featmap)[0]
             featmap, m_acc, v_acc = apply_adam(featmap, featmap_grad, m_acc, v_acc, count)
             return count, featmap, m_acc, v_acc
