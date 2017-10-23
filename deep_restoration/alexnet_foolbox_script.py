@@ -60,7 +60,7 @@ from modules.foe_full_prior import FoEFullPrior
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/dodrop_test/lr04/'
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train1024/lr06/'
-# path = '../logs/adversarial_examples/alexnet_top1/gradientsign/oblivious_fullprior512/lr06/'
+# path = '../logs/adversarial_examples/alexnet_top1/gradientsign/oblivious_fullprior512/lr1/'
 # stability_statistics(path, plot=True)
 # adaptive_experiment_alex_top1()
 

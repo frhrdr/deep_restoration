@@ -10,10 +10,10 @@ def stability_experiment_fullprior(images_file='alexnet_val_2k_top1_correct.txt'
     # learning_rate = 1e-0
     # n_iterations = 100
     # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
-    learning_rate = 1.
+    learning_rate = 10.
     n_iterations = 30
     log_freq = 1
-    log_path = '../logs/adversarial_examples/alexnet_top1/{}/oblivious_fullprior512/lr1/'.format(attack_name)
+    log_path = '../logs/adversarial_examples/alexnet_top1/{}/oblivious_fullprior512/lr10/'.format(attack_name)
     # noinspection PyTypeChecker
     stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
                          optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,

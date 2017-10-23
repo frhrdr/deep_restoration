@@ -472,7 +472,7 @@ def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learnin
 
 def stability_statistics(path, plot=True):
     # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
-    log_freq = range(10)
+    log_freq = range(30)
     print('log points after n iterations', log_freq)
 
     img_log = np.load(path + 'img_log.npy')
