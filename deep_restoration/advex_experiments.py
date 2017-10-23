@@ -159,3 +159,19 @@ def ensemble_adaptive_experiment_100_dropout_prior_nodrop_train(learning_rate=0.
                                  classifier=classifier,
                                  image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
                                  verbose=verbose, ensemble_size=ensemble_size)
+
+
+def c1l_prior_stability_experiment(images_file='alexnet_val_2k_top1_correct.txt',
+                                   advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/',
+                                   attack_name='deepfool', prior_mode='fullc1l6000'):
+    imgprior = get_default_prior(mode=prior_mode)
+    optimizer = 'adam'
+    learning_rate = 0.6
+    n_iterations = 30
+    log_freq = 1
+    log_path = '../logs/adversarial_examples/alexnet_top1/{}/oblivious_{}/lr06/'.format(attack_name, prior_mode)
+    # noinspection PyTypeChecker
+    stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
+                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,
+                         log_path=log_path)
+

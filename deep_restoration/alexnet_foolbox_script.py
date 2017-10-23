@@ -9,7 +9,7 @@ from advex_experiments import adaptive_experiment_alex_top1_dropout_prior_dodrop
     stability_experiment_dropoutprior, ensemble_adaptive_experiment_100_dropout_prior_nodrop_train, \
     stability_experiment_nodrop_adaptive, stability_experiment_dropoutprior, adaptive_experiment_alex_top1, \
     stability_experiment_fullprior, adaptive_experiment_alex_top1_dropout_prior_dodrop_train, \
-    adaptive_experiment_alex_top1_dropout_prior_nodrop_train
+    adaptive_experiment_alex_top1_dropout_prior_nodrop_train, c1l_prior_stability_experiment
 from utils.mean_filter_benchmark import default_mean_filter_exp
 from modules.foe_full_prior import FoEFullPrior
 
@@ -60,15 +60,15 @@ from modules.foe_full_prior import FoEFullPrior
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/dodrop_test/lr04/'
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train1024/lr06/'
-# path = '../logs/adversarial_examples/alexnet_top1/gradientsign/oblivious_fullprior512/lr1/'
+# path = '../logs/adversarial_examples/alexnet_top1/gradientsign/oblivious_fullprior512/lr10/'
 # stability_statistics(path, plot=True)
 # adaptive_experiment_alex_top1()
 
 # make_untargeted_dataset(image_subset='alexnet_val_2k_top1_correct.txt',
 #                         attack_name='gradientsign', attack_keys=None)
-stability_experiment_fullprior(images_file='alexnet_val_2k_top1_correct.txt',
-                               advex_subdir='alexnet_val_2k_top1_correct/gradientsign_oblivious/',
-                               attack_name='gradientsign')
+# stability_experiment_fullprior(images_file='alexnet_val_2k_top1_correct.txt',
+#                                advex_subdir='alexnet_val_2k_top1_correct/gradientsign_oblivious/',
+#                                attack_name='gradientsign')
 
 # read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior/')
 
@@ -93,3 +93,4 @@ stability_experiment_fullprior(images_file='alexnet_val_2k_top1_correct.txt',
 # adaptive_experiment_alex_top1(attack_name='gradientsign')
 # adaptive_experiment_alex_top1_dropout_prior_nodrop_train(attack_name='gradientsign')
 # adaptive_experiment_alex_top1_dropout_prior_dodrop_train(attack_name='gradientsign')
+c1l_prior_stability_experiment()
