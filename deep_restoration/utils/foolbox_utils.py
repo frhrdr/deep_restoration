@@ -625,7 +625,9 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
 
     def featmap_transform_fun(x):
         if prior.in_tensor_names != 'image':
-            return AlexNet().build_partial(in_tensor=x, input_name='input', output_name=prior.in_tensor_names)
+            output_name = prior.in_tensor_names
+            output_name = output_name[:-2] if output_name.endswith(':0') else output_name
+            return AlexNet().build_partial(in_tensor=x, input_name='input', output_name=output_name)
         else:
             return x
 
