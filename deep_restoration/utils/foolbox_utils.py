@@ -598,8 +598,7 @@ def eval_adaptive_forward_opt_dep(image, prior, learning_rate, n_iterations, att
 
 
 def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, prior_mode,
-                        path, img_log_file, classifier, image_shape, images_file, advex_subdir, verbose,
-                        deactivate_dropout=False):
+                        path, img_log_file, classifier, image_shape, images_file, advex_subdir, verbose):
     """
     constructs adaptive attacks for the prior, records necessary perturbation for oblivious and adaptive attack
     separately records, which inputs are misclassified as result of the regularization alone.
@@ -630,10 +629,8 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
         else:
             return x
 
-    if deactivate_dropout:
+    if isinstance(prior, FoEDropoutPrior):
         prior.activate_dropout = False
-    elif isinstance(prior, FoEDropoutPrior):
-        raise ValueError
 
     with tf.Graph().as_default():
         input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)

@@ -99,12 +99,11 @@ def adaptive_experiment_alex_top1_dropout_prior_nodrop_train(learning_rate=0.6, 
     images_file = 'alexnet_val_2k_top1_correct.txt'
     advex_subdir = 'alexnet_val_2k_top1_correct/{}_oblivious/'.format(attack_name)
     prior_mode = 'dropout_nodrop_train1024'
-    deactivate_dropout = True
     adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
                         attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
                         classifier=classifier,
                         image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
-                        verbose=verbose, deactivate_dropout=deactivate_dropout)
+                        verbose=verbose)
 
 
 def adaptive_experiment_alex_top1_dropout_prior_dodrop_train(learning_rate=0.6, n_iterations=5, attack_name='deepfool',
@@ -117,12 +116,11 @@ def adaptive_experiment_alex_top1_dropout_prior_dodrop_train(learning_rate=0.6, 
     images_file = 'alexnet_val_2k_top1_correct.txt'
     advex_subdir = 'alexnet_val_2k_top1_correct/{}_oblivious/'.format(attack_name)
     prior_mode = 'dropout1024'
-    deactivate_dropout = True
     adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
                         attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
                         classifier=classifier,
                         image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
-                        verbose=verbose, deactivate_dropout=deactivate_dropout)
+                        verbose=verbose)
 
 
 def adaptive_experiment_100_dropout_prior_nodrop_train(learning_rate=0.1, n_iterations=5, attack_name='deepfool',
@@ -135,12 +133,11 @@ def adaptive_experiment_100_dropout_prior_nodrop_train(learning_rate=0.1, n_iter
     images_file = 'subset_100_images.txt'
     advex_subdir = '100_dataset/deepfool_oblivious/'
     prior_mode = 'dropout_nodrop_train'
-    deactivate_dropout = True
     adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
                         attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
                         classifier=classifier,
                         image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
-                        verbose=verbose, deactivate_dropout=deactivate_dropout)
+                        verbose=verbose)
 
 
 def ensemble_adaptive_experiment_100_dropout_prior_nodrop_train(learning_rate=0.7, n_iterations=1,
@@ -175,3 +172,18 @@ def c1l_prior_stability_experiment(images_file='alexnet_val_2k_top1_correct.txt'
                          optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,
                          log_path=log_path)
 
+
+def c1l_prior_adaptive_experiment(learning_rate=0.6, n_iterations=2, attack_name='deepfool',
+                                  attack_keys=None, verbose=True, prior_mode='fullc1l6000'):
+
+    path = '../logs/adversarial_examples/alexnet_top1/{}/oblivious_{}/lr06/'.format(attack_name, prior_mode)
+    img_log_file = 'img_log.npy'
+    classifier = 'alexnet'
+    image_shape = (1, 227, 227, 3)
+    images_file = 'alexnet_val_2k_top1_correct.txt'
+    advex_subdir = 'alexnet_val_2k_top1_correct/{}_oblivious/'.format(attack_name)
+    adaptive_experiment(learning_rate=learning_rate, n_iterations=n_iterations, attack_name=attack_name,
+                        attack_keys=attack_keys, prior_mode=prior_mode, path=path, img_log_file=img_log_file,
+                        classifier=classifier,
+                        image_shape=image_shape, images_file=images_file, advex_subdir=advex_subdir,
+                        verbose=verbose)
