@@ -6,44 +6,12 @@ import numpy as np
 import skimage.io
 import tensorflow as tf
 from tf_alexnet.alexnet import AlexNet
-from tf_vgg.vgg16 import Vgg16
 
 from modules.core_modules import LearnedPriorLoss
 from modules.foe_dropout_prior import FoEDropoutPrior
-from modules.foe_full_prior import FoEFullPrior
+from utils.default_priors import get_default_prior
 from utils.imagenet_classnames import get_class_name
 from utils.temp_utils import load_image, get_optimizer
-
-
-def get_default_prior(mode):
-    assert mode in ('full512', 'dropout1024', 'dropout_nodrop_train1024', 'dropout_nodrop_train512', 'fullc1l6000')
-    if mode == 'full512':
-        return FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
-                            n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
-                            whiten_mode='pca',
-                            name=None, load_name='FoEPrior', dir_name=None, load_tensor_names='image')
-    elif mode == 'dropout1024':
-        return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
-                               n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
-                               whiten_mode='pca', load_tensor_names='image',
-                               activate_dropout=True, make_switch=False, dropout_prob=0.5)
-    elif mode == 'dropout_nodrop_train512':
-        return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
-                               n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
-                               whiten_mode='pca', dir_name='student_dropout_prior_nodrop_training',
-                               load_tensor_names='image',
-                               activate_dropout=False, make_switch=False, dropout_prob=0.5)
-    elif mode == 'fullc1l6000':
-        return FoEFullPrior(tensor_names='conv1/lin:0', weighting=1e-5, classifier='alexnet',
-                            filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
-                            n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
-                            load_name='FoEPrior',
-                            load_tensor_names='conv1/lin:0')
-    else:
-        return FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
-                               n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
-                               whiten_mode='pca', dir_name='student_dropout_prior_nodrop_training',
-                               activate_dropout=True, make_switch=False, dropout_prob=0.5)
 
 
 def get_attack(name, model, criterion):
@@ -614,7 +582,6 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
     :param images_file:
     :param advex_subdir:
     :param verbose:
-    :param deactivate_dropout:
     :return:
     """
 
@@ -722,6 +689,7 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
         np.save(path + 'src_invariants.npy', np.asarray(src_invariant))
 
 
+# noinspection PyTypeChecker
 def read_adaptive_log(path):
     noise_norms = np.load(path + 'noise_norms.npy')
     src_invariants = np.load(path + 'src_invariants.npy')
@@ -787,7 +755,7 @@ def verify_advex_claims(advex_dir='../data/adversarial_examples/foolbox_images/a
 
 def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, prior_mode,
                                  path, img_log_file, classifier, image_shape, images_file, advex_subdir, verbose,
-                                 ensemble_size):
+                                 ensemble_size, target_prob):
         """
         constructs adaptive attacks for the prior, records necessary perturbation for oblivious and adaptive attack
         separately records, which inputs are misclassified as result of the regularization alone.
@@ -804,6 +772,7 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
         :param advex_subdir:
         :param verbose:
         :param ensemble_size:
+        :param target_prob:
         :return:
         """
 
@@ -818,13 +787,17 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
             featmaps = prior.masked_ensemble_forward_opt_adam(input_featmap, learning_rate, n_iterations, masks)
             _, logit_tsr, _ = get_classifier_io(classifier, input_init=featmaps, input_type='tensor')
 
-            logit_tsr = aggregate_ensemble_logits(logit_tsr, method='default')
+            label_var = tf.get_variable('label_var', shape=(), dtype=tf.int32, trainable=False)
+            label_pl = tf.placeholder(dtype=tf.int32, shape=())
+            label_feed_op = tf.assign(label_var, label_pl)
+
+            logit_tsr = aggregate_ensemble_logits(logit_tsr, label_var, method='default')
             logit_tsr = tf.expand_dims(logit_tsr, axis=0)
 
             with tf.Session() as sess:
                 model = foolbox.models.TensorFlowModel(input_featmap, logit_tsr, bounds=(0, 255))
 
-                criterion = foolbox.criteria.TargetClassProbability()
+                criterion = foolbox.criteria.OriginalClassProbability(target_prob)
 
                 attack = get_attack(attack_name, model, criterion)
                 if attack_keys is None:
@@ -848,7 +821,9 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
 
                 for idx, match in enumerate(advex_matches):
                     img_path, adv_path = match
+
                     src_label = img_log[idx][0]
+                    sess.run(label_feed_op, feed_dict={label_pl: src_label})
 
                     img = load_image(img_path)
                     adv = load_image(adv_path)
@@ -907,10 +882,20 @@ def ensemble_adaptive_experiment(learning_rate, n_iterations, attack_name, attac
             np.save('src_invariants.npy', np.asarray(src_invariant))
 
 
-def aggregate_ensemble_logits(logits, method):
+def aggregate_ensemble_logits(logits, label, method):
     lse = tf.reduce_logsumexp(logits, axis=1)
     scaled_logits = tf.transpose(tf.transpose(logits) - lse)
-    return tf.reduce_mean(scaled_logits, axis=0)
+    if method == 'mean':
+        return tf.reduce_mean(scaled_logits, axis=0)
+    elif method == 'softmax':
+        mean_logits = tf.reduce_mean(scaled_logits, axis=0)
+        label_logits = scaled_logits[:, label]
+        softmax_logits = tf.nn.softmax(label_logits)
+        weighted_avg = tf.reduce_sum(softmax_logits * label_logits)
+        splits = tf.stack([label, 1, 999 - label])
+        split_mean_logits = tf.split(mean_logits, splits, axis=0)
+        merged_logits = tf.stack([split_mean_logits[0], weighted_avg, split_mean_logits[2]], axis=0)
+        return merged_logits
 
 
 def compare_adams(advex_dir, prior_mode='dropout_nodrop_train', learning_rate=0.1, n_iterations=2):

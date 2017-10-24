@@ -49,9 +49,24 @@ from modules.loss_modules import VggScoreLoss
 #                          load_tensor_names = 'image')
 #
 # img_prior.train_prior(10, 0, plot_filters=True, prev_ckpt=13000)
-hw = 9
-wmode = 'zca'
-nchan = 3
+# hw = 9
+# wmode = 'zca'
+# nchan = 3
+
+fullprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
+                         n_features_white=8 ** 2 * 3 - 1, dist='logistic', mean_mode='gc', sdev_mode='gc',
+                         whiten_mode='pca')
+
+fullprior.train_prior(batch_size=250, n_iterations=25000, lr=3e-5,
+                      lr_lower_points=((0, 1e-0), (10000, 1e-1),
+                                       (13000, 3e-2),
+                                       (15000, 1e-2), (17000, 3e-3), (19000, 1e-3),
+                                       (21000, 1e-4), (23000, 3e-5)),
+                      grad_clip=1e-3,
+                      n_data_samples=100000, n_val_samples=500,
+                      log_freq=5000, summary_freq=10, print_freq=100,
+                      prev_ckpt=0,
+                      optimizer_name='adam', plot_filters=True, stop_on_overfit=False)
 
 # p = FoEFullPrior('conv1/lin:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=2000, n_channels=nchan,
 #                  n_features_white=hw**2*nchan, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,
@@ -66,23 +81,23 @@ nchan = 3
 #                         whiten_mode=wmode,
 #                         name=None, load_name=None, dir_name=None, load_tensor_names=None)
 
-p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=100, n_channels=3,
-                      n_features_per_channel_white=hw**2,
-                      dim_multiplier=10, share_weights=True, channelwise_data=False, loop_loss=True,
-                      dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,
-                      name=None, load_name=None, dir_name=None, load_tensor_names=None)
-
-p.train_prior(batch_size=500, n_iterations=1000, lr=3e-5,
-              lr_lower_points=((0, 1e-0), (20000, 1e-1),
-                               (21000, 3e-2),
-                               (22000, 1e-2), (22500, 3e-3), (23000, 1e-3),
-                               (24000, 1e-4), (24500, 3e-5)),
-              grad_clip=1e-3,
-              n_data_samples=100000, n_val_samples=1000,
-              log_freq=1000, summary_freq=10, print_freq=10,
-              prev_ckpt=0,
-              optimizer_name='adam', plot_filters=True)
+# p = FoESeparablePrior('rgb_scaled:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=100, n_channels=3,
+#                       n_features_per_channel_white=hw**2,
+#                       dim_multiplier=10, share_weights=True, channelwise_data=False, loop_loss=True,
+#                       dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,
+#                       name=None, load_name=None, dir_name=None, load_tensor_names=None)
 #
+# p.train_prior(batch_size=500, n_iterations=1000, lr=3e-5,
+#               lr_lower_points=((0, 1e-0), (20000, 1e-1),
+#                                (21000, 3e-2),
+#                                (22000, 1e-2), (22500, 3e-3), (23000, 1e-3),
+#                                (24000, 1e-4), (24500, 3e-5)),
+#               grad_clip=1e-3,
+#               n_data_samples=100000, n_val_samples=1000,
+#               log_freq=1000, summary_freq=10, print_freq=10,
+#               prev_ckpt=0,
+#               optimizer_name='adam', plot_filters=True)
+
 # p.plot_filters_top_alphas(7, p.load_path + 'filter_vis/a_top/')
 # p.plot_channels_top_filters(range(7), p.load_path + 'filter_vis/c_top/')
 

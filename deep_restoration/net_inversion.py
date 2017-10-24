@@ -40,7 +40,7 @@ class NetInversion:
 
         classifier.build(img_pl, rescale=1.0)
 
-    def load_partial_classifier(self, in_tensor, in_tensor_name):
+    def load_partial_classifier(self, in_tensor, in_tensor_name, classifier_cutoff):
         if self.classifier.lower() == 'vgg16':
             raise NotImplementedError
             # classifier = vgg16.Vgg16()
@@ -49,7 +49,7 @@ class NetInversion:
         else:
             raise NotImplementedError
 
-        classifier.build_partial(in_tensor, in_tensor_name, rescale=1.0)
+        classifier.build_partial(in_tensor, in_tensor_name, output_name=classifier_cutoff, rescale=1.0)
 
     def build_model(self):
         loss = 0
@@ -127,7 +127,7 @@ class NetInversion:
                           range_b=80, jitter_t=0, optim_name='adam',
                           range_clip=False, save_as_plot=False, jitter_stop_point=-1, scale_pre_img=1.0,
                           pre_featmap_init=None, ckpt_offset=0,
-                          pre_featmap_name='input',
+                          pre_featmap_name='input', classifier_cutoff=None,
                           tensor_names_to_save=(), featmap_names_to_plot=(), max_n_featmaps_to_plot=5):
         """
         like mahendran & vedaldi, optimizes pre-image based on a single other image
@@ -172,7 +172,7 @@ class NetInversion:
                 rec_input = tf.cond(use_jitter_pl, lambda: rec_padded, lambda: pre_featmap, name='jitter_cond')
                 net_input = tf.concat([target_featmap, rec_input * scale_pre_img], axis=0)
 
-                self.load_partial_classifier(net_input, pre_featmap_name)
+                self.load_partial_classifier(net_input, pre_featmap_name, classifier_cutoff)
 
                 loss = self.build_model()
                 tensors_to_save = [graph.get_tensor_by_name(k) for k in tensor_names_to_save]
@@ -253,6 +253,8 @@ class NetInversion:
                                 ax = plt.Axes(fig, [0., 0., 1., 1.])
                                 ax.set_axis_off()
                                 fig.add_axes(ax)
+                                if rec_mat.shape[0] == 1:
+                                    rec_mat = np.squeeze(rec_mat, axis=0)
                                 ax.imshow(rec_mat, aspect='auto')
                                 plt.savefig(self.log_path + 'imgs/rec_' + str(count) + '.png',
                                             format='png', dpi=self.img_hw)
@@ -369,7 +371,7 @@ class NetInversion:
 
     def get_target_featmap(self, target_image_mat, target_map_name):
         if target_map_name == 'input':
-            return target_image_mat
+            return target_image_mat.astype(dtype=np.float32)
         else:
             with tf.Graph().as_default() as graph:
                 image = tf.constant(target_image_mat, dtype=tf.float32, shape=[1, self.img_hw, self.img_hw, 3])

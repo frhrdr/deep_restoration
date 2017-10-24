@@ -1,6 +1,6 @@
 from modules.foe_dropout_prior import FoEDropoutPrior
 
-imgprior = FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
+imgprior = FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=256, n_channels=3,
                            n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                            whiten_mode='pca', dir_name='student_dropout_prior_nodrop_training',
                            activate_dropout=False, make_switch=False, dropout_prob=0.5)

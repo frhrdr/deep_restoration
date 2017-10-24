@@ -3,6 +3,7 @@ matplotlib.use('tkagg', force=True)
 import matplotlib.pyplot as plt
 import os
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+import seaborn as sns
 
 
 def prepare_scalar_logs(path):
@@ -18,10 +19,12 @@ def prepare_scalar_logs(path):
     return scalar_logs
 
 
-def plot_opt_inv_experiment(path, exp_subdirs, log_tags):
+def plot_opt_inv_experiment(path, exp_subdirs, log_tags, logscale=True):
+    sns.set_style('darkgrid')
+    sns.set_context('paper')
     exp_logs = dict()
     for exp in exp_subdirs:
-        exp_path = os.path.join(path, exp_subdirs[exp], 'summaries')
+        exp_path = os.path.join(path, exp_subdirs[exp], 'summaries/')
         print(exp_path)
         exp_logs[exp] = prepare_scalar_logs(exp_path)
 
@@ -35,16 +38,13 @@ def plot_opt_inv_experiment(path, exp_subdirs, log_tags):
             if tag in log:
                 steps, values = log[tag]
                 plt.plot(steps, values, label=exp)
+
+        if logscale:
+            plt.yscale('log')
+        plt.xlabel('Iterations')
+        plt.ylabel('Mean Squared Error')
         plt.legend()
         plt.show()
         plt.close()
 
 
-def plot_example_exp():
-    path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l'
-    exp_subdirs = {'No prior': 'no_prior',
-                   'Pre-image with prior': 'pre_image_8x8_full_prior/1e-3',
-                   'Pre-image with no prior': 'pre_image_no_prior'}
-    log_tags = {'Total loss': 'Total_Loss',
-                'Reconstruction error': 'MSE_Reconstruction_1'}
-    plot_opt_inv_experiment(path, exp_subdirs, log_tags)

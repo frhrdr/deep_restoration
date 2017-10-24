@@ -189,3 +189,7 @@ def make_weighted_mean_filter(smoothness_weight, filter_hw):
     mean_filter_mat = np.ones(shape=[filter_hw, filter_hw, 3, 1]) * off_center_weight
     mean_filter_mat[center_idx_hw, center_idx_hw, :, :] = center_weight
     return mean_filter_mat
+
+
+def mean_filter_plots():
+    pass

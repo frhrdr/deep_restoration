@@ -1,5 +1,6 @@
-from utils.foolbox_utils import get_default_prior, stability_experiment, adaptive_experiment, \
+from utils.foolbox_utils import stability_experiment, adaptive_experiment, \
     ensemble_adaptive_experiment
+from utils.default_priors import get_default_prior
 
 
 def stability_experiment_fullprior(images_file='alexnet_val_2k_top1_correct.txt',
