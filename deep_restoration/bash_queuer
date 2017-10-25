@@ -1,0 +1,12 @@
+#!/bin/bash
+nohup python cnn_inv_script.py &
+nohup python stack_script_1.py &
+nohup python stack_script_2.py &
+nohup python stack_script_3.py &
+nohup python stack_script_4.py &
+nohup python stack_script_5.py &
+nohup python stack_script_6.py &
+nohup python stack_script_7.py &
+nohup python stack_script_8.py &
+nohup python stack_script_9.py &
+nohup python stack_script_10.py &

@@ -13,9 +13,8 @@ if not os.path.exists(log_path):
     os.makedirs(log_path)
 copyfile('./cnn_inv_script.py', log_path + 'stack_script_6.py')
 
-
-modules = module_list + [module_list[-1].get_mse_loss()]
+modules = module_list + [m.get_mse_loss() for m in module_list]
 ni = NetInversion(modules, log_path, classifier=classifier, summary_freq=10, print_freq=10, log_freq=500)
 
 ni.train_on_dataset(n_iterations=3000, batch_size=32, test_set_size=200, test_freq=100,
-                    optim_name='adam', lr_lower_points=((0, 3e-5), (1000, 1e-5), (2000, 3e-6)))
+                    optim_name='adam', lr_lower_points=((0, 3e-6), (1000, 1e-6), (2000, 3e-7)))
