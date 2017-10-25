@@ -62,7 +62,7 @@ import numpy as np
 
 # dc_module = alexnet_inv()['DC9']
 classifier = 'vgg16'
-dc_module = vgg16_inv()['DC2']
+dc_module = vgg16_inv()['DC3']
 
 log_path = '../logs/cnn_inversion/{}/{}_solo/'.format(classifier, dc_module.name)
 if not os.path.exists(log_path):
