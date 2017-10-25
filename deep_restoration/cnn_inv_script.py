@@ -1,55 +1,56 @@
 from net_inversion import NetInversion
 from modules.inv_modules import ScaleConvConvModule, DeconvConvModule
 from modules.loss_modules import MSELoss
+from modules.inv_default_modules import alexnet_inv
 from shutil import copyfile
 from utils.filehandling import load_image
 import os
 import numpy as np
 
-dc7 = DeconvConvModule(inv_input_name='conv3/lin:0', inv_target_name='pool2:0',
-                       hidden_channels=384, rec_name='pool2_rec',
-                       op1_hw=[8, 8], op1_strides=[1, 1, 1, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
-                       name='DC7',
-                       subdir='solotrain', trainable=True)
-
-dc6 = DeconvConvModule(inv_input_name='pool2:0', inv_target_name='lrn2:0',
-                       hidden_channels=256, rec_name='lrn2_rec',
-                       op1_hw=[3, 3], op1_strides=[1, 2, 2, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
-                       op1_pad='VALID', op2_pad='SAME',
-                       name='DC6',
-                       subdir='solotrain', trainable=True)
-
-dc5 = DeconvConvModule(inv_input_name='lrn2:0', inv_target_name='conv2/lin:0',
-                       hidden_channels=256, rec_name='c2l_rec',
-                       op1_hw=[8, 8], op1_strides=[1, 1, 1, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
-                       name='DC5',
-                       subdir='solotrain', trainable=True)
-
-dc4 = DeconvConvModule(inv_input_name='conv2/lin:0', inv_target_name='pool1:0',
-                       hidden_channels=256, rec_name='pool1_rec',
-                       op1_hw=[8, 8], op1_strides=[1, 1, 1, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
-                       name='DC4',
-                       subdir='solotrain', trainable=True)
-
-dc3 = DeconvConvModule(inv_input_name='pool1:0', inv_target_name='lrn1:0',
-                       hidden_channels=96, rec_name='lrn1_rec',
-                       op1_hw=[3, 3], op1_strides=[1, 2, 2, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
-                       op1_pad='VALID', op2_pad='SAME',
-                       name='DC3',
-                       subdir='solotrain', trainable=True)
-
-dc2 = DeconvConvModule(inv_input_name='lrn1:0', inv_target_name='conv1/lin:0',
-                       hidden_channels=96, rec_name='c1l_rec',
-                       op1_hw=[8, 8], op1_strides=[1, 1, 1, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
-                       name='DC2',
-                       subdir='solotrain', trainable=True)
-
-dc1 = DeconvConvModule(inv_input_name='conv1/lin:0', inv_target_name='rgb_scaled:0',
-                       hidden_channels=96, rec_name='rgb_rec',
-                       op1_hw=[11, 11], op1_strides=[1, 4, 4, 1], op2_hw=[11, 11], op2_strides=[1, 1, 1, 1],
-                       op1_pad='VALID',
-                       name='DC1',
-                       subdir='solotrain', trainable=True)
+# dc7 = DeconvConvModule(inv_input_name='conv3/lin:0', inv_target_name='pool2:0',
+#                        hidden_channels=384, rec_name='pool2_rec',
+#                        op1_hw=[8, 8], op1_strides=[1, 1, 1, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
+#                        name='DC7',
+#                        subdir='solotrain', trainable=True)
+#
+# dc6 = DeconvConvModule(inv_input_name='pool2:0', inv_target_name='lrn2:0',
+#                        hidden_channels=256, rec_name='lrn2_rec',
+#                        op1_hw=[3, 3], op1_strides=[1, 2, 2, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
+#                        op1_pad='VALID', op2_pad='SAME',
+#                        name='DC6',
+#                        subdir='solotrain', trainable=True)
+#
+# dc5 = DeconvConvModule(inv_input_name='lrn2:0', inv_target_name='conv2/lin:0',
+#                        hidden_channels=256, rec_name='c2l_rec',
+#                        op1_hw=[8, 8], op1_strides=[1, 1, 1, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
+#                        name='DC5',
+#                        subdir='solotrain', trainable=True)
+#
+# dc4 = DeconvConvModule(inv_input_name='conv2/lin:0', inv_target_name='pool1:0',
+#                        hidden_channels=256, rec_name='pool1_rec',
+#                        op1_hw=[8, 8], op1_strides=[1, 1, 1, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
+#                        name='DC4',
+#                        subdir='solotrain', trainable=True)
+#
+# dc3 = DeconvConvModule(inv_input_name='pool1:0', inv_target_name='lrn1:0',
+#                        hidden_channels=96, rec_name='lrn1_rec',
+#                        op1_hw=[3, 3], op1_strides=[1, 2, 2, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
+#                        op1_pad='VALID', op2_pad='SAME',
+#                        name='DC3',
+#                        subdir='solotrain', trainable=True)
+#
+# dc2 = DeconvConvModule(inv_input_name='lrn1:0', inv_target_name='conv1/lin:0',
+#                        hidden_channels=96, rec_name='c1l_rec',
+#                        op1_hw=[8, 8], op1_strides=[1, 1, 1, 1], op2_hw=[8, 8], op2_strides=[1, 1, 1, 1],
+#                        name='DC2',
+#                        subdir='solotrain', trainable=True)
+#
+# dc1 = DeconvConvModule(inv_input_name='conv1/lin:0', inv_target_name='rgb_scaled:0',
+#                        hidden_channels=96, rec_name='rgb_rec',
+#                        op1_hw=[11, 11], op1_strides=[1, 4, 4, 1], op2_hw=[11, 11], op2_strides=[1, 1, 1, 1],
+#                        op1_pad='VALID',
+#                        name='DC1',
+#                        subdir='solotrain', trainable=True)
 
 # mse7 = MSELoss(target='pool2:0', reconstruction='DC7/pool2_rec:0', name='MSE_pool2')
 # mse6 = MSELoss(target='lrn2:0', reconstruction='DC6/lrn2_rec:0', name='MSE_lrn2')
@@ -59,7 +60,7 @@ dc1 = DeconvConvModule(inv_input_name='conv1/lin:0', inv_target_name='rgb_scaled
 # mse2 = MSELoss(target='conv1/lin:0', reconstruction='DC2/c1l_rec:0', name='MSE_c1l')
 # mse1 = MSELoss(target='rgb_scaled:0', reconstruction='DC1/rgb_rec:0', name='MSE_rgb')
 
-dc_module = dc7
+dc_module = alexnet_inv()['DC8']
 
 log_path = '../logs/cnn_inversion/alexnet/{}_solo/'.format(dc_module.name)
 if not os.path.exists(log_path):
