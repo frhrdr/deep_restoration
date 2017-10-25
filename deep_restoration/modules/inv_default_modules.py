@@ -11,7 +11,7 @@ def get_stacked_module(classifier, start_layer, rec_layer,
         dc_module = default_deconv_conv_module(classifier=classifier, module_id=module_id,
                                                subdir=subdir_name, alt_input=alt_input,
                                                alt_load_subdir=alt_load_subdir, trainable=trainable)
-        alt_input = dc_module.rec_name + ':0'
+        alt_input = '{}/{}:0'.format(dc_module.name, dc_module.rec_name)
         module_list.append(dc_module)
     return module_list
 
