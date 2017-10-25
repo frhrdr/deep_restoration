@@ -37,7 +37,7 @@ mse3 = MSELoss(target='lrn1:0', reconstruction='DC3/lrn1_rec:0', name='MSE_lrn1'
 mse2 = MSELoss(target='conv1/lin:0', reconstruction='DC2/c1l_rec:0', name='MSE_c1l')
 mse1 = MSELoss(target='rgb_scaled:0', reconstruction='DC1/rgb_rec:0', name='MSE_rgb')
 
-log_path = '../logs/cnn_inversion/alexnet/DC3_solo/'
+log_path = '../logs/cnn_inversion/alexnet/DC4_solo/'
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 copyfile('./cnn_inv_script.py', log_path + 'script.py')
@@ -47,7 +47,7 @@ modules = [dc4, mse4]
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=10, log_freq=500)
 
 ni.train_on_dataset(n_iterations=3000, batch_size=32, test_set_size=200, test_freq=100,
-                    optim_name='adam', lr_lower_points=((0, 3e-4), (1000, 1e-4), (2000, 3e-5)))
+                    optim_name='adam', lr_lower_points=((0, 3e-2), (1000, 1e-4), (2000, 3e-5)))
 
 # dc2.trainable = False
 # image_file = '../data/selected/images_resized_227/red-fox.bmp'
