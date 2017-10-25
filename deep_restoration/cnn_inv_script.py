@@ -6,7 +6,7 @@ import os
 import numpy as np
 
 classifier = 'alexnet'
-start_layer = 4
+start_layer = 2
 rec_layer = 1
 module_list = get_stacked_module(classifier=classifier, start_layer=start_layer, rec_layer=rec_layer,
                                  alt_load_subdir='alexnet_stack_4_to_1', trainable=False)
