@@ -109,7 +109,6 @@ class TrainedModule(Module):
     def load_weights(self, session):
         to_load = self.tensor_load_dict_by_name(self.var_list)
         loader = tf.train.Saver(var_list=to_load)
-        print(self.load_path)
         with open(os.path.join(self.load_path, 'checkpoint')) as f:
             ckpt = f.readline().split('"')[1]
             print('For module {0}: loading weights from {1}'.format(self.name, ckpt))
@@ -165,8 +164,7 @@ class InversionModule(TrainedModule):
     def load_weights(self, session):
         save_path = self.load_path
         if self.alt_load_subdir is not None:
-            self.load_path.replace(self.subdir, self.alt_load_subdir)
-            print(self.load_path)
+            self.load_path = self.load_path.replace(self.subdir, self.alt_load_subdir)
         super().load_weights(session=session)
         self.load_path = save_path
 
