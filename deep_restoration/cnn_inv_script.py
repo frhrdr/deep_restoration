@@ -34,7 +34,7 @@ dc4 = DeconvConvModule(inv_input_name='conv1/lin:0', inv_target_name='rgb_scaled
                        op1_hw=[11, 11], op1_strides=[1, 4, 4, 1], op2_hw=[11, 11], op2_strides=[1, 1, 1, 1],
                        op1_pad='VALID',
                        name='DC4',
-                       subdir='solotrain', trainable=True)
+                       subdir='solotrain', trainable=True, alt_load_subdir='run4')
 
 mse1 = MSELoss(target='pool1:0', reconstruction='DC1/pool1_rec:0', name='MSE_pool1')
 mse2 = MSELoss(target='lrn1:0', reconstruction='DC2/lrn1_rec:0', name='MSE_lrn1')
@@ -45,8 +45,8 @@ mse4 = MSELoss(target='rgb_scaled:0', reconstruction='DC4/rgb_rec:0', name='MSE_
 modules = [dc4, mse4]
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=10, log_freq=500)
 
-ni.train_on_dataset(n_iterations=5000, batch_size=32, test_set_size=200, test_freq=100,
-                    optim_name='adam', lr_lower_points=((0, 3e-4), (1000, 1e-4), (2000, 3e-5)))
+ni.train_on_dataset(n_iterations=2000, batch_size=32, test_set_size=200, test_freq=100,
+                    optim_name='adam', lr_lower_points=((0, 1e-4), (1000, 3e-5)))
 
 dc1.trainable = False
 image_file = '../data/selected/images_resized_227/red-fox.bmp'
