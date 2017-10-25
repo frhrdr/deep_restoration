@@ -1,7 +1,7 @@
 from net_inversion import NetInversion
 from modules.inv_modules import ScaleConvConvModule, DeconvConvModule
 from modules.loss_modules import MSELoss
-from modules.inv_default_modules import alexnet_inv, vgg16_inv
+from modules.inv_default_modules import default_deconv_conv_module
 from shutil import copyfile
 from utils.filehandling import load_image
 import os
@@ -62,7 +62,7 @@ import numpy as np
 
 # dc_module = alexnet_inv()['DC9']
 classifier = 'vgg16'
-dc_module = vgg16_inv()['DC3']
+dc_module = default_deconv_conv_module(classifier, module_id=4)
 
 log_path = '../logs/cnn_inversion/{}/{}_solo/'.format(classifier, dc_module.name)
 if not os.path.exists(log_path):
