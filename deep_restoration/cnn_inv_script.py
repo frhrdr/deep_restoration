@@ -36,10 +36,10 @@ dc1 = DeconvConvModule(inv_input_name='conv1/lin:0', inv_target_name='rgb_scaled
                        name='DC1',
                        subdir='solotrain', trainable=True)
 
-mse4 = MSELoss(target='pool1:0', reconstruction='DC1/pool1_rec:0', name='MSE_pool1')
-mse3 = MSELoss(target='lrn1:0', reconstruction='DC2/lrn1_rec:0', name='MSE_lrn1')
-mse2 = MSELoss(target='conv1/lin:0', reconstruction='DC3/c1l_rec:0', name='MSE_c1l')
-mse1 = MSELoss(target='rgb_scaled:0', reconstruction='DC4/rgb_rec:0', name='MSE_rgb')
+mse4 = MSELoss(target='pool1:0', reconstruction='DC4/pool1_rec:0', name='MSE_pool1')
+mse3 = MSELoss(target='lrn1:0', reconstruction='DC3/lrn1_rec:0', name='MSE_lrn1')
+mse2 = MSELoss(target='conv1/lin:0', reconstruction='DC2/c1l_rec:0', name='MSE_c1l')
+mse1 = MSELoss(target='rgb_scaled:0', reconstruction='DC1/rgb_rec:0', name='MSE_rgb')
 
 # modules = [dc1, dc2, dc3, mse1, mse2, mse3, dc4, mse4]
 modules = [dc1, mse1]
@@ -50,7 +50,7 @@ ni.train_on_dataset(n_iterations=3000, batch_size=32, test_set_size=200, test_fr
 
 dc1.trainable = False
 image_file = '../data/selected/images_resized_227/red-fox.bmp'
-to_fetch = ('DC4/rgb_rec:0',)
+to_fetch = ('DC1/rgb_rec:0',)
 rec = ni.run_model_on_image(image_file, to_fetch)[0]
 print(rec.shape)
 np.save('cnn_rec.npy', rec)
