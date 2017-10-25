@@ -22,7 +22,7 @@ modules = module_list + [module_list[-1].get_mse_loss()]
 ni = NetInversion(modules, log_path, classifier=classifier, summary_freq=10, print_freq=10, log_freq=500)
 
 ni.train_on_dataset(n_iterations=3000, batch_size=32, test_set_size=200, test_freq=100,
-                    optim_name='adam', lr_lower_points=((0, 3e-4), (1000, 1e-4), (2000, 3e-5)))
+                    optim_name='adam', lr_lower_points=((0, 3e-5), (1000, 1e-5), (2000, 3e-6)))
 
 # dc2.trainable = False
 # image_file = '../data/selected/images_resized_227/red-fox.bmp'
