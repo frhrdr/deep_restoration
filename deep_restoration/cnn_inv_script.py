@@ -59,15 +59,15 @@ dc1 = DeconvConvModule(inv_input_name='conv1/lin:0', inv_target_name='rgb_scaled
 # mse2 = MSELoss(target='conv1/lin:0', reconstruction='DC2/c1l_rec:0', name='MSE_c1l')
 # mse1 = MSELoss(target='rgb_scaled:0', reconstruction='DC1/rgb_rec:0', name='MSE_rgb')
 
-module = dc5
+dc_module = dc5
 
-log_path = '../logs/cnn_inversion/alexnet/{}_solo/'.format(module.name)
+log_path = '../logs/cnn_inversion/alexnet/{}_solo/'.format(dc_module.name)
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 copyfile('./cnn_inv_script.py', log_path + 'script.py')
 
 # modules = [dc1, dc2, dc3, mse1, mse2, mse3, dc4, mse4]
-modules = [module, module.get_mse_loss()]
+modules = [dc_module, dc_module.get_mse_loss()]
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=10, log_freq=500)
 
 ni.train_on_dataset(n_iterations=3000, batch_size=32, test_set_size=200, test_freq=100,
