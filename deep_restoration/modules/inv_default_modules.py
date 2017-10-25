@@ -145,17 +145,22 @@ def vgg16_inv():
                   log_path='./logs/layer_inversion/vgg16/l2_cd/1e-13/',
                   load_path='./logs/layer_inversion/vgg16/l2_cd/1e-13/ckpt-3000')
 
-    spec10 = dict(op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
-                  op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
-                  hidden_channels=64)
-    param10 = dict(classifier='vgg16', inv_input_name='conv1_1/relu:0', inv_target_name='bgr_normed:0',
-                   inv_model_type='conv_deconv',
-                   inv_model_specs=spec10,
-                   log_path='./logs/layer_inversion/vgg16/l1_cd/run3/',
-                   load_path='./logs/layer_inversion/vgg16/l1_cd/run3/ckpt-3000')
+    inv['DC2'] = DeconvConvModule(classifier='vgg16', inv_input_name='conv1_2/lin:0', inv_target_name='conv1_1/lin:0',
+                                  hidden_channels=64, rec_name='c11l_rec',
+                                  op1_hw=[5, 5], op1_strides=[1, 1, 1, 1], op2_hw=[5, 5], op2_strides=[1, 1, 1, 1],
+                                  name='DC1', subdir='solotrain', trainable=True)
+
+    # spec10 = dict(op1_height=5, op1_width=5, op1_strides=[1, 1, 1, 1],
+    #               op2_height=5, op2_width=5, op2_strides=[1, 1, 1, 1],
+    #               hidden_channels=64)
+    # param10 = dict(classifier='vgg16', inv_input_name='conv1_1/relu:0', inv_target_name='bgr_normed:0',
+    #                inv_model_type='conv_deconv',
+    #                inv_model_specs=spec10,
+    #                log_path='./logs/layer_inversion/vgg16/l1_cd/run3/',
+    #                load_path='./logs/layer_inversion/vgg16/l1_cd/run3/ckpt-3000')
 
     inv['DC1'] = DeconvConvModule(classifier='vgg16', inv_input_name='conv1_1/lin:0', inv_target_name='rgb_scaled:0',
-                                  hidden_channels=66, rec_name='rgb_rec',
+                                  hidden_channels=64, rec_name='rgb_rec',
                                   op1_hw=[5, 5], op1_strides=[1, 1, 1, 1], op2_hw=[5, 5], op2_strides=[1, 1, 1, 1],
                                   name='DC1', subdir='solotrain', trainable=True)
 
