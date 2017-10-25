@@ -42,7 +42,7 @@ mse2 = MSELoss(target='conv1/lin:0', reconstruction='DC2/c1l_rec:0', name='MSE_c
 mse1 = MSELoss(target='rgb_scaled:0', reconstruction='DC1/rgb_rec:0', name='MSE_rgb')
 
 # modules = [dc1, dc2, dc3, mse1, mse2, mse3, dc4, mse4]
-modules = [dc1, mse1]
+modules = [dc2, mse2]
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=10, log_freq=500)
 
 ni.train_on_dataset(n_iterations=3000, batch_size=32, test_set_size=200, test_freq=100,
