@@ -46,8 +46,8 @@ modules = [dc4, mse4]
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=10, log_freq=500)
 
 ni.train_on_dataset(n_iterations=5000, batch_size=20, test_set_size=200, test_freq=100,
-                    optim_name='adam', lr_lower_points=((0, 3e-1), (1000, 3e-2), (2000, 3e-3), (3000, 3e-4),
-                                                        (4000, 3e-5),))
+                    optim_name='adam', lr_lower_points=((0, 3e-4), (1000, 3e-2), (400, 3e-3), (600, 3e-4),
+                                                        (800, 3e-5), (800, 3e-5),))
 
 dc1.trainable = False
 image_file = '../data/selected/images_resized_227/red-fox.bmp'
