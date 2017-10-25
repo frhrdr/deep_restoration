@@ -73,9 +73,9 @@ class LearnedPriorLoss(LossModule):
         print('For module {0}: loading weights from {1}'.format(self.name, ckpt))
         loader.restore(session, os.path.join(self.load_path, ckpt))
 
-    def save_weights(self, session, step):
+    def save_weights(self, session, step, checkpoint_name='ckpt'):
         saver = tf.train.Saver(var_list=self.var_list)
-        checkpoint_file = os.path.join(self.load_path, 'ckpt')
+        checkpoint_file = os.path.join(self.load_path, checkpoint_name)
         saver.save(session, checkpoint_file, global_step=step, write_meta_graph=False)
 
     def tensor_load_dict_by_name(self, tensor_list):
@@ -97,13 +97,13 @@ class TrainedModule(Module):
         self.trainable = trainable
         self.var_list = []
 
-    def save_weights(self, session, step):
+    def save_weights(self, session, step, checkpoint_name='ckpt'):
         if not os.path.exists(self.load_path):
             os.makedirs(self.load_path)
 
         to_save = self.tensor_load_dict_by_name(self.var_list)
         saver = tf.train.Saver(var_list=to_save)
-        checkpoint_file = os.path.join(self.load_path, 'ckpt')
+        checkpoint_file = os.path.join(self.load_path, checkpoint_name)
         saver.save(session, checkpoint_file, global_step=step, write_meta_graph=False)
 
     def load_weights(self, session):
