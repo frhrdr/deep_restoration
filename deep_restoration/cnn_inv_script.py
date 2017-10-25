@@ -59,7 +59,7 @@ dc1 = DeconvConvModule(inv_input_name='conv1/lin:0', inv_target_name='rgb_scaled
 # mse2 = MSELoss(target='conv1/lin:0', reconstruction='DC2/c1l_rec:0', name='MSE_c1l')
 # mse1 = MSELoss(target='rgb_scaled:0', reconstruction='DC1/rgb_rec:0', name='MSE_rgb')
 
-dc_module = dc6
+dc_module = dc7
 
 log_path = '../logs/cnn_inversion/alexnet/{}_solo/'.format(dc_module.name)
 if not os.path.exists(log_path):
