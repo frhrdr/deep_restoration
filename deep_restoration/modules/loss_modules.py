@@ -98,22 +98,23 @@ class VggScoreLoss(LossModule):
 
             self.loss = loss_acc / len(layers)
 
-    def get_score(self, target_file, reconstruction_file, load_tgt_as_image=False, load_rec_as_image=False):
-        if load_tgt_as_image:
-            target = np.expand_dims(load_image(target_file, resize=False), axis=0)
-        else:
-            target = np.load(target_file).reshape((1, 224, 224, 3))
+    def get_score_from_files(self, src_file, rec_file):
 
-        if load_rec_as_image:
-            reconstruction = np.expand_dims(load_image(reconstruction_file, resize=False), axis=0)
-        else:
-            reconstruction = np.load(reconstruction_file).reshape((1, 224, 224, 3))
+        src_mat = load_image(src_file)
+        if src_mat.shape[0] != 1:
+            src_mat = np.expand_dims(src_mat, axis=0)
+        rec_mat = load_image(rec_file, resize=False)
+        if rec_mat.shape[0] != 1:
+            rec_mat = np.expand_dims(rec_mat, axis=0)
 
-        with tf.Graph().as_default() as graph:
-            tgt_name, rec_name = self.in_tensor_names
-            tgt = tf.constant(target, dtype=tf.float32, name=tgt_name[:-len(':0')])
-            rec = tf.constant(reconstruction, dtype=tf.float32, name=rec_name[:-len(':0')])
-            print(tgt, rec)
+        self.get_score(src_mat, rec_mat)
+
+    def get_score(self, src_mat, rec_mat):
+        with tf.Graph().as_default():
+            src_name, rec_name = self.in_tensor_names
+            src = tf.constant(src_mat, dtype=tf.float32, name=src_name[:-len(':0')])
+            rec = tf.constant(rec_mat, dtype=tf.float32, name=rec_name[:-len(':0')])
+            print(src, rec)
             self.build()
 
             with tf.Session() as sess:
@@ -121,5 +122,4 @@ class VggScoreLoss(LossModule):
                 score = sess.run(loss)
 
         return score
-
 

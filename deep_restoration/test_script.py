@@ -20,7 +20,7 @@ from modules.loss_modules import VggScoreLoss
 # scores = []
 #
 # for idx in range(500, 13501, 500):
-#     score = v.get_score(tgt_path, rec_path.format(idx), load_tgt_as_image=True)
+#     score = v.get_score_from_files(tgt_path, rec_path.format(idx), load_tgt_as_image=True)
 #     print(score)
 #     scores.append((idx,score))
 # print(scores)
