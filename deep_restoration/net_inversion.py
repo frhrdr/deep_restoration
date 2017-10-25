@@ -383,6 +383,7 @@ class NetInversion:
             return feat_map_mat
 
     def run_model_on_image(self, image_file, tensor_names_to_fetch):
+        print(os.path.exists(image_file), os.path.exists('/'.join(image_file.split('/')[-1])))
         img_mat = np.expand_dims(load_image(image_file, resize=False), axis=0)
 
         with tf.Graph().as_default() as graph:
