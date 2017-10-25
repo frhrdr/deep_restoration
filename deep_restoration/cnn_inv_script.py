@@ -1,7 +1,7 @@
 from net_inversion import NetInversion
 from modules.inv_modules import ScaleConvConvModule, DeconvConvModule
 from modules.loss_modules import MSELoss
-from modules.inv_default_modules import alexnet_inv
+from modules.inv_default_modules import alexnet_inv, vgg16_inv
 from shutil import copyfile
 from utils.filehandling import load_image
 import os
@@ -60,16 +60,18 @@ import numpy as np
 # mse2 = MSELoss(target='conv1/lin:0', reconstruction='DC2/c1l_rec:0', name='MSE_c1l')
 # mse1 = MSELoss(target='rgb_scaled:0', reconstruction='DC1/rgb_rec:0', name='MSE_rgb')
 
-dc_module = alexnet_inv()['DC9']
+# dc_module = alexnet_inv()['DC9']
+classifier = 'vgg16'
+dc_module = vgg16_inv()['DC1']
 
-log_path = '../logs/cnn_inversion/alexnet/{}_solo/'.format(dc_module.name)
+log_path = '../logs/cnn_inversion/{}/{}_solo/'.format(classifier, dc_module.name)
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 copyfile('./cnn_inv_script.py', log_path + 'script.py')
 
 # modules = [dc1, dc2, dc3, mse1, mse2, mse3, dc4, mse4]
 modules = [dc_module, dc_module.get_mse_loss()]
-ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=10, log_freq=500)
+ni = NetInversion(modules, log_path, classifier=classifier, summary_freq=10, print_freq=10, log_freq=500)
 
 ni.train_on_dataset(n_iterations=3000, batch_size=32, test_set_size=200, test_freq=100,
                     optim_name='adam', lr_lower_points=((0, 3e-5), (3000, 1e-5), (2000, 3e-6)))

@@ -5,7 +5,7 @@ from modules.loss_modules import MSELoss
 
 class InversionModule(TrainedModule):
 
-    def __init__(self, inv_input_name, inv_target_name,
+    def __init__(self, classifier, inv_input_name, inv_target_name,
                  hidden_channels, rec_name,
                  op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec,
                  op1_pad='SAME', op2_pad='SAME', name='InversionModule',
@@ -14,7 +14,7 @@ class InversionModule(TrainedModule):
 
         dir_name = dir_name or name
         load_name = load_name or name
-        load_path = self.get_load_path(dir_name, inv_input_name, inv_target_name, subdir)
+        load_path = self.get_load_path(dir_name, classifier, inv_input_name, inv_target_name, subdir)
         if input_from_rec is not None:
             in_tensors = (input_from_rec, inv_target_name)
         else:
@@ -51,22 +51,22 @@ class InversionModule(TrainedModule):
                        name=self.name + '_MSE')
 
     @staticmethod
-    def get_load_path(name, inv_input_name, inv_target_name, subdir):
+    def get_load_path(dir_name, classifier, inv_input_name, inv_target_name, subdir):
         io_string = inv_input_name.replace('/', '_').rstrip(':0') + '_to_' + \
                     inv_target_name.replace('/', '_').rstrip(':0')
         if subdir:
             subdir = subdir + '/'
-        return '../logs/cnn_modules/{}/{}/{}'.format(name, io_string, subdir)
+        return '../logs/cnn_modules/{}/{}/{}/{}'.format(dir_name, classifier, io_string, subdir)
 
 
 class ScaleConvConvModule(InversionModule):
 
-    def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
+    def __init__(self, classifier, inv_input_name, inv_target_name, hidden_channels, rec_name,
                  op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=None,
                  op1_pad='SAME', op2_pad='SAME',
                  name='ScaleConvConvModule', dir_name='scale_conv_conv_module', load_name='ScaleConvConvModule',
                  subdir='', trainable=False, alt_load_subdir=None):
-        super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
+        super().__init__(classifier, inv_input_name, inv_target_name, hidden_channels, rec_name,
                          op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=input_from_rec,
                          op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
                          subdir=subdir, trainable=trainable, alt_load_subdir=alt_load_subdir)
@@ -100,12 +100,12 @@ class ScaleConvConvModule(InversionModule):
 
 class ConvDeconvModule(InversionModule):
 
-    def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
+    def __init__(self, classifier, inv_input_name, inv_target_name, hidden_channels, rec_name,
                  op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=None,
                  op1_pad='SAME', op2_pad='SAME',
                  name='ConvDeconvModule', dir_name='conv_deconv_module', load_name='ConvDeconvModule',
                  subdir='', trainable=False, alt_load_subdir=None):
-        super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
+        super().__init__(classifier, inv_input_name, inv_target_name, hidden_channels, rec_name,
                          op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=input_from_rec,
                          op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
                          subdir=subdir, trainable=trainable, alt_load_subdir=alt_load_subdir)
@@ -138,12 +138,12 @@ class ConvDeconvModule(InversionModule):
 
 class DeconvConvModule(InversionModule):
 
-    def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
+    def __init__(self, classifier, inv_input_name, inv_target_name, hidden_channels, rec_name,
                  op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=None,
                  hid_hw=None, hid_pad=None, op1_pad='SAME', op2_pad='SAME',
                  name='DeconvConvModule', dir_name='deconv_conv_module', load_name='DeconvConvModule',
                  subdir='', trainable=False, alt_load_subdir=None):
-        super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
+        super().__init__(classifier, inv_input_name, inv_target_name, hidden_channels, rec_name,
                          op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=input_from_rec,
                          op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
                          subdir=subdir, trainable=trainable, alt_load_subdir=alt_load_subdir)
@@ -182,12 +182,12 @@ class DeconvConvModule(InversionModule):
 
 class DeconvDeconvModule(InversionModule):
 
-    def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
+    def __init__(self, classifier, inv_input_name, inv_target_name, hidden_channels, rec_name,
                  op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=None,
                  op1_pad='SAME', op2_pad='SAME',
                  name='DeconvDeconvModule', dir_name='deconv_deconv_module', load_name='DeconvDeconvModule',
                  subdir='', trainable=False, alt_load_subdir=None):
-        super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
+        super().__init__(classifier, inv_input_name, inv_target_name, hidden_channels, rec_name,
                          op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=input_from_rec,
                          op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
                          subdir=subdir, trainable=trainable, alt_load_subdir=alt_load_subdir)
