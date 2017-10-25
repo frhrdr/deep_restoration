@@ -46,7 +46,7 @@ class InversionModule(TrainedModule):
         raise NotImplementedError
 
     def get_mse_loss(self):
-        return MSELoss(target=self.in_tensor_names[1], reconstruction=self.rec_name, name=self.name + '_MSE')
+        return MSELoss(target=self.in_tensor_names[1], reconstruction=self.rec_name + ':0', name=self.name + '_MSE')
 
     @staticmethod
     def get_load_path(name, inv_input_name, inv_target_name, subdir):
