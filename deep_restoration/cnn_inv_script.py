@@ -59,7 +59,7 @@ dc1 = DeconvConvModule(inv_input_name='conv1/lin:0', inv_target_name='rgb_scaled
 # mse2 = MSELoss(target='conv1/lin:0', reconstruction='DC2/c1l_rec:0', name='MSE_c1l')
 # mse1 = MSELoss(target='rgb_scaled:0', reconstruction='DC1/rgb_rec:0', name='MSE_rgb')
 
-dc_module = dc5
+dc_module = dc6
 
 log_path = '../logs/cnn_inversion/alexnet/{}_solo/'.format(dc_module.name)
 if not os.path.exists(log_path):
@@ -71,7 +71,7 @@ modules = [dc_module, dc_module.get_mse_loss()]
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=10, log_freq=500)
 
 ni.train_on_dataset(n_iterations=3000, batch_size=32, test_set_size=200, test_freq=100,
-                    optim_name='adam', lr_lower_points=((0, 3e-5), (1000, 1e-5), (2000, 3e-6)))
+                    optim_name='adam', lr_lower_points=((0, 3e-5), (3000, 1e-5), (2000, 3e-6)))
 
 # dc2.trainable = False
 # image_file = '../data/selected/images_resized_227/red-fox.bmp'
