@@ -1,6 +1,21 @@
 from modules.inv_modules import DeconvConvModule
 
 
+def get_stacked_module(classifier, start_layer, rec_layer,
+                       alt_load_subdir='solotrain', subdir_name=None, trainable=True):
+    assert start_layer > rec_layer
+    subdir_name = subdir_name or '{}_stack_{}_to_{}'.format(classifier, start_layer, rec_layer)
+    alt_input = None
+    module_list = []
+    for module_id in range(start_layer, rec_layer - 1, -1):
+        dc_module = default_deconv_conv_module(classifier=classifier, module_id=module_id,
+                                               subdir=subdir_name, alt_input=alt_input,
+                                               alt_load_subdir=alt_load_subdir, trainable=trainable)
+        alt_input = dc_module.rec_name + ':0'
+        module_list.append(dc_module)
+    return module_list
+
+
 def default_deconv_conv_module(classifier, module_id, subdir='solotrain', 
                                alt_input=None, alt_load_subdir=None, trainable=True):
     assert classifier in ('alexnet', 'vgg16')
@@ -8,10 +23,10 @@ def default_deconv_conv_module(classifier, module_id, subdir='solotrain',
         module_id = 'DC{}'.format(module_id)
     if classifier == 'alexnet':
         module_specs = alexnet_specs(subdir=subdir, alt_input=alt_input, 
-                                     alt_load_subdir=alt_load_subdir, trainable=True)[module_id]
+                                     alt_load_subdir=alt_load_subdir, trainable=trainable)[module_id]
     else:
         module_specs = vgg16_specs(subdir=subdir, alt_input=alt_input, 
-                                   alt_load_subdir=alt_load_subdir, trainable=True)[module_id]
+                                   alt_load_subdir=alt_load_subdir, trainable=trainable)[module_id]
     return DeconvConvModule(**module_specs)
 
 
@@ -22,13 +37,13 @@ def alexnet_specs(subdir='solotrain', alt_input=None, alt_load_subdir=None, trai
                   'hidden_channels': 384, 'rec_name': 'c4l_rec',
                   'op1_hw': [8, 8], 'op1_strides': [1, 1, 1, 1], 'op2_hw': [8, 8], 'op2_strides': [1, 1, 1, 1],
                   'input_from_rec': alt_input,
-                  'name': 'DC7', 'subdir': subdir, 'trainable': trainable, 'alt_load_subdir': alt_load_subdir}
+                  'name': 'DC9', 'subdir': subdir, 'trainable': trainable, 'alt_load_subdir': alt_load_subdir}
 
     inv['DC8'] = {'classifier': 'alexnet', 'inv_input_name': 'conv4/lin:0', 'inv_target_name': 'conv3/lin:0',
                   'hidden_channels': 384, 'rec_name': 'c3l_rec',
                   'op1_hw': [8, 8], 'op1_strides': [1, 1, 1, 1], 'op2_hw': [8, 8], 'op2_strides': [1, 1, 1, 1],
                   'input_from_rec': alt_input,
-                  'name': 'DC7', 'subdir': subdir, 'trainable': trainable, 'alt_load_subdir': alt_load_subdir}
+                  'name': 'DC8', 'subdir': subdir, 'trainable': trainable, 'alt_load_subdir': alt_load_subdir}
 
     inv['DC7'] = {'classifier': 'alexnet', 'inv_input_name': 'conv3/lin:0', 'inv_target_name': 'pool2:0',
                   'hidden_channels': 384, 'rec_name': 'pool2_rec',
