@@ -43,7 +43,7 @@ if not os.path.exists(log_path):
 copyfile('./cnn_inv_script.py', log_path + 'script.py')
 
 # modules = [dc1, dc2, dc3, mse1, mse2, mse3, dc4, mse4]
-modules = [dc3, mse3]
+modules = [dc4, mse4]
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=10, log_freq=500)
 
 ni.train_on_dataset(n_iterations=3000, batch_size=32, test_set_size=200, test_freq=100,
