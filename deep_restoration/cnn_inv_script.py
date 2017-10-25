@@ -51,7 +51,7 @@ ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, prin
 
 dc1.trainable = False
 image_file = '../data/selected/images_resized_227/red-fox.bmp'
-to_fetch = ('CD4/rgb_rec:0',)
+to_fetch = ('DC4/rgb_rec:0',)
 rec = ni.run_model_on_image(image_file, to_fetch)[0]
 print(rec.shape)
 np.save('ccn_rec.npy', rec)
