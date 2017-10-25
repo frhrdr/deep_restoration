@@ -396,8 +396,7 @@ class NetInversion:
 
             with tf.Session() as sess:
                 for inv_mod in self.modules:
-                    if (isinstance(inv_mod, LearnedPriorLoss) or isinstance(inv_mod, TrainedModule)) \
-                       and inv_mod.trainable is False:
+                    if isinstance(inv_mod, LearnedPriorLoss) or isinstance(inv_mod, TrainedModule):
                         inv_mod.load_weights(sess)
 
                 fetched_mats = sess.run(tensors_to_fetch)
