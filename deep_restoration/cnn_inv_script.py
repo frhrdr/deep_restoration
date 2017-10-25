@@ -50,8 +50,7 @@ ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, prin
 #                                                         (4000, 3e-5),))
 
 dc1.trainable = False
-image_file = '../data/selected/images_resized/red-fox.npy'
-
+image_file = '../data/selected/images_resized/red-fox.bmp'
 to_fetch = ('C1R_to_BGR_DCModule/bgr_normed_rec:0',)
 rec = ni.run_model_on_image(image_file, to_fetch)[0]
 print(rec.shape)
