@@ -134,14 +134,18 @@ class InversionModule(TrainedModule):
 
     def __init__(self, inv_input_name, inv_target_name,
                  hidden_channels, rec_name,
-                 op1_hw, op1_strides, op2_hw, op2_strides,
+                 op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=None,
                  op1_pad='SAME', op2_pad='SAME',
                  name='InversionModule', dir_name=None, load_name=None, subdir='', trainable=False):
 
-        dir_name = name if dir_name is None else dir_name
-        load_name = name if load_name is None else load_name
+        dir_name = dir_name or name
+        load_name = load_name or name
         load_path = self.get_load_path(dir_name, inv_input_name, inv_target_name, subdir)
-        in_tensors = (inv_input_name, inv_target_name)
+        if input_from_rec is not None:
+            in_tensors = (input_from_rec, inv_target_name)
+        else:
+            in_tensors = (inv_input_name, inv_target_name)
+
         super().__init__(in_tensors, name, load_path, load_name, trainable)
 
         self.hidden_channels = hidden_channels
