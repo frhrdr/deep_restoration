@@ -134,9 +134,10 @@ class InversionModule(TrainedModule):
 
     def __init__(self, inv_input_name, inv_target_name,
                  hidden_channels, rec_name,
-                 op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=None,
-                 op1_pad='SAME', op2_pad='SAME',
-                 name='InversionModule', dir_name=None, load_name=None, subdir='', trainable=False):
+                 op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec,
+                 op1_pad='SAME', op2_pad='SAME', name='InversionModule',
+                 dir_name=None, load_name=None, subdir='',
+                 trainable=False, alt_load_subdir=None):
 
         dir_name = dir_name or name
         load_name = load_name or name
@@ -158,6 +159,15 @@ class InversionModule(TrainedModule):
         self.op2_width = op2_hw[1]
         self.op2_strides = op2_strides
         self.op2_pad = op2_pad
+        self.subdir = subdir
+        self.alt_load_subdir = alt_load_subdir
+
+    def load_weights(self, session):
+        save_path = self.load_path
+        if self.alt_load_subdir is not None:
+            self.load_path.replace(self.subdir, self.alt_load_subdir)
+        super().load_weights(session=session)
+        self.load_path = save_path
 
     def build(self, scope_suffix=''):
         raise NotImplementedError

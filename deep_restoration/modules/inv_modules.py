@@ -5,14 +5,14 @@ from modules.core_modules import InversionModule
 class ScaleConvConvModule(InversionModule):
 
     def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
-                 op1_hw, op1_strides, op2_hw, op2_strides,
+                 op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=None,
                  op1_pad='SAME', op2_pad='SAME',
                  name='ScaleConvConvModule', dir_name='scale_conv_conv_module', load_name='ScaleConvConvModule',
-                 subdir='', trainable=False):
+                 subdir='', trainable=False, alt_load_subdir=None):
         super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
-                         op1_hw, op1_strides, op2_hw, op2_strides,
+                         op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=input_from_rec,
                          op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
-                         subdir=subdir, trainable=trainable)
+                         subdir=subdir, trainable=trainable, alt_load_subdir=alt_load_subdir)
 
     def build(self, scope_suffix=''):
         in_tensor, inv_target = self.get_tensors()
@@ -44,14 +44,14 @@ class ScaleConvConvModule(InversionModule):
 class ConvDeconvModule(InversionModule):
 
     def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
-                 op1_hw, op1_strides, op2_hw, op2_strides,
+                 op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=None,
                  op1_pad='SAME', op2_pad='SAME',
                  name='ConvDeconvModule', dir_name='conv_deconv_module', load_name='ConvDeconvModule',
-                 subdir='', trainable=False):
+                 subdir='', trainable=False, alt_load_subdir=None):
         super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
-                         op1_hw, op1_strides, op2_hw, op2_strides,
+                         op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=input_from_rec,
                          op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
-                         subdir=subdir, trainable=trainable)
+                         subdir=subdir, trainable=trainable, alt_load_subdir=alt_load_subdir)
 
     def build(self, scope_suffix=''):
         in_tensor, inv_target = self.get_tensors()
@@ -82,14 +82,14 @@ class ConvDeconvModule(InversionModule):
 class DeconvConvModule(InversionModule):
 
     def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
-                 op1_hw, op1_strides, op2_hw, op2_strides, hid_hw=None, hid_pad=None,
-                 op1_pad='SAME', op2_pad='SAME',
+                 op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=None,
+                 hid_hw=None, hid_pad=None, op1_pad='SAME', op2_pad='SAME',
                  name='DeconvConvModule', dir_name='deconv_conv_module', load_name='DeconvConvModule',
-                 subdir='', trainable=False):
+                 subdir='', trainable=False, alt_load_subdir=None):
         super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
-                         op1_hw, op1_strides, op2_hw, op2_strides,
+                         op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=input_from_rec,
                          op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
-                         subdir=subdir, trainable=trainable)
+                         subdir=subdir, trainable=trainable, alt_load_subdir=alt_load_subdir)
         self.hid_hw = hid_hw
         self.hid_pad = hid_pad
 
@@ -126,14 +126,14 @@ class DeconvConvModule(InversionModule):
 class DeconvDeconvModule(InversionModule):
 
     def __init__(self, inv_input_name, inv_target_name, hidden_channels, rec_name,
-                 op1_hw, op1_strides, op2_hw, op2_strides,
+                 op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=None,
                  op1_pad='SAME', op2_pad='SAME',
                  name='DeconvDeconvModule', dir_name='deconv_deconv_module', load_name='DeconvDeconvModule',
-                 subdir='', trainable=False):
+                 subdir='', trainable=False, alt_load_subdir=None):
         super().__init__(inv_input_name, inv_target_name, hidden_channels, rec_name,
-                         op1_hw, op1_strides, op2_hw, op2_strides,
+                         op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec=input_from_rec,
                          op1_pad=op1_pad, op2_pad=op2_pad, name=name, dir_name=dir_name, load_name=load_name,
-                         subdir=subdir, trainable=trainable)
+                         subdir=subdir, trainable=trainable, alt_load_subdir=alt_load_subdir)
 
     def build(self, scope_suffix=''):
         in_tensor, inv_target = self.get_tensors()
