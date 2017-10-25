@@ -9,7 +9,7 @@ classifier = 'alexnet'
 start_layer = 2
 rec_layer = 1
 module_list = get_stacked_module(classifier=classifier, start_layer=start_layer, rec_layer=rec_layer,
-                                 alt_load_subdir='alexnet_stack_4_to_1', trainable=False)
+                                 alt_load_subdir='solotrain', trainable=False)
 log_path = '../logs/cnn_inversion/{}/stack_{}_to_{}/'.format(classifier, start_layer, rec_layer)
 
 if not os.path.exists(log_path):
