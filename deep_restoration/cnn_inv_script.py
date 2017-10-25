@@ -60,7 +60,7 @@ import numpy as np
 # mse2 = MSELoss(target='conv1/lin:0', reconstruction='DC2/c1l_rec:0', name='MSE_c1l')
 # mse1 = MSELoss(target='rgb_scaled:0', reconstruction='DC1/rgb_rec:0', name='MSE_rgb')
 
-dc_module = alexnet_inv()['DC8']
+dc_module = alexnet_inv()['DC9']
 
 log_path = '../logs/cnn_inversion/alexnet/{}_solo/'.format(dc_module.name)
 if not os.path.exists(log_path):
