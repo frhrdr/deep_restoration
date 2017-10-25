@@ -319,7 +319,7 @@ class NetInversion:
                     if (isinstance(inv_mod, LearnedPriorLoss) or isinstance(inv_mod, TrainedModule)) \
                        and inv_mod.trainable is False or \
                        (isinstance(inv_mod, InversionModule) and inv_mod.alt_load_subdir is not None):
-                        print('loading weights!')
+
                         inv_mod.load_weights(sess)
 
                 lr = lr_lower_points[0][1]

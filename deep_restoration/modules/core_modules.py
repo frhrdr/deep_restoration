@@ -164,6 +164,7 @@ class InversionModule(TrainedModule):
 
     def load_weights(self, session):
         save_path = self.load_path
+        print('right loader')
         if self.alt_load_subdir is not None:
             self.load_path.replace(self.subdir, self.alt_load_subdir)
         super().load_weights(session=session)
