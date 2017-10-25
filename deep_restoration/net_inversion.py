@@ -3,7 +3,7 @@ from tf_vgg import vgg16
 from tf_alexnet import alexnet
 from utils.filehandling import load_image
 from utils.temp_utils import get_optimizer, plot_feat_map_diffs
-from modules.core_modules import LossModule, LearnedPriorLoss, TrainedModule
+from modules.core_modules import LossModule, LearnedPriorLoss, TrainedModule, InversionModule
 import os
 import time
 import numpy as np
@@ -317,7 +317,9 @@ class NetInversion:
 
                 for inv_mod in self.modules:
                     if (isinstance(inv_mod, LearnedPriorLoss) or isinstance(inv_mod, TrainedModule)) \
-                       and inv_mod.trainable is False:
+                       and inv_mod.trainable is False or \
+                       (isinstance(inv_mod, InversionModule) and inv_mod.alt_load_subdir is not None):
+                        print('loading weights!')
                         inv_mod.load_weights(sess)
 
                 lr = lr_lower_points[0][1]
