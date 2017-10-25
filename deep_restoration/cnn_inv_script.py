@@ -3,7 +3,7 @@ from modules.inv_modules import ScaleConvConvModule, DeconvConvModule
 from modules.loss_modules import MSELoss
 from shutil import copyfile
 import os
-
+import numpy as np
 
 log_path = '../logs/cnn_inversion/alexnet/c2l_to_c1l_3dc'
 if not os.path.exists(log_path):
@@ -54,3 +54,4 @@ image_file = '../data/selected/images_resized/red-fox.bmp'
 to_fetch = ('C1R_to_BGR_DCModule/bgr_normed_rec:0',)
 rec = ni.run_model_on_image(image_file, to_fetch)[0]
 print(rec.shape)
+np.save('ccn_rec.npy', rec)
