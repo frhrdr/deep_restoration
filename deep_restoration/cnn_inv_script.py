@@ -45,9 +45,9 @@ mse4 = MSELoss(target='rgb_scaled:0', reconstruction='DC4/rgb_rec:0', name='MSE_
 modules = [dc3, mse3, dc4, mse4]
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=10, log_freq=500)
 
-ni.train_on_dataset(n_iterations=8000, batch_size=20, test_set_size=200, test_freq=100,
-                    optim_name='adam', lr_lower_points=((0, 3e-3), (3000, 3e-4),
-                                                        (7000, 3e-5),))
+# ni.train_on_dataset(n_iterations=8000, batch_size=20, test_set_size=200, test_freq=100,
+#                     optim_name='adam', lr_lower_points=((0, 3e-3), (3000, 3e-4),
+#                                                         (7000, 3e-5),))
 
 dc1.trainable = False
 image_file = '../data/selected/images_resized_227/red-fox.bmp'
