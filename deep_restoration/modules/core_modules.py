@@ -1,6 +1,5 @@
 import os
 import tensorflow as tf
-from modules.loss_modules import MSELoss
 
 
 class Module:
@@ -130,55 +129,3 @@ class TrainedModule(Module):
         return self.trainable
 
 
-class InversionModule(TrainedModule):
-
-    def __init__(self, inv_input_name, inv_target_name,
-                 hidden_channels, rec_name,
-                 op1_hw, op1_strides, op2_hw, op2_strides, input_from_rec,
-                 op1_pad='SAME', op2_pad='SAME', name='InversionModule',
-                 dir_name=None, load_name=None, subdir='',
-                 trainable=False, alt_load_subdir=None):
-
-        dir_name = dir_name or name
-        load_name = load_name or name
-        load_path = self.get_load_path(dir_name, inv_input_name, inv_target_name, subdir)
-        if input_from_rec is not None:
-            in_tensors = (input_from_rec, inv_target_name)
-        else:
-            in_tensors = (inv_input_name, inv_target_name)
-
-        super().__init__(in_tensors, name, load_path, load_name, trainable)
-
-        self.hidden_channels = hidden_channels
-        self.rec_name = rec_name
-        self.op1_height = op1_hw[0]
-        self.op1_width = op1_hw[1]
-        self.op1_strides = op1_strides
-        self.op1_pad = op1_pad
-        self.op2_height = op2_hw[0]
-        self.op2_width = op2_hw[1]
-        self.op2_strides = op2_strides
-        self.op2_pad = op2_pad
-        self.subdir = subdir
-        self.alt_load_subdir = alt_load_subdir
-
-    def load_weights(self, session):
-        save_path = self.load_path
-        if self.alt_load_subdir is not None:
-            self.load_path = self.load_path.replace(self.subdir, self.alt_load_subdir)
-        super().load_weights(session=session)
-        self.load_path = save_path
-
-    def build(self, scope_suffix=''):
-        raise NotImplementedError
-
-    def get_mse_loss(self):
-        return MSELoss(target=self.in_tensor_names[1], reconstruction=self.rec_name, name=self.name + '_MSE')
-
-    @staticmethod
-    def get_load_path(name, inv_input_name, inv_target_name, subdir):
-        io_string = inv_input_name.replace('/', '_').rstrip(':0') + '_to_' + \
-                    inv_target_name.replace('/', '_').rstrip(':0')
-        if subdir:
-            subdir = subdir + '/'
-        return '../logs/cnn_modules/{}/{}/{}'.format(name, io_string, subdir)
