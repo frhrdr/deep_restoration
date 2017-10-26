@@ -11,7 +11,7 @@ classifier = 'alexnet'
 # module_list = get_stacked_module(classifier=classifier, start_layer=start_layer, rec_layer=rec_layer,
 #                                  alt_load_subdir='alexnet_stack_4_to_1', trainable=False)
 # log_path = '../logs/cnn_inversion/{}/stack_{}_to_{}/'.format(classifier, start_layer, rec_layer)
-module_id = 5
+module_id = 6
 dc_module = default_deconv_conv_module(classifier, module_id, alt_load_subdir='solotrain')
 log_path = '../logs/cnn_inversion/{}/DC{}_solo/'.format(classifier, module_id)
 if not os.path.exists(log_path):

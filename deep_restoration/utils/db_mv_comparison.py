@@ -10,10 +10,14 @@ from modules.norm_module import NormModule
 from utils.filehandling import load_image
 
 
+def selected_img_ids():
+    return 53, 76, 81, 99, 106, 108, 129, 153, 157, 160
+
+
 def subset10_paths(classifier):
     _, img_hw, _ = classifier_stats(classifier)
     subset_dir = '../data/selected/images_resized_{}/'.format(img_hw)
-    img_ids = (53, 76, 81, 99, 106, 108, 129, 153, 157, 160)
+    img_ids = selected_img_ids()
     subset_paths = ['{}val{}.bmp'.format(subset_dir, i) for i in img_ids]
     return subset_paths
 
@@ -199,3 +203,49 @@ def mv_mse_and_vgg_scores(classifier):
     print(found_layers)
     np.save('{}score_mat.npy'.format(log_path), score_mat)
 
+
+def db_mse_and_vgg_scores(classifier):
+    tgt_paths = subset10_paths(classifier)
+    _, img_hw, layer_names = classifier_stats(classifier)
+    tgt_images = [load_image(p) for p in tgt_paths]
+    rec_filenames = ['img_rec_{}.png'.format(i) for i in selected_img_ids()]
+    save_subdirs = ('stacked/', 'merged/')
+    start_layers = list(range(2, 11))
+
+    tgt_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
+    rec_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
+
+    vgg_loss = VggScoreLoss((tgt_pl, rec_pl), weighting=1.0, name=None, input_scaling=1.0)
+    mse_loss = MSELoss(tgt_pl, rec_pl)
+    nmse_loss = NormedMSELoss(tgt_pl, rec_pl)
+    loss_mods = [vgg_loss, mse_loss, nmse_loss]
+
+    found_layers = []
+    score_list = []
+
+    with tf.Graph().as_default():
+        for lmod in loss_mods:
+            lmod.build()
+        loss_tsr_list = [m.get_loss() for m in loss_mods]
+
+        with tf.Session() as sess:
+            for start_layer in start_layers:
+                layer_list = []
+                for save_subdir in save_subdirs:
+                    load_path = cnn_inv_log_path(classifier, start_layer, rec_layer=1) + save_subdir
+                    if not os.path.exists(load_path):
+                        
+                        continue
+                    save_subdir_list = []
+                    for idx, rec_filename in enumerate(rec_filenames):
+
+                        rec_image = load_image(load_path + rec_filename)
+                        scores = sess.run(loss_tsr_list, feed_dict={tgt_pl: tgt_images[idx], rec_pl: rec_image})
+                        save_subdir_list.append(scores)
+                    layer_list.append(save_subdir_list)
+                score_list.append(layer_list)
+
+    score_mat = np.asarray(score_list)
+    print(score_mat.shape)
+    print(found_layers)
+    np.save('../logs/cnn_inversion/{}/score_mat.npy'.format(classifier), score_mat)
