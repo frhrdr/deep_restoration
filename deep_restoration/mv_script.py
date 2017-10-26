@@ -4,8 +4,8 @@ from modules.loss_modules import NormedMSELoss, SoftRangeLoss, TotalVariationLos
 from modules.split_module import SplitModule
 from modules.norm_module import NormModule
 
-# imagenet_mean = (123.68 + 116.779 + 103.939) / 3
-imagenet_mean = [123.68, 116.779, 103.939]
+imagenet_mean = (123.68 + 116.779 + 103.939) / 3
+# imagenet_mean = [123.68, 116.779, 103.939]
 split = SplitModule(name_to_split='conv4/relu:0', img_slice_name='img_rep', rec_slice_name='rec_rep')
 norm = NormModule(name_to_norm='pre_img/read:0', out_name='pre_img_normed', offset=imagenet_mean, scale=1.0)
 mse_weight = 100.
