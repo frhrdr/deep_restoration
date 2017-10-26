@@ -9,7 +9,7 @@ import numpy as np
 classifier = 'alexnet'
 start_layer = 4
 rec_layer = 1
-run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=True)
+run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=False)
 # module_list = get_stacked_module(classifier=classifier, start_layer=start_layer, rec_layer=rec_layer,
 #                                  alt_load_subdir='solotrain', trainable=False)
 # log_path = cnn_inv_log_path(classifier, start_layer, rec_layer)
