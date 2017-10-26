@@ -1,10 +1,11 @@
 import numpy as np
+import tensorflow as tf
 import skimage.io
 import os.path
 from net_inversion import NetInversion
 from modules.inv_default_modules import get_stacked_module
 from modules.split_module import SplitModule
-from modules.loss_modules import NormedMSELoss, SoftRangeLoss, TotalVariationLoss
+from modules.loss_modules import NormedMSELoss, SoftRangeLoss, TotalVariationLoss, MSELoss, VggScoreLoss
 from modules.norm_module import NormModule
 from utils.filehandling import load_image
 
@@ -150,3 +151,25 @@ def get_jitter_and_mse_weight(classifier, layer_name):
                     4, 4, 4, 4, 4, 4, 8,
                     8, 8, 8, 8, 8, 8, 8)
     return mse_weights[idx], jitter_t[idx]
+
+
+def mv_mse_and_vgg_scores(classifier):
+    _, img_hw, _ = classifier_stats(classifier)
+    src_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
+    rec_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
+
+    vgg_loss = VggScoreLoss(in_tensor_names, weighting=1.0, name=None, input_scaling=1.0)
+    mse_loss = MSELoss()
+
+    with tf.Graph().as_default():
+        src_name, rec_name = self.in_tensor_names
+        src = tf.constant(src_mat, dtype=tf.float32, name=src_name[:-len(':0')])
+        rec = tf.constant(rec_mat, dtype=tf.float32, name=rec_name[:-len(':0')])
+        print(src, rec)
+        self.build()
+
+        with tf.Session() as sess:
+            loss = self.get_loss()
+            score = sess.run(loss)
+
+    return score
