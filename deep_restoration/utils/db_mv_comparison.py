@@ -154,22 +154,40 @@ def get_jitter_and_mse_weight(classifier, layer_name):
 
 
 def mv_mse_and_vgg_scores(classifier):
-    _, img_hw, _ = classifier_stats(classifier)
-    src_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
+    tgt_paths = subset10_paths(classifier)
+    _, img_hw, layer_names = classifier_stats(classifier)
+    log_path = '../logs/mahendran_vedaldi/2016/alexnet/'
+    layer_subdirs = [l.replace('/', '_') for l in layer_names]
+    img_subdirs = [p.split('/')[-1].split('.')[0] for p in tgt_paths]
+
+    tgt_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
     rec_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
 
-    vgg_loss = VggScoreLoss(in_tensor_names, weighting=1.0, name=None, input_scaling=1.0)
-    mse_loss = MSELoss()
+    vgg_loss = VggScoreLoss((tgt_pl, rec_pl), weighting=1.0, name=None, input_scaling=1.0)
+    mse_loss = MSELoss(tgt_pl, rec_pl)
+    nmse_loss = NormedMSELoss(tgt_pl, rec_pl)
+    loss_mods = [vgg_loss, mse_loss, nmse_loss]
 
-    with tf.Graph().as_default():
-        src_name, rec_name = self.in_tensor_names
-        src = tf.constant(src_mat, dtype=tf.float32, name=src_name[:-len(':0')])
-        rec = tf.constant(rec_mat, dtype=tf.float32, name=rec_name[:-len(':0')])
-        print(src, rec)
-        self.build()
+    found_layers = []
+    score_list = []
+    for layer_subdir in layer_subdirs:
 
-        with tf.Session() as sess:
-            loss = self.get_loss()
-            score = sess.run(loss)
+        layer_log_path = '{}{}/'.format(log_path, layer_subdir)
+        if not os.path.exists(layer_log_path):
+            continue
+        found_layers.append(layer_subdir)
+        layer_score_list = []
 
-    return score
+        for img_subdir in img_subdirs:
+            img_log_path = '{}{}/'.format(layer_log_path, img_subdir)
+
+            with tf.Graph().as_default():
+                for lmod in loss_mods:
+                    lmod.build()
+
+                loss_tsr_list = [m.get_loss() for m in loss_mods]
+
+                with tf.Session() as sess:
+
+                    scores = sess.run(loss_tsr_list, feed_dict={tgt_pl: 0, rec_pl: 0})
+
