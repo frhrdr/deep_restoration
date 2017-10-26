@@ -67,12 +67,10 @@ def run_mv_scripts(classifier):
 
     for img_path in img_paths:
         for layer_name in layer_names:
-            if 'lin' in layer_name:
-
-                layer_subdir = layer_name.replace('/', '_')
-                img_subdir = img_path.split('/')[-1].split('.')[0]
-                log_path = '../logs/mahendran_vedaldi/2016/{}/{}/{}/'.format(classifier, layer_subdir, img_subdir)
-                mv_script_fun(layer_name, img_path, log_path, classifier)
+            layer_subdir = layer_name.replace('/', '_')
+            img_subdir = img_path.split('/')[-1].split('.')[0]
+            log_path = '../logs/mahendran_vedaldi/2016/{}/{}/{}/'.format(classifier, layer_subdir, img_subdir)
+            mv_script_fun(layer_name, img_path, log_path, classifier)
 
 
 def mv_script_fun(src_layer, img_path, log_path, classifier,
@@ -98,7 +96,7 @@ def mv_script_fun(src_layer, img_path, log_path, classifier,
     lr_factor = range_b ** 2 / alpha
     lr_lower_points = lr_lower_points or ((0, 1e-2 * lr_factor), (1000, 3e-3 * lr_factor), (2000, 1e-3 * lr_factor))
 
-    ni = NetInversion(modules, log_path, classifier=classifier)
+    ni = NetInversion(modules, log_path, classifier=classifier, print_freq=100, log_freq=1750)
     pre_img_init = np.expand_dims(load_image(img_path), axis=0).astype(np.float32)
 
     ni.train_pre_featmap(img_path, n_iterations=n_iterations, optim_name='adam',
