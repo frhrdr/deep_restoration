@@ -11,6 +11,8 @@ from utils.filehandling import load_image
 
 
 def selected_img_ids():
+    # alexnet top1 correct 53, 76, 81, 129, 160
+    # vgg16 top1 correct
     return 53, 76, 81, 99, 106, 108, 129, 153, 157, 160
 
 
@@ -251,10 +253,10 @@ def db_img_mse_and_vgg_scores(classifier):
     np.save('../logs/cnn_inversion/{}/score_mat.npy'.format(classifier), score_mat)
 
 
-def db_lin_to_lin_mse_scores(classifier):
+def db_lin_to_lin_mse_scores(classifier, use_solotrain=False):
     lin_start_rec_pairs = ((4, 2), (7, 5), (8, 8), (9, 9))
     lin_tensor_names = ['DC{}/c{}l_rec:0'.format(i, lin_start_rec_pairs[i][1]) for i in range(1, 5)]
     for lin_tensor, pair in zip(lin_start_rec_pairs, lin_tensor_names):
         start_layer, rec_layer = pair
-        run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=False,
+        run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=use_solotrain,
                            subdir_name=None, retrieve_special=lin_tensor)
