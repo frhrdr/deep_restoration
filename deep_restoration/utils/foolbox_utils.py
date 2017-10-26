@@ -1,12 +1,10 @@
 import os
-
 import foolbox
 import matplotlib.pyplot as plt
 import numpy as np
 import skimage.io
 import tensorflow as tf
 from tf_alexnet.alexnet import AlexNet
-
 from modules.core_modules import LearnedPriorLoss
 from modules.foe_dropout_prior import FoEDropoutPrior
 from utils.default_priors import get_default_prior
