@@ -1,5 +1,6 @@
 import numpy as np
 import skimage.io
+import os.path
 from net_inversion import NetInversion
 from modules.inv_default_modules import get_stacked_module
 from utils.filehandling import load_image
@@ -29,7 +30,10 @@ def run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=False,
     alt_load_subdir = 'solotrain' if use_solotrain else subdir_name
     module_list = get_stacked_module(classifier, start_layer, rec_layer, alt_load_subdir=alt_load_subdir,
                                      subdir_name=subdir_name, trainable=False)
-    log_path = cnn_inv_log_path(classifier, start_layer, rec_layer)
+    save_subdir = 'stacked/' if use_solotrain else 'merged/'
+    log_path = cnn_inv_log_path(classifier, start_layer, rec_layer) + save_subdir
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
     ni = NetInversion(module_list, log_path, classifier=classifier)
     img_paths = subset10_paths(classifier)
     img_mat = load_and_stack_imgs(img_paths)
@@ -37,11 +41,11 @@ def run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=False,
     recs = ni.run_model_on_images(img_mat, to_fetch)
     for name, rec in zip(to_fetch, recs):
         print(rec.shape)
-        np.save('{}cnn_rec_{}.npy'.format(log_path, name), rec)
+        np.save('{}cnn_rec_{}.npy'.format(log_path, name.replace('/', '_')), rec)
 
     if retrieve_special is None:
         images = np.split(recs[0], indices_or_sections=recs[0].shape[0], axis=0)
         image_ids = [p.split('/')[-1].split('.')[0][len('val'):] for p in img_paths]
-        image_save_paths = ['{}imgs_{}/img_rec_{}.png'.format(log_path, alt_load_subdir, i) for i in image_ids]
+        image_save_paths = [log_path + 'img_rec_{}.png'.format(i) for i in image_ids]
         for path, img in zip(image_save_paths, images):
             skimage.io.imsave(path, img)
