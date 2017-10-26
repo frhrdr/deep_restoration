@@ -180,8 +180,8 @@ def mv_mse_and_vgg_scores(classifier):
     with tf.Graph().as_default():
         tgt_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3), name='tgt_pl')
         rec_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3), name='rec_pl')
-        tgt_224 = tf.slice(tgt_pl, begin=[0, 0, 0, 0], size=[-1, 224, 224, -1], name='tgt_224')
-        rec_224 = tf.slice(rec_pl, begin=[0, 0, 0, 0], size=[-1, 224, 224, -1], name='rec_224')
+        _ = tf.slice(tgt_pl, begin=[0, 0, 0, 0], size=[-1, 224, 224, -1], name='tgt_224')
+        _ = tf.slice(rec_pl, begin=[0, 0, 0, 0], size=[-1, 224, 224, -1], name='rec_224')
 
         for lmod in loss_mods:
             lmod.build()
@@ -263,3 +263,22 @@ def db_lin_to_lin_mse_scores(classifier, use_solotrain=False):
         start_layer, rec_layer = pair
         run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=use_solotrain,
                            subdir_name=None, retrieve_special=lin_tensor)
+
+
+def mv_aggregate_rec_images(classifier, select_layers=None, select_images=None):
+    # makes one [layers, imgs, h, w, c] mat for all rec3500 images
+    tgt_paths = subset10_paths(classifier)
+    _, img_hw, layer_names = classifier_stats(classifier)
+    log_path = '../logs/mahendran_vedaldi/2016/{}/'.format(classifier)
+    layer_subdirs = select_layers or [l.replace('/', '_') for l in layer_names]
+    img_subdirs = select_images or [p.split('/')[-1].split('.')[0] for p in tgt_paths]
+
+    tgt_images = [np.expand_dims(load_image(p), axis=0) for p in tgt_paths]
+    rec_filename = 'imgs/rec_3500.png'
+
+    for layer_subdir in layer_subdirs:
+        layer_log_path = '{}{}/'.format(log_path, layer_subdir)
+
+        for idx, img_subdir in enumerate(img_subdirs):
+            img_log_path = '{}{}/'.format(layer_log_path, img_subdir)
+            rec_image = np.expand_dims(load_image(img_log_path + rec_filename), axis=0)

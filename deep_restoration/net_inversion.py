@@ -44,7 +44,7 @@ class NetInversion:
     def load_partial_classifier(self, in_tensor, in_tensor_name, classifier_cutoff):
         if self.classifier.lower() == 'vgg16':
             raise NotImplementedError
-            # classifier = vgg16.Vgg16()
+            classifier = vgg16.Vgg16()
         elif self.classifier.lower() == 'alexnet':
             classifier = alexnet.AlexNet()
         else:
