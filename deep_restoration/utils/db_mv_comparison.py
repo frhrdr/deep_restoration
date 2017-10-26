@@ -44,7 +44,7 @@ def run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=False,
         np.save('{}cnn_rec_{}.npy'.format(log_path, name.replace('/', '_')), rec)
 
     if retrieve_special is None:
-        images = np.split(recs[0], indices_or_sections=recs[0].shape[0], axis=0)
+        images = [np.squeeze(k, axis=0) for k in np.split(recs[0], indices_or_sections=recs[0].shape[0], axis=0)]
         image_ids = [p.split('/')[-1].split('.')[0][len('val'):] for p in img_paths]
         image_save_paths = [log_path + 'img_rec_{}.png'.format(i) for i in image_ids]
         for path, img in zip(image_save_paths, images):
