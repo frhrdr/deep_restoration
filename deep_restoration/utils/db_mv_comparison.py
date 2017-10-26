@@ -61,11 +61,11 @@ def run_mv_scripts(classifier):
 
     for img_path in img_paths:
         for layer_name in layer_names:
-            if 'lin' in layer_name:
+            if 'lin' not in layer_name:
 
                 layer_subdir = layer_name.replace('/', '_')
                 img_subdir = img_path.split('/')[-1].split('.')[0]
-                log_path = '../logs/mahendran_vedaldi/2016/alexnet/{}/{}/'.format(layer_subdir, img_subdir)
+                log_path = '../logs/mahendran_vedaldi/2016/{}/{}/{}/'.format(classifier, layer_subdir, img_subdir)
                 mv_script_fun(layer_name, img_path, log_path, classifier)
 
 
@@ -156,10 +156,12 @@ def get_jitter_and_mse_weight(classifier, layer_name):
 def mv_mse_and_vgg_scores(classifier):
     tgt_paths = subset10_paths(classifier)
     _, img_hw, layer_names = classifier_stats(classifier)
-    log_path = '../logs/mahendran_vedaldi/2016/alexnet/'
+    log_path = '../logs/mahendran_vedaldi/2016/{}/'.format(classifier)
     layer_subdirs = [l.replace('/', '_') for l in layer_names]
     img_subdirs = [p.split('/')[-1].split('.')[0] for p in tgt_paths]
 
+    tgt_images = [load_image(p) for p in tgt_paths]
+    rec_filename = 'imgs/rec_3500-png'
     tgt_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
     rec_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
 
@@ -170,24 +172,30 @@ def mv_mse_and_vgg_scores(classifier):
 
     found_layers = []
     score_list = []
-    for layer_subdir in layer_subdirs:
 
-        layer_log_path = '{}{}/'.format(log_path, layer_subdir)
-        if not os.path.exists(layer_log_path):
-            continue
-        found_layers.append(layer_subdir)
-        layer_score_list = []
+    with tf.Graph().as_default():
+        for lmod in loss_mods:
+            lmod.build()
+        loss_tsr_list = [m.get_loss() for m in loss_mods]
 
-        for img_subdir in img_subdirs:
-            img_log_path = '{}{}/'.format(layer_log_path, img_subdir)
+        with tf.Session() as sess:
 
-            with tf.Graph().as_default():
-                for lmod in loss_mods:
-                    lmod.build()
+            for layer_subdir in layer_subdirs:
+                layer_log_path = '{}{}/'.format(log_path, layer_subdir)
+                if not os.path.exists(layer_log_path):
+                    continue
+                found_layers.append(layer_subdir)
+                layer_score_list = []
 
-                loss_tsr_list = [m.get_loss() for m in loss_mods]
+                for idx, img_subdir in enumerate(img_subdirs):
+                    img_log_path = '{}{}/'.format(layer_log_path, img_subdir)
+                    rec_image = load_image(img_log_path + rec_filename)
+                    scores = sess.run(loss_tsr_list, feed_dict={tgt_pl: tgt_images[idx], rec_pl: rec_image})
+                    layer_score_list.append(scores)
+                score_list.append(layer_score_list)
 
-                with tf.Session() as sess:
-
-                    scores = sess.run(loss_tsr_list, feed_dict={tgt_pl: 0, rec_pl: 0})
+    score_mat = np.asarray(score_list)
+    print(score_mat.shape)
+    print(found_layers)
+    np.save('{}score_mat.npy'.format(log_path), score_mat)
 
