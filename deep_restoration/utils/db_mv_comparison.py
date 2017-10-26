@@ -204,7 +204,7 @@ def mv_mse_and_vgg_scores(classifier):
     np.save('{}score_mat.npy'.format(log_path), score_mat)
 
 
-def db_mse_and_vgg_scores(classifier):
+def db_img_mse_and_vgg_scores(classifier):
     tgt_paths = subset10_paths(classifier)
     _, img_hw, layer_names = classifier_stats(classifier)
     tgt_images = [load_image(p) for p in tgt_paths]
@@ -234,7 +234,7 @@ def db_mse_and_vgg_scores(classifier):
                 for save_subdir in save_subdirs:
                     load_path = cnn_inv_log_path(classifier, start_layer, rec_layer=1) + save_subdir
                     if not os.path.exists(load_path):
-                        
+
                         continue
                     save_subdir_list = []
                     for idx, rec_filename in enumerate(rec_filenames):
@@ -249,3 +249,12 @@ def db_mse_and_vgg_scores(classifier):
     print(score_mat.shape)
     print(found_layers)
     np.save('../logs/cnn_inversion/{}/score_mat.npy'.format(classifier), score_mat)
+
+
+def db_lin_to_lin_mse_scores(classifier):
+    lin_start_rec_pairs = ((4, 2), (7, 5), (8, 8), (9, 9))
+    lin_tensor_names = ['DC{}/c{}l_rec:0'.format(i, lin_start_rec_pairs[i][1]) for i in range(1, 5)]
+    for lin_tensor, pair in zip(lin_start_rec_pairs, lin_tensor_names):
+        start_layer, rec_layer = pair
+        run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=False,
+                           subdir_name=None, retrieve_special=lin_tensor)
