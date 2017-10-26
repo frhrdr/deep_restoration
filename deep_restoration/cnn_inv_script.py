@@ -7,7 +7,7 @@ import os
 import numpy as np
 
 classifier = 'vgg16'
-start_layer = 6
+start_layer = 10
 rec_layer = 1
 run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=True)
 # module_list = get_stacked_module(classifier=classifier, start_layer=start_layer, rec_layer=rec_layer,
