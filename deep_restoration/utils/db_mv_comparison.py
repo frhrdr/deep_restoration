@@ -67,7 +67,7 @@ def run_mv_scripts(classifier):
 
     for img_path in img_paths:
         for layer_name in layer_names:
-            if 'lin' not in layer_name:
+            if 'lin' in layer_name:
 
                 layer_subdir = layer_name.replace('/', '_')
                 img_subdir = img_path.split('/')[-1].split('.')[0]
@@ -98,7 +98,7 @@ def mv_script_fun(src_layer, img_path, log_path, classifier,
     lr_factor = range_b ** 2 / alpha
     lr_lower_points = lr_lower_points or ((0, 1e-2 * lr_factor), (1000, 3e-3 * lr_factor), (2000, 1e-3 * lr_factor))
 
-    ni = NetInversion(modules, log_path, classifier='alexnet')
+    ni = NetInversion(modules, log_path, classifier=classifier)
     pre_img_init = np.expand_dims(load_image(img_path), axis=0).astype(np.float32)
 
     ni.train_pre_featmap(img_path, n_iterations=n_iterations, optim_name='adam',
@@ -166,20 +166,23 @@ def mv_mse_and_vgg_scores(classifier):
     layer_subdirs = [l.replace('/', '_') for l in layer_names]
     img_subdirs = [p.split('/')[-1].split('.')[0] for p in tgt_paths]
 
-    tgt_images = [load_image(p) for p in tgt_paths]
-    rec_filename = 'imgs/rec_3500-png'
-    tgt_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
-    rec_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
+    tgt_images = [np.expand_dims(load_image(p), axis=0) for p in tgt_paths]
+    rec_filename = 'imgs/rec_3500.png'
 
-    vgg_loss = VggScoreLoss((tgt_pl, rec_pl), weighting=1.0, name=None, input_scaling=1.0)
-    mse_loss = MSELoss(tgt_pl, rec_pl)
-    nmse_loss = NormedMSELoss(tgt_pl, rec_pl)
+    vgg_loss = VggScoreLoss(('tgt_224:0', 'rec_224:0'), weighting=1.0, name=None, input_scaling=1.0)
+    mse_loss = MSELoss('tgt_pl:0', 'rec_pl:0')
+    nmse_loss = NormedMSELoss('tgt_pl:0', 'rec_pl:0')
     loss_mods = [vgg_loss, mse_loss, nmse_loss]
 
     found_layers = []
     score_list = []
 
     with tf.Graph().as_default():
+        tgt_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3), name='tgt_pl')
+        rec_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3), name='rec_pl')
+        tgt_224 = tf.slice(tgt_pl, begin=[0, 0, 0, 0], size=[-1, 224, 224, -1], name='tgt_224')
+        rec_224 = tf.slice(rec_pl, begin=[0, 0, 0, 0], size=[-1, 224, 224, -1], name='rec_224')
+
         for lmod in loss_mods:
             lmod.build()
         loss_tsr_list = [m.get_loss() for m in loss_mods]
@@ -195,7 +198,7 @@ def mv_mse_and_vgg_scores(classifier):
 
                 for idx, img_subdir in enumerate(img_subdirs):
                     img_log_path = '{}{}/'.format(layer_log_path, img_subdir)
-                    rec_image = load_image(img_log_path + rec_filename)
+                    rec_image = np.expand_dims(load_image(img_log_path + rec_filename), axis=0)
                     scores = sess.run(loss_tsr_list, feed_dict={tgt_pl: tgt_images[idx], rec_pl: rec_image})
                     layer_score_list.append(scores)
                 score_list.append(layer_score_list)
