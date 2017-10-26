@@ -1,5 +1,4 @@
 #!/bin/bash
-python cnn_inv_script.py 
 python stack_script_1.py 
 python stack_script_2.py 
 python stack_script_3.py 
@@ -9,4 +8,4 @@ python stack_script_6.py
 python stack_script_7.py 
 python stack_script_8.py 
 python stack_script_9.py 
-python stack_script_10.py 
+python stack_script_10.py
