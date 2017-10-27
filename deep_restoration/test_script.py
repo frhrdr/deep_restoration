@@ -10,6 +10,20 @@ import numpy as np
 # from utils.temp_utils import plot_alexnet_filters, show_patches_by_channel
 from modules.loss_modules import VggScoreLoss
 
+
+img_prior3 = FoEFullPrior('rgb_scaled:0', 1e-3, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
+                          n_features_white=64*3-1, dist='logistic', mean_mode='lf', sdev_mode='gc', whiten_mode='pca',
+                          load_name='ICAPrior', load_tensor_names='image')
+img_prior3.train_prior(batch_size=250, n_iterations=25000, lr=3e-5,
+                       lr_lower_points=((0, 1e-0), (10000, 1e-1),
+                                        (13000, 3e-2),
+                                        (15000, 1e-2), (17000, 3e-3), (19000, 1e-3),
+                                        (21000, 1e-4), (23000, 3e-5)),
+                       grad_clip=1e-3,
+                       n_data_samples=100000, n_val_samples=500, test_freq=25001,
+                       log_freq=5000, summary_freq=10, print_freq=100,
+                       prev_ckpt=0,
+                       optimizer_name='adam', plot_filters=True, stop_on_overfit=False)
 # assert (1, 2, 3) == (1, 2, 3)
 #
 # v = VggScoreLoss(('target:0', 'reconstruction:0'), 1.0)
@@ -53,20 +67,20 @@ from modules.loss_modules import VggScoreLoss
 # wmode = 'zca'
 # nchan = 3
 
-fullprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
-                         n_features_white=8 ** 2 * 3 - 1, dist='logistic', mean_mode='gc', sdev_mode='gc',
-                         whiten_mode='pca')
+# fullprior = FoEFullPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
+#                          n_features_white=8 ** 2 * 3 - 1, dist='logistic', mean_mode='gc', sdev_mode='gc',
+#                          whiten_mode='pca')
 
-fullprior.train_prior(batch_size=250, n_iterations=25000, lr=3e-5,
-                      lr_lower_points=((0, 1e-0), (10000, 1e-1),
-                                       (13000, 3e-2),
-                                       (15000, 1e-2), (17000, 3e-3), (19000, 1e-3),
-                                       (21000, 1e-4), (23000, 3e-5)),
-                      grad_clip=1e-3,
-                      n_data_samples=100000, n_val_samples=500,
-                      log_freq=5000, summary_freq=10, print_freq=100,
-                      prev_ckpt=0,
-                      optimizer_name='adam', plot_filters=True, stop_on_overfit=False)
+# fullprior.train_prior(batch_size=250, n_iterations=25000, lr=3e-5,
+#                       lr_lower_points=((0, 1e-0), (10000, 1e-1),
+#                                        (13000, 3e-2),
+#                                        (15000, 1e-2), (17000, 3e-3), (19000, 1e-3),
+#                                        (21000, 1e-4), (23000, 3e-5)),
+#                       grad_clip=1e-3,
+#                       n_data_samples=100000, n_val_samples=500,
+#                       log_freq=5000, summary_freq=10, print_freq=100,
+#                       prev_ckpt=0,
+#                       optimizer_name='adam', plot_filters=True, stop_on_overfit=False)
 
 # p = FoEFullPrior('conv1/lin:0', 1e-10, 'alexnet', [hw, hw], 1.0, n_components=2000, n_channels=nchan,
 #                  n_features_white=hw**2*nchan, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode=wmode,

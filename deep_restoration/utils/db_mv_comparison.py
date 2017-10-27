@@ -157,6 +157,23 @@ def get_jitter_and_mse_weight(classifier, layer_name):
     return mse_weights[idx], jitter_t[idx]
 
 
+def mv_plot_mats(classifier):
+    _, img_hw, layer_names = classifier_stats(classifier)
+    img_paths = subset10_paths(classifier)
+    img_paths = img_paths[3:]  # to continue previous run
+    log_points = (1750, 3500)
+    for img_path in img_paths:
+        for layer_name in layer_names:
+            layer_subdir = layer_name.replace('/', '_')
+            img_subdir = img_path.split('/')[-1].split('.')[0]
+            log_path = '../logs/mahendran_vedaldi/2016/{}/{}/{}/'.format(classifier, layer_subdir, img_subdir)
+            if not os.path.exists(log_path + 'imgs/'):
+                os.makedirs(log_path + 'imgs/')
+            for log_point in log_points:
+                img_mat = np.load('{}mats/rec_{}.npy'.format(log_path, log_point))
+                skimage.io.imsave('{}imgs/rec_{}.png'.format(log_path, log_point), img_mat)
+
+
 def mv_mse_and_vgg_scores(classifier):
     tgt_paths = subset10_paths(classifier)
     _, img_hw, layer_names = classifier_stats(classifier)

@@ -125,7 +125,7 @@ class NetInversion:
 
     def train_pre_featmap(self, image_path, n_iterations, grad_clip=100.0, lr_lower_points=((0, 1e-4),),
                           range_b=80, jitter_t=0, optim_name='adam',
-                          range_clip=False, save_as_plot=False, jitter_stop_point=-1, scale_pre_img=1.0,
+                          range_clip=False, save_as_plot=False, bound_plots=False, jitter_stop_point=-1, scale_pre_img=1.0,
                           pre_featmap_init=None, ckpt_offset=0,
                           pre_featmap_name='input', classifier_cutoff=None,
                           tensor_names_to_save=(), featmap_names_to_plot=(), max_n_featmaps_to_plot=5):
@@ -201,8 +201,10 @@ class NetInversion:
                     tg_clipped = [(tf.clip_by_value(k[0], -grad_clip, grad_clip), k[1])
                                   for k in tg_pairs]
                     train_op = optimizer.apply_gradients(tg_clipped)
-
-                    if range_clip and pre_featmap_name == 'input':
+                    if range_clip == 'img_bounds':
+                        clipped_img = tf.maximum(tf.minimum(pre_featmap, 255.), 0.)
+                        clip_op = tf.assign(pre_featmap, clipped_img)
+                    elif range_clip and pre_featmap_name == 'input':
                         position_norm = tf.sqrt(tf.reduce_sum((pre_featmap - self.imagenet_mean) ** 2, axis=3))
                         box_rescale = tf.minimum(2 * range_b / position_norm, 1.)
                         box_rescale = tf.stack([box_rescale] * 3, axis=3)
@@ -247,7 +249,10 @@ class NetInversion:
                             np.save(self.log_path + 'mats/rec_' + str(count) + '.npy', rec_mat)
 
                             if save_as_plot:
-                                rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))
+                                if bound_plots:
+                                    rec_mat = np.minimum(np.maximum(rec_mat / 255., 0.), 1.)
+                                else:
+                                    rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))
                                 fig = plt.figure(frameon=False)
                                 fig.set_size_inches(1, 1)
                                 ax = plt.Axes(fig, [0., 0., 1., 1.])
@@ -278,7 +283,7 @@ class NetInversion:
                                         file_path = '{}imgs/{}-{}.png'.format(self.log_path, name, count)
                                         plot_feat_map_diffs(fmap, file_path, max_n_featmaps_to_plot)
 
-                        if jitter_stop_point == count:
+                        if use_jitter is True and jitter_stop_point <= count:
                             print('Jittering stopped at ', count)
                             use_jitter = False
 
@@ -286,6 +291,8 @@ class NetInversion:
                             lr = lr_lower_points[0][1]
                             print('new learning rate: ', lr)
                             lr_lower_points = lr_lower_points[1:]
+
+                    summary_writer.flush()
 
     def train_on_dataset(self, n_iterations, batch_size, test_set_size=200, test_freq=100,
                          optim_name='adam', lr_lower_points=((0, 1e-4),)):

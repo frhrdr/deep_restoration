@@ -16,7 +16,6 @@ def run_image_opt_inversions(classifier, prior_mode):
     weight = None
     _, img_hw, layer_names = classifier_stats(classifier)
 
-
     tgt_paths = subset10_paths(classifier)
     # tgt_images = [np.expand_dims(load_image(p), axis=0) for p in tgt_paths]
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
@@ -36,8 +35,12 @@ def run_image_opt_inversions(classifier, prior_mode):
 
             pre_featmap_name = 'input'
             do_plot = True
+            summary_freq = 10
+            print_freq = 100
+            log_freq = 500
+            grad_clip = 10000.
+            lr_lower_points = ((1e+0, 3e-1),)
 
-            pre_featmap_init = None
             split = SplitModule(name_to_split=cutoff + ':0', img_slice_name=layer_subdir + '_img',
                                 rec_slice_name=layer_subdir + '_rec')
             feat_mse = MSELoss(target=layer_subdir + '_img:0', reconstruction=layer_subdir + '_rec:0',
@@ -49,9 +52,11 @@ def run_image_opt_inversions(classifier, prior_mode):
 
             modules = [split, feat_mse, img_mse, prior]
 
-            ni = NetInversion(modules, exp_log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
+            pre_featmap_init = None
+            ni = NetInversion(modules, exp_log_path, classifier=classifier, summary_freq=summary_freq,
+                              print_freq=print_freq, log_freq=log_freq)
             ni.train_pre_featmap(target_image, n_iterations=500, optim_name='adam',
-                                 lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
+                                 lr_lower_points=lr_lower_points, grad_clip=grad_clip,
                                  pre_featmap_init=pre_featmap_init, ckpt_offset=0,
                                  pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
                                  featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=do_plot)
@@ -62,13 +67,13 @@ def run_image_opt_inversions(classifier, prior_mode):
                     mod.reset()
 
             ni.train_pre_featmap(target_image, n_iterations=9500, optim_name='adam',
-                                 lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
+                                 lr_lower_points=lr_lower_points, grad_clip=grad_clip,
                                  pre_featmap_init=pre_featmap_init, ckpt_offset=500,
                                  pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
                                  featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=do_plot)
 
 
-def get_jitter_and_prior_weight(classifier, layer_name):
+def get_imagerec_jitter_and_prior_weight(classifier, layer_name):
     _, _, layers = classifier_stats(classifier)
     if layer_name.endswith(':0'):
         layer_name = layer_name[:-len(':0')]
