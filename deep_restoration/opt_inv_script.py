@@ -44,8 +44,8 @@ pre_mse.add_loss = False
 
 # dropout_prior = get_default_prior('dropout1024', custom_weighting=1e-8)
 
-img_prior1 = get_default_prior('full512', custom_weighting=1e-4)
-img_prior2 = get_default_prior('full512logistic', custom_weighting=1e-4)
+img_prior1 = get_default_prior('full512', custom_weighting=1e-2)
+img_prior2 = get_default_prior('full512logistic', custom_weighting=3e-3)
 # img_prior3 = FoEFullPrior('pre_featmap:0', 3e-3, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
 #                           n_features_white=64*3-1, dist='logistic', mean_mode='lf', sdev_mode='gc', whiten_mode='pca',
 #                           load_name='ICAPrior', load_tensor_names='image')
@@ -53,12 +53,12 @@ img_prior3 = FoEFullPrior('pre_featmap:0', 3e-3, 'alexnet', [8, 8], 1.0, n_compo
                           n_features_white=64*3-1, dist='logistic', mean_mode='lf', sdev_mode='gc', whiten_mode='pca',
                           load_tensor_names='image')
 
-modules = [split2, mse2, pre_mse, img_prior3]
+modules = [split2, mse2, pre_mse, img_prior1]
 # log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/full_prior/1e-4/'
 # log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/pre_image_8x8_dropout_prior/1e-8/'
 
-log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c2l_to_img/8x8_lf_gc_logistic_big/3e-3/jitter_bound_plots/'
-# log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c2l_to_img/pure_mse/
+log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c3l_to_img/8x8_gc_gc_student/2e-2/jitter_bound_plots/'
+# log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c3l_to_img/pure_mse/'
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
 if not os.path.exists(log_path):
@@ -74,9 +74,9 @@ copyfile('./opt_inv_script.py', log_path + 'script.py')
 target_image = '../data/selected/images_resized_227/red-fox.bmp'
 # pre_featmap_name = 'conv1/lin'
 pre_featmap_name = 'input'
-do_plot = False
-cutoff = 'conv2/lin'
-jitter_t = 2
+do_plot = True
+cutoff = 'conv3/lin'
+jitter_t = 4
 jitter_stop_point = 3200
 lr = 3e-1
 
