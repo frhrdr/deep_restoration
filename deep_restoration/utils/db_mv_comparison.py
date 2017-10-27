@@ -64,7 +64,7 @@ def run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=False,
 def run_mv_scripts(classifier):
     _, img_hw, layer_names = classifier_stats(classifier)
     img_paths = subset10_paths(classifier)
-
+    img_paths = img_paths[3:]  # to continue previous run
     for img_path in img_paths:
         for layer_name in layer_names:
             layer_subdir = layer_name.replace('/', '_')
@@ -237,7 +237,6 @@ def db_img_mse_and_vgg_scores(classifier):
                 for save_subdir in save_subdirs:
                     load_path = cnn_inv_log_path(classifier, start_layer, rec_layer=1) + save_subdir
                     if not os.path.exists(load_path):
-
                         continue
                     save_subdir_list = []
                     for idx, rec_filename in enumerate(rec_filenames):
