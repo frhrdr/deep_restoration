@@ -11,9 +11,9 @@ from utils.default_priors import get_default_prior
 
 split1, mse1 = lin_split_and_mse(1, add_loss=False, mse_name='MSE_Reconstruction')
 split2, mse2 = lin_split_and_mse(2, add_loss=True)
-split3, mse3 = lin_split_and_mse(3, add_loss=False, mse_name='MSE_Reconstruction')
+split3, mse3 = lin_split_and_mse(3, add_loss=True)
 split4, mse4 = lin_split_and_mse(4, add_loss=True)
-split5, mse5 = lin_split_and_mse(5, add_loss=False, mse_name='MSE_Reconstruction')
+split5, mse5 = lin_split_and_mse(5, add_loss=True)
 split6, mse6 = lin_split_and_mse(6, add_loss=True)
 
 pre_mse = MSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
@@ -44,20 +44,22 @@ pre_mse.add_loss = False
 
 # dropout_prior = get_default_prior('dropout1024', custom_weighting=1e-8)
 
-img_prior1 = get_default_prior('full512', custom_weighting=1e-2)
-img_prior2 = get_default_prior('full512logistic', custom_weighting=3e-3)
+
+img_prior2 = get_default_prior('full512logistic', custom_weighting=1e-2)
 # img_prior3 = FoEFullPrior('pre_featmap:0', 3e-3, 'alexnet', [8, 8], 1.0, n_components=512, n_channels=3,
 #                           n_features_white=64*3-1, dist='logistic', mean_mode='lf', sdev_mode='gc', whiten_mode='pca',
 #                           load_name='ICAPrior', load_tensor_names='image')
-img_prior3 = FoEFullPrior('pre_featmap:0', 3e-3, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
-                          n_features_white=64*3-1, dist='logistic', mean_mode='lf', sdev_mode='gc', whiten_mode='pca',
-                          load_tensor_names='image')
+# img_prior3 = FoEFullPrior('pre_featmap:0', 3e-3, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
+#                           n_features_white=64*3-1, dist='logistic', mean_mode='lf', sdev_mode='gc', whiten_mode='pca',
+#                           load_tensor_names='image')
 
-modules = [split2, mse2, pre_mse, img_prior1]
 # log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/full_prior/1e-4/'
 # log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/pre_image_8x8_dropout_prior/1e-8/'
-
-log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c3l_to_img/8x8_gc_gc_student/2e-2/jitter_bound_plots/'
+img_prior1 = get_default_prior('full512', custom_weighting=1e-5)
+modules = [split5, mse5, pre_mse, img_prior1]
+log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c5l_to_img/8x8_gc_gc_student/1e-5/jitter_bound_plots/'
+cutoff = 'conv5/lin'
+jitter_t = 16
 # log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c3l_to_img/pure_mse/'
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
@@ -65,18 +67,11 @@ if not os.path.exists(log_path):
     os.makedirs(log_path)
 copyfile('./opt_inv_script.py', log_path + 'script.py')
 
-# pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_10500.npy'), [1, 224, 224, 3])
-
-# pre_featmap_init = np.load('../logs/opt_inversion/alexnet/pre_featmap/mse_init_1500.npy')
-# pre_img_init = np.load('../logs/net_inversion/alexnet/c1l_tests_16_08/init_helper.npy')
-
-
 target_image = '../data/selected/images_resized_227/red-fox.bmp'
 # pre_featmap_name = 'conv1/lin'
 pre_featmap_name = 'input'
 do_plot = True
-cutoff = 'conv3/lin'
-jitter_t = 4
+
 jitter_stop_point = 3200
 lr = 3e-1
 
