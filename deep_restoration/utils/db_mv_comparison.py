@@ -103,7 +103,7 @@ def mv_script_fun(src_layer, img_path, log_path, classifier,
                          jitter_t=jitter_t, jitter_stop_point=jitter_stop_point, range_clip=True, scale_pre_img=1.,
                          range_b=range_b,
                          lr_lower_points=lr_lower_points,
-                         pre_featmap_init=pre_img_init, ckpt_offset=0, save_as_plot=True)
+                         pre_featmap_init=pre_img_init, ckpt_offset=0, save_as_plot=False)
 
 
 def classifier_stats(classifier):

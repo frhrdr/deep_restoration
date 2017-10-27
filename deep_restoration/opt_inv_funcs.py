@@ -16,6 +16,7 @@ def run_image_opt_inversions(classifier, prior_mode):
     weight = None
     _, img_hw, layer_names = classifier_stats(classifier)
 
+
     tgt_paths = subset10_paths(classifier)
     # tgt_images = [np.expand_dims(load_image(p), axis=0) for p in tgt_paths]
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
@@ -65,3 +66,33 @@ def run_image_opt_inversions(classifier, prior_mode):
                                  pre_featmap_init=pre_featmap_init, ckpt_offset=500,
                                  pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
                                  featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=do_plot)
+
+
+def get_jitter_and_prior_weight(classifier, layer_name):
+    _, _, layers = classifier_stats(classifier)
+    if layer_name.endswith(':0'):
+        layer_name = layer_name[:-len(':0')]
+    idx = layers.index(layer_name)
+    if classifier == 'alexnet':
+        prior_weights = (300, 300, 300, 300,
+                         300, 300, 300, 300,
+                         300, 300, 100, 100, 20, 20, 1,
+                         1, 1, 1, 1, 1, 1, 1)
+        jitter_t = (1, 1, 1, 2,
+                    2, 2, 2, 4,
+                    4, 4, 4, 4, 4, 4, 8,
+                    8, 8, 8, 8, 8, 8, 8)
+    else:
+        prior_weights = (300, 300, 300, 300, 300,
+                         300, 300, 300, 300, 300,
+                         300, 300, 300, 300, 300, 300, 300,
+                         300, 300, 300, 300, 300, 300, 100,
+                         100, 100, 20, 20, 20, 20, 1,
+                         1, 1, 1, 1, 1, 1, 1)
+        jitter_t = (0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 1,
+                    1, 1, 1, 1, 1, 1, 2,
+                    2, 2, 2, 2, 2, 2, 4,
+                    4, 4, 4, 4, 4, 4, 8,
+                    8, 8, 8, 8, 8, 8, 8)
+    return prior_weights[idx], jitter_t[idx]
