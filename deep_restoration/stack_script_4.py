@@ -18,4 +18,4 @@ modules = [dc_module, dc_module.get_mse_loss()]
 ni = NetInversion(modules, log_path, classifier=classifier, summary_freq=100, print_freq=500, log_freq=1000)
 
 ni.train_on_dataset(n_iterations=5000, batch_size=32, test_set_size=200, test_freq=100,
-                    optim_name='adam', lr_lower_points=((0, 1e-4),))
+                    optim_name='adam', lr_lower_points=((0, 3e-5),))
