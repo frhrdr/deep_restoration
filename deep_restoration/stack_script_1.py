@@ -14,7 +14,7 @@ if not os.path.exists(log_path):
     os.makedirs(log_path)
 copyfile('./cnn_inv_script.py', log_path + 'stack_script_6.py')
 
-modules = module_list.append(module_list[-1].get_mse_loss())
+modules = module_list + [module_list[-1].get_mse_loss()]
 ni = NetInversion(modules, log_path, classifier=classifier, summary_freq=10, print_freq=10, log_freq=500)
 
 ni.train_on_dataset(n_iterations=3000, batch_size=32, test_set_size=200, test_freq=100,
