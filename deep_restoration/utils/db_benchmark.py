@@ -143,5 +143,3 @@ def db_lin_to_img_gen(classifier, use_solotrain=False):
 
         run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=use_solotrain,
                            subdir_name=None)
-
-

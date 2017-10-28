@@ -29,16 +29,16 @@ pre_mse.add_loss = False
 #                       name=None, load_name=None, dir_name=None, load_tensor_names=None)
 # dropout_prior = get_default_prior('dropout1024', custom_weighting=1e-8)
 # img_prior2 = get_default_prior('full512logistic', custom_weighting=1e-2)
-layer = 1
-jitter_t = 0  # 1:1, 2:2, 3,4,5:4, 6,7,8:8
-weighting = '1e-6'
+layer = 6
+jitter_t = 8  # 1:1, 2:2, 3,4,5:4, 6,7,8:8
+weighting = '1e-3'
 make_mse = False
 restart_adam = False
 
 img_prior1 = get_default_prior('full512', custom_weighting=float(weighting))
 subdir = '8x8_gc_gc_student/{}/jitter_bound_plots/'.format(weighting)
 log_dir = '../logs/opt_inversion/alexnet/img_prior_comp/c{}l_to_img/'.format(layer)
-cutoff = 'conv{}/lin'.format(layer)
+cutoff = 'conv{}/lin'.format(layer) if layer < 6 else None
 split, mse = lin_split_and_mse(layer, add_loss=True)
 
 if not make_mse:

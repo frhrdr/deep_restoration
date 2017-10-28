@@ -4,15 +4,15 @@ from shutil import copyfile
 import os
 
 classifier = 'alexnet'
-start_layer = 9
-rec_layer = 1
+start_layer = 4
+rec_layer = 2
 module_list = get_stacked_module(classifier=classifier, alt_load_subdir='solotrain',
                                  start_layer=start_layer, rec_layer=rec_layer)
 log_path = '../logs/cnn_inversion/{}/stack_{}_to_{}/'.format(classifier, start_layer, rec_layer)
 
 if not os.path.exists(log_path):
     os.makedirs(log_path)
-copyfile('./cnn_inv_script.py', log_path + 'stack_script_6.py')
+copyfile('./stack_script_1.py', log_path + 'script.py')
 
 modules = module_list + [module_list[-1].get_mse_loss()]
 ni = NetInversion(modules, log_path, classifier=classifier, summary_freq=10, print_freq=10, log_freq=500)
