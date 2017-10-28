@@ -5,7 +5,7 @@ from modules.core_modules import LossModule
 from modules.loss_modules import MSELoss, VggScoreLoss, NormedMSELoss
 from modules.split_module import SplitModule
 from net_inversion import NetInversion
-from utils.db_mv_comparison import subset10_paths, selected_img_ids, classifier_stats
+from utils.db_benchmark import subset10_paths, selected_img_ids, classifier_stats
 from utils.default_priors import get_default_prior
 from utils.filehandling import load_image
 

@@ -1,6 +1,6 @@
 from net_inversion import NetInversion
 from modules.inv_default_modules import default_deconv_conv_module, get_stacked_module
-from utils.db_mv_comparison import cnn_inv_log_path, run_stacked_module
+from utils.db_benchmark import cnn_inv_log_path, run_stacked_module
 from shutil import copyfile
 from utils.filehandling import load_image
 import os
