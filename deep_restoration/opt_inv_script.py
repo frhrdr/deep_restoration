@@ -55,9 +55,9 @@ img_prior2 = get_default_prior('full512logistic', custom_weighting=1e-2)
 
 # log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/full_prior/1e-4/'
 # log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/pre_image_8x8_dropout_prior/1e-8/'
-img_prior1 = get_default_prior('full512', custom_weighting=1e-5)
+img_prior1 = get_default_prior('full512', custom_weighting=3e-5)
 modules = [split5, mse5, pre_mse, img_prior1]
-log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c5l_to_img/8x8_gc_gc_student/1e-5/jitter_bound_plots/'
+log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c5l_to_img/8x8_gc_gc_student/3e-5/jitter_bound_plots/'
 cutoff = 'conv5/lin'
 jitter_t = 16
 # log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c3l_to_img/pure_mse/'
