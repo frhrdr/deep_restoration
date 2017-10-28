@@ -4,7 +4,7 @@ from shutil import copyfile
 import os
 
 classifier = 'alexnet'
-start_layer = 7
+start_layer = 8
 rec_layer = 1
 module_list = get_stacked_module(classifier=classifier, alt_load_subdir='solotrain',
                                  start_layer=start_layer, rec_layer=rec_layer)
