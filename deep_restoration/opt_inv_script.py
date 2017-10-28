@@ -6,6 +6,7 @@ from modules.loss_modules import MSELoss
 from modules.split_module import lin_split_and_mse
 from net_inversion import NetInversion
 from utils.default_priors import get_default_prior
+from modules.split_module import SplitModule
 
 pre_mse = MSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
 pre_mse.add_loss = False
@@ -29,17 +30,26 @@ pre_mse.add_loss = False
 #                       name=None, load_name=None, dir_name=None, load_tensor_names=None)
 # dropout_prior = get_default_prior('dropout1024', custom_weighting=1e-8)
 # img_prior2 = get_default_prior('full512logistic', custom_weighting=1e-2)
-layer = 8
+layer = 'softmax'
 jitter_t = 8  # 1:1, 2:2, 3,4,5:4, 6,7,8:8
-weighting = '1e-5'
+weighting = '1e-1'
 make_mse = False
 restart_adam = False
 
 img_prior1 = get_default_prior('full512', custom_weighting=float(weighting))
-subdir = '8x8_gc_gc_student/{}/jitter_bound_plots/'.format(weighting)
-log_dir = '../logs/opt_inversion/alexnet/img_prior_comp/c{}l_to_img/'.format(layer)
-cutoff = 'conv{}/lin'.format(layer) if layer < 6 else None
-split, mse = lin_split_and_mse(layer, add_loss=True)
+if layer == 'softmax':
+    split = SplitModule(name_to_split='softmax:0', img_slice_name='smx_img',
+                        rec_slice_name='smx_rec', name='Split_smx')
+    mse = MSELoss(target='smx_img' + ':0', reconstruction='smx_rec' + ':0',
+                  name='MSE_smx')
+    subdir = '8x8_gc_gc_student/{}/jitter_bound_plots/'.format(weighting)
+    log_dir = '../logs/opt_inversion/alexnet/img_prior_comp/smx_to_img/'
+    cutoff = None
+else:
+    subdir = '8x8_gc_gc_student/{}/jitter_bound_plots/'.format(weighting)
+    log_dir = '../logs/opt_inversion/alexnet/img_prior_comp/c{}l_to_img/'.format(layer)
+    cutoff = 'conv{}/lin'.format(layer) if layer < 6 else None
+    split, mse = lin_split_and_mse(layer, add_loss=True)
 
 if not make_mse:
     modules = [split, mse, pre_mse, img_prior1]
@@ -61,12 +71,12 @@ do_plot = True
 
 jitter_stop_point = 3200
 lr = 1.
-
+bound_plots = True
 
 first_n_iterations = 500 if restart_adam else 10000
 
 ni.train_pre_featmap(target_image, n_iterations=first_n_iterations, grad_clip=10000.,
-                     lr_lower_points=((1e+0, lr),), jitter_t=jitter_t, range_clip=False, bound_plots=True,
+                     lr_lower_points=((1e+0, lr),), jitter_t=jitter_t, range_clip=False, bound_plots=bound_plots,
                      optim_name='adam', save_as_plot=do_plot, jitter_stop_point=jitter_stop_point,
                      pre_featmap_init=pre_featmap_init, ckpt_offset=0,
                      pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
@@ -79,7 +89,7 @@ if restart_adam:
             mod.reset()
 
     ni.train_pre_featmap(target_image, n_iterations=9500, grad_clip=10000., optim_name='adam',
-                         lr_lower_points=((1e+0, lr),), jitter_t=jitter_t, range_clip=False, bound_plots=True,
+                         lr_lower_points=((1e+0, lr),), jitter_t=jitter_t, range_clip=False, bound_plots=bound_plots,
                          pre_featmap_init=pre_featmap_init, ckpt_offset=500, jitter_stop_point=jitter_stop_point,
                          pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
                          featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=do_plot)

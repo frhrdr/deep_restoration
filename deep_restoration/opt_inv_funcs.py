@@ -11,21 +11,19 @@ from utils.filehandling import load_image
 
 
 def run_image_opt_inversions(classifier, prior_mode):
-    weight = None
-    _, img_hw, layer_names = classifier_stats(classifier)
 
+    _, img_hw, layer_names = classifier_stats(classifier)
+    layer_names = [n for n in layer_names if 'lin' in n]
     tgt_paths = subset10_paths(classifier)
-    # tgt_images = [np.expand_dims(load_image(p), axis=0) for p in tgt_paths]
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
     img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
-
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
 
     for idx, layer_subdir in enumerate(layer_subdirs):
-        cutoff = layer_names[idx]
-
+        cutoff = layer_names[idx] if layer_names[idx].startswith('conv') else None
+        jitter_t, weight = get_imagerec_jitter_and_prior_weight(classifier, layer_names[idx])
+        print('jitter', jitter_t, 'prior_weight', weight)
         for idy, img_subdir in enumerate(img_subdirs):
-            # tgt_image = tgt_images[idy]
             target_image = tgt_paths[idy]
             exp_log_path = '{}{}/{}/'.format(log_path, layer_subdir, img_subdir)
             if not os.path.exists(log_path):
@@ -33,11 +31,14 @@ def run_image_opt_inversions(classifier, prior_mode):
 
             pre_featmap_name = 'input'
             do_plot = True
-            summary_freq = 10
-            print_freq = 100
+            mse_iterations = 5000  # 5000
+            opt_iterations = 5000  # 5000
+            jitterations = 3200  # 3200
+            summary_freq = 50
+            print_freq = 500
             log_freq = 500
             grad_clip = 10000.
-            lr_lower_points = ((1e+0, 3e-1),)
+            lr_lower_points = ((1e+0, 1.),)
 
             split = SplitModule(name_to_split=cutoff + ':0', img_slice_name=layer_subdir + '_img',
                                 rec_slice_name=layer_subdir + '_rec')
@@ -48,27 +49,36 @@ def run_image_opt_inversions(classifier, prior_mode):
             img_mse.add_loss = False
             prior = get_default_prior(prior_mode, custom_weighting=weight)
 
-            modules = [split, feat_mse, img_mse, prior]
+            modules = [split, feat_mse, img_mse]
+            pure_mse_path = exp_log_path + 'pure_mse/'
+            ni = NetInversion(modules, pure_mse_path, classifier=classifier, summary_freq=summary_freq,
+                              print_freq=print_freq, log_freq=log_freq)
 
             pre_featmap_init = None
-            ni = NetInversion(modules, exp_log_path, classifier=classifier, summary_freq=summary_freq,
-                              print_freq=print_freq, log_freq=log_freq)
-            ni.train_pre_featmap(target_image, n_iterations=500, optim_name='adam',
-                                 lr_lower_points=lr_lower_points, grad_clip=grad_clip,
+            ni.train_pre_featmap(target_image, n_iterations=mse_iterations, grad_clip=grad_clip,
+                                 lr_lower_points=lr_lower_points, jitter_t=jitter_t, range_clip=False,
+                                 bound_plots=True,
+                                 optim_name='adam', save_as_plot=do_plot, jitter_stop_point=3200,
                                  pre_featmap_init=pre_featmap_init, ckpt_offset=0,
                                  pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
-                                 featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=do_plot)
+                                 featmap_names_to_plot=(), max_n_featmaps_to_plot=10)
 
-            pre_featmap_init = np.load(ni.log_path + 'mats/rec_500.npy')
-            for mod in ni.modules:
+            for mod in modules:
                 if isinstance(mod, LossModule):
                     mod.reset()
 
-            ni.train_pre_featmap(target_image, n_iterations=9500, optim_name='adam',
-                                 lr_lower_points=lr_lower_points, grad_clip=grad_clip,
-                                 pre_featmap_init=pre_featmap_init, ckpt_offset=500,
+            modules = [split, feat_mse, img_mse, prior]
+            prior_path = exp_log_path + prior_mode + '/'
+            ni = NetInversion(modules, prior_path, classifier=classifier, summary_freq=summary_freq,
+                              print_freq=print_freq, log_freq=log_freq)
+            pre_featmap_init = np.load(pure_mse_path + '/mats/rec_{}.npy'.format(mse_iterations))
+            ni.train_pre_featmap(target_image, n_iterations=opt_iterations, grad_clip=grad_clip,
+                                 lr_lower_points=lr_lower_points, jitter_t=jitter_t, range_clip=False,
+                                 bound_plots=True,
+                                 optim_name='adam', save_as_plot=do_plot, jitter_stop_point=mse_iterations + jitterations,
+                                 pre_featmap_init=pre_featmap_init, ckpt_offset=mse_iterations,
                                  pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
-                                 featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=do_plot)
+                                 featmap_names_to_plot=(), max_n_featmaps_to_plot=10)
 
 
 def get_imagerec_jitter_and_prior_weight(classifier, layer_name):
@@ -77,10 +87,10 @@ def get_imagerec_jitter_and_prior_weight(classifier, layer_name):
         layer_name = layer_name[:-len(':0')]
     idx = layers.index(layer_name)
     if classifier == 'alexnet':
-        prior_weights = (1e-6, 0, 0, 0,
-                         3e-3, 0, 0, 0,
-                         1e-3, 0, 1e-4, 0, 1e-4, 0, 0,
-                         1e-4, 0, 0, 0, 0, 0, 0)
+        prior_weights = (1e-6, 1e-4, 3e-4, 1e-3,
+                         3e-3, 3e-3, 3e-3, 1e-3,
+                         1e-3, 1e-3, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4,
+                         1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4)
         jitter_t = (0, 0, 1, 2,
                     2, 2, 2, 4,
                     4, 4, 4, 4, 4, 4, 8,
@@ -98,7 +108,7 @@ def get_imagerec_jitter_and_prior_weight(classifier, layer_name):
                     2, 2, 2, 2, 2, 2, 4,
                     4, 4, 4, 4, 4, 4, 8,
                     8, 8, 8, 8, 8, 8, 8)
-    return prior_weights[idx], jitter_t[idx]
+    return jitter_t[idx], prior_weights[idx]
 
 
 def mv_mse_and_vgg_scores(classifier):
