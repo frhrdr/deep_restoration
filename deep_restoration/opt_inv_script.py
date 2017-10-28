@@ -29,9 +29,9 @@ pre_mse.add_loss = False
 #                       name=None, load_name=None, dir_name=None, load_tensor_names=None)
 # dropout_prior = get_default_prior('dropout1024', custom_weighting=1e-8)
 # img_prior2 = get_default_prior('full512logistic', custom_weighting=1e-2)
-layer = 3
-jitter_t = 4  # 1:1, 2:2, 3,4,5:4, 6,7,8:8
-weighting = '1e-3'
+layer = 1
+jitter_t = 1  # 1:1, 2:2, 3,4,5:4, 6,7,8:8
+weighting = '3e-3'
 make_mse = False
 restart_adam = False
 
