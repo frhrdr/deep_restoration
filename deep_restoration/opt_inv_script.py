@@ -31,7 +31,7 @@ pre_mse.add_loss = False
 # img_prior2 = get_default_prior('full512logistic', custom_weighting=1e-2)
 layer = 6
 jitter_t = 8  # 1:1, 2:2, 3,4,5:4, 6,7,8:8
-weighting = '1e-3'
+weighting = '1e-2'
 make_mse = False
 restart_adam = False
 
