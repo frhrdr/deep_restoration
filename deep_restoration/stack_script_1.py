@@ -6,7 +6,8 @@ import os
 classifier = 'alexnet'
 start_layer = 4
 rec_layer = 2
-module_list = get_stacked_module(classifier=classifier, alt_load_subdir='alexnet_stack_{}_to_{}'.format(start_layer, rec_layer),
+module_list = get_stacked_module(classifier=classifier, alt_load_subdir='alexnet_stack_{}_to_{}'.format(start_layer,
+                                                                                                        rec_layer),
                                  start_layer=start_layer, rec_layer=rec_layer)
 log_path = '../logs/cnn_inversion/{}/stack_{}_to_{}/'.format(classifier, start_layer, rec_layer)
 
@@ -18,4 +19,4 @@ modules = module_list + [module_list[-1].get_mse_loss()]
 ni = NetInversion(modules, log_path, classifier=classifier, summary_freq=10, print_freq=10, log_freq=500)
 
 ni.train_on_dataset(n_iterations=3000, batch_size=32, test_set_size=200, test_freq=100,
-                    optim_name='adam', lr_lower_points=((0, 3e-6), (1000, 1e-6), (2000, 3e-7)))
+                    optim_name='adam', lr_lower_points=((0, 3e-4), (1000, 1e-4), (2000, 3e-5)))
