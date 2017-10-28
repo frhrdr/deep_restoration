@@ -139,10 +139,9 @@ def db_lin_to_lin_mse_scores(classifier, use_solotrain=False):
 
 def db_lin_to_img_gen(classifier, use_solotrain=False):
     lin_start_rec_pairs = ((4, 1), (7, 1), (8, 1), (9, 1))
-    lin_tensor_name = ('DC1/rgb_rec:0',)
     for start_layer, rec_layer in lin_start_rec_pairs:
 
         run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=use_solotrain,
-                           subdir_name=None, retrieve_special=lin_tensor_name)
+                           subdir_name=None)
 
 
