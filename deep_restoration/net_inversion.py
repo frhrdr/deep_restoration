@@ -245,6 +245,7 @@ class NetInversion:
                                    'Time: {2:5.1f} min').format(count, batch_loss, (time.time() - start_time) / 60))
 
                         if count % self.log_freq == 0:
+                            summary_writer.flush()
                             rec_mat = sess.run(pre_featmap)
                             np.save(self.log_path + 'mats/rec_' + str(count) + '.npy', rec_mat)
 

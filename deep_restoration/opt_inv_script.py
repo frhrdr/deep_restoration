@@ -29,10 +29,11 @@ pre_mse.add_loss = False
 #                       name=None, load_name=None, dir_name=None, load_tensor_names=None)
 # dropout_prior = get_default_prior('dropout1024', custom_weighting=1e-8)
 # img_prior2 = get_default_prior('full512logistic', custom_weighting=1e-2)
-layer = 4
+layer = 5
 jitter_t = 4  # 1:1, 2:2, 3,4,5:4, 6,7,8:8
-weighting = '1e-3'
+weighting = '3e-4'
 make_mse = False
+restart_adam = False
 
 img_prior1 = get_default_prior('full512', custom_weighting=float(weighting))
 subdir = '8x8_gc_gc_student/{}/jitter_bound_plots/'.format(weighting)
@@ -59,22 +60,26 @@ pre_featmap_name = 'input'
 do_plot = True
 
 jitter_stop_point = 3200
-lr = 3e-1
+lr = 1.
 
-ni.train_pre_featmap(target_image, n_iterations=500, grad_clip=10000.,
+
+first_n_iterations = 500 if restart_adam else 10000
+
+ni.train_pre_featmap(target_image, n_iterations=first_n_iterations, grad_clip=10000.,
                      lr_lower_points=((1e+0, lr),), jitter_t=jitter_t, range_clip=False, bound_plots=True,
                      optim_name='adam', save_as_plot=do_plot, jitter_stop_point=jitter_stop_point,
                      pre_featmap_init=pre_featmap_init, ckpt_offset=0,
                      pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
                      featmap_names_to_plot=(), max_n_featmaps_to_plot=10)
 
-pre_featmap_init = np.load(ni.log_path + 'mats/rec_500.npy')
-for mod in ni.modules:
-    if isinstance(mod, LossModule):
-        mod.reset()
+if restart_adam:
+    pre_featmap_init = np.load(ni.log_path + 'mats/rec_500.npy')
+    for mod in ni.modules:
+        if isinstance(mod, LossModule):
+            mod.reset()
 
-ni.train_pre_featmap(target_image, n_iterations=9500, grad_clip=10000., optim_name='adam',
-                     lr_lower_points=((1e+0, lr),), jitter_t=jitter_t, range_clip=False, bound_plots=True,
-                     pre_featmap_init=pre_featmap_init, ckpt_offset=500, jitter_stop_point=jitter_stop_point,
-                     pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
-                     featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=do_plot)
+    ni.train_pre_featmap(target_image, n_iterations=9500, grad_clip=10000., optim_name='adam',
+                         lr_lower_points=((1e+0, lr),), jitter_t=jitter_t, range_clip=False, bound_plots=True,
+                         pre_featmap_init=pre_featmap_init, ckpt_offset=500, jitter_stop_point=jitter_stop_point,
+                         pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
+                         featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=do_plot)
