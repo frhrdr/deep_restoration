@@ -55,12 +55,25 @@ img_prior2 = get_default_prior('full512logistic', custom_weighting=1e-2)
 
 # log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c2l_to_c1l/full_prior/1e-4/'
 # log_path = '../logs/opt_inversion/alexnet/slim_vs_img/c4l_to_c3l/pre_image_8x8_dropout_prior/1e-8/'
-img_prior1 = get_default_prior('full512', custom_weighting=3e-5)
-modules = [split5, mse5, pre_mse, img_prior1]
-log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c5l_to_img/8x8_gc_gc_student/3e-5/jitter_bound_plots/'
-cutoff = 'conv5/lin'
-jitter_t = 16
-# log_path = '../logs/opt_inversion/alexnet/img_prior_comp/c3l_to_img/pure_mse/'
+layer = 3
+jitter_t = 4  # 1:1, 2:2, 3,4,5:4, 6,7,8:8
+weighting = '1e-3'
+make_mse = False
+
+img_prior1 = get_default_prior('full512', custom_weighting=float(weighting))
+subdir = '8x8_gc_gc_student/{}/jitter_bound_plots/'.format(weighting)
+log_dir = '../logs/opt_inversion/alexnet/img_prior_comp/c{}l_to_img/'.format(layer)
+cutoff = 'conv{}/lin'.format(layer)
+split, mse = lin_split_and_mse(layer, add_loss=True)
+
+if not make_mse:
+    modules = [split, mse, pre_mse, img_prior1]
+    log_path = log_dir + subdir
+    pre_featmap_init = np.load(log_dir + 'pure_mse/mats/rec_10000.npy')
+else:
+    modules = [split, mse, pre_mse]
+    log_path = log_dir + 'pure_mse/'
+    pre_featmap_init = None
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
 if not os.path.exists(log_path):
@@ -76,7 +89,7 @@ jitter_stop_point = 3200
 lr = 3e-1
 
 # pre_featmap_init = None
-pre_featmap_init = np.load('../logs/opt_inversion/alexnet/img_prior_comp/c2l_to_img/pure_mse/mats/rec_10000.npy')
+
 ni.train_pre_featmap(target_image, n_iterations=500, grad_clip=10000.,
                      lr_lower_points=((1e+0, lr),), jitter_t=jitter_t, range_clip=False, bound_plots=True,
                      optim_name='adam', save_as_plot=do_plot, jitter_stop_point=jitter_stop_point,
