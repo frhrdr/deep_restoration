@@ -3,7 +3,7 @@ from modules.inv_modules import DeconvConvModule
 
 def get_stacked_module(classifier, start_layer, rec_layer,
                        alt_load_subdir='solotrain', subdir_name=None, trainable=True):
-    assert start_layer > rec_layer
+    assert start_layer >= rec_layer
     subdir_name = subdir_name or '{}_stack_{}_to_{}'.format(classifier, start_layer, rec_layer)
     alt_input = None
     module_list = []
