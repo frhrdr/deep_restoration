@@ -214,6 +214,8 @@ def mv_mse_and_vgg_scores(classifier):
                 for idx, img_subdir in enumerate(img_subdirs):
                     img_log_path = '{}{}/'.format(layer_log_path, img_subdir)
                     rec_image = np.expand_dims(load_image(img_log_path + rec_filename), axis=0)
+                    if np.max(rec_image) < 2.:
+                        rec_image = rec_image * 255.
                     scores = sess.run(loss_tsr_list, feed_dict={tgt_pl: tgt_images[idx], rec_pl: rec_image})
                     layer_score_list.append(scores)
                 score_list.append(layer_score_list)
