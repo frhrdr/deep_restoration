@@ -130,8 +130,8 @@ def db_img_mse_and_vgg_scores(classifier):
 
 def db_lin_to_lin_mse_scores(classifier, use_solotrain=False):
     lin_start_rec_pairs = ((4, 2), (7, 5), (8, 8), (9, 9))
-    lin_tensor_names = ['DC{}/c{}l_rec:0'.format(i, lin_start_rec_pairs[i+1][1]) for i in range(4)]
-    for lin_tensor, pair in zip(lin_start_rec_pairs, lin_tensor_names):
+    lin_tensor_names = [('DC{}/c{}l_rec:0'.format(i + 1, lin_start_rec_pairs[i][1]),) for i in range(4)]
+    for lin_tensor, pair in zip(lin_tensor_names, lin_start_rec_pairs):
         start_layer, rec_layer = pair
         run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=use_solotrain,
                            subdir_name=None, retrieve_special=lin_tensor)
@@ -139,10 +139,10 @@ def db_lin_to_lin_mse_scores(classifier, use_solotrain=False):
 
 def db_lin_to_img_gen(classifier, use_solotrain=False):
     lin_start_rec_pairs = ((4, 1), (7, 1), (8, 1), (9, 1))
-    lin_tensor_names = [('DC{}/c{}l_rec:0'.format(i+1, lin_start_rec_pairs[i][1]),) for i in range(4)]
-    for lin_tensor, pair in zip(lin_tensor_names, lin_start_rec_pairs):
-        start_layer, rec_layer = pair
+    lin_tensor_name = ('DC1/rgb_rec:0',)
+    for start_layer, rec_layer in lin_start_rec_pairs:
+
         run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=use_solotrain,
-                           subdir_name=None, retrieve_special=lin_tensor)
+                           subdir_name=None, retrieve_special=lin_tensor_name)
 
 
