@@ -77,11 +77,11 @@ def get_imagerec_jitter_and_prior_weight(classifier, layer_name):
         layer_name = layer_name[:-len(':0')]
     idx = layers.index(layer_name)
     if classifier == 'alexnet':
-        prior_weights = (0, 0, 0, 0,
+        prior_weights = (1e-6, 0, 0, 0,
                          3e-3, 0, 0, 0,
-                         3e-3, 0, 0, 0, 0, 0, 0,
-                         0, 0, 0, 0, 0, 0, 0)
-        jitter_t = (1, 1, 1, 2,
+                         1e-3, 0, 1e-4, 0, 1e-4, 0, 0,
+                         1e-4, 0, 0, 0, 0, 0, 0)
+        jitter_t = (0, 0, 1, 2,
                     2, 2, 2, 4,
                     4, 4, 4, 4, 4, 4, 8,
                     8, 8, 8, 8, 8, 8, 8)

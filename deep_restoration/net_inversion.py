@@ -5,6 +5,7 @@ from utils.filehandling import load_image
 from utils.temp_utils import get_optimizer, plot_feat_map_diffs
 from modules.core_modules import LossModule, LearnedPriorLoss, TrainedModule
 from modules.inv_modules import InversionModule
+from skimage.io import imsave
 import os
 import time
 import numpy as np
@@ -254,17 +255,20 @@ class NetInversion:
                                     rec_mat = np.minimum(np.maximum(rec_mat / 255., 0.), 1.)
                                 else:
                                     rec_mat = (rec_mat - np.min(rec_mat)) / (np.max(rec_mat) - np.min(rec_mat))
-                                fig = plt.figure(frameon=False)
-                                fig.set_size_inches(1, 1)
-                                ax = plt.Axes(fig, [0., 0., 1., 1.])
-                                ax.set_axis_off()
-                                fig.add_axes(ax)
                                 if rec_mat.shape[0] == 1:
                                     rec_mat = np.squeeze(rec_mat, axis=0)
-                                ax.imshow(rec_mat, aspect='auto')
-                                plt.savefig(self.log_path + 'imgs/rec_' + str(count) + '.png',
-                                            format='png', dpi=self.img_hw)
-                                plt.close()
+                                imsave(self.log_path + 'imgs/rec_' + str(count) + '.png', rec_mat)
+                                # fig = plt.figure(frameon=False)
+                                # fig.set_size_inches(1, 1)
+                                # ax = plt.Axes(fig, [0., 0., 1., 1.])
+                                # ax.set_axis_off()
+                                # fig.add_axes(ax)
+                                # if rec_mat.shape[0] == 1:
+                                #     rec_mat = np.squeeze(rec_mat, axis=0)
+                                # ax.imshow(rec_mat, aspect='auto')
+                                # plt.savefig(self.log_path + 'imgs/rec_' + str(count) + '.png',
+                                #             format='png', dpi=self.img_hw)
+                                # plt.close()
 
                             if tensors_to_save:
                                 mats_to_save = sess.run(tensors_to_save, feed_dict=feed)
