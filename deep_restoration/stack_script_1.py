@@ -6,7 +6,8 @@ import os
 classifier = 'alexnet'
 start_layer = 7
 rec_layer = 5
-module_list = get_stacked_module(classifier=classifier, alt_load_subdir='solotrain'.format(start_layer, rec_layer),
+module_list = get_stacked_module(classifier=classifier, alt_load_subdir='alexnet_stack_{}_to_{}'.format(start_layer,
+                                                                                                        rec_layer),
                                  start_layer=start_layer, rec_layer=rec_layer)
 log_path = '../logs/cnn_inversion/{}/stack_{}_to_{}/'.format(classifier, start_layer, rec_layer)
 
