@@ -51,7 +51,7 @@ def run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=False,
 def db_img_mse_and_vgg_scores(classifier, select_modules=None, select_images=None, merged=True):
     tgt_paths = subset10_paths(classifier)
     _, img_hw, layer_names = classifier_stats(classifier)
-    tgt_images = [load_image(p) for p in tgt_paths]
+    tgt_images = [np.expand_dims(load_image(p), axis=0) for p in tgt_paths]
 
     _, img_hw, layer_names = classifier_stats(classifier)
     log_path = '../logs/cnn_inversion/{}/'.format(classifier)
@@ -86,8 +86,8 @@ def db_img_mse_and_vgg_scores(classifier, select_modules=None, select_images=Non
                 for idx, img_subdir in enumerate(img_subdirs):
 
                     rec_image = load_image(layer_log_path + 'img_rec_{}.png'.format(img_subdir))
-                    if rec_image.shape[0] == 1:
-                        rec_image = np.squeeze(rec_image, axis=0)
+                    if rec_image.shape[0] != 1:
+                        rec_image = np.expand_dims(rec_image, axis=0)
 
                     scores = sess.run(loss_tsr_list, feed_dict={tgt_pl: tgt_images[idx], rec_pl: rec_image})
                     layer_list.append(scores)

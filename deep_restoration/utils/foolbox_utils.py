@@ -1,6 +1,7 @@
 import os
 import foolbox
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 import skimage.io
 import tensorflow as tf
@@ -436,10 +437,8 @@ def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learnin
     np.save(log_path + 'adv_log.npy', np.asarray(adv_list))
 
 
-def stability_statistics(path, plot=True):
+def stability_statistics(path, plot=True, log_freq=None, plot_title=None):
     # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
-    log_freq = range(30)
-    print('log points after n iterations', log_freq)
 
     img_log = np.load(path + 'img_log.npy')
     adv_log = np.load(path + 'adv_log.npy')
@@ -492,19 +491,31 @@ def stability_statistics(path, plot=True):
     print('count of restored advex at each time step', list(count_restored.astype(np.int)))
 
     if plot:
-        plot_stability_tradeoff(count_preserved, count_restored, log_freq)
+        plot_stability_tradeoff(count_preserved, count_restored, log_freq, path, plot_title)
 
 
-def plot_stability_tradeoff(count_preserved, count_restored, log_freq):
+def plot_stability_tradeoff(count_preserved, count_restored, log_freq, path=None, title=None):
     # log_freq = [0] + log_freq
+
+    log_freq = log_freq or range(len(count_restored))
+
+    sns.set_style('darkgrid')
+    # sns.set_context('paper')
+
     plt.figure()
+    if title is not None:
+        plt.title(title)
     plt.plot(log_freq, count_preserved, 'r-', label='image')
     plt.plot(log_freq, count_restored, 'b-', label='adversarial')
     plt.xlabel('regularization steps')
     plt.ylabel('classified correctly')
-    plt.xticks(log_freq)
+    plt.xticks(log_freq[::len(log_freq) // 15])
     plt.legend()
+
+    if path is not None:
+        plt.savefig(path + 'tradeoff.png')
     plt.show()
+    plt.close()
 
 
 def eval_adaptive_forward_opt_dep(image, prior, learning_rate, n_iterations, attack_name, attack_keys, src_label,

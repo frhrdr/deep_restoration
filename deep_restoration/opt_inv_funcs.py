@@ -19,8 +19,8 @@ def run_image_opt_inversions(classifier, prior_mode):
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
     img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
 
-    tgt_paths = tgt_paths[7:8]
-    img_subdirs = img_subdirs[7:8]
+    tgt_paths = tgt_paths[0:1]  # done: 6, 7, 8, 9
+    img_subdirs = img_subdirs[0:1]
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
     print(layer_subdirs)
     for idx, layer_subdir in enumerate(layer_subdirs):

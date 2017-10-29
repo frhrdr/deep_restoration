@@ -1,7 +1,10 @@
 import foolbox
 import numpy as np
 import tensorflow as tf
-
+import matplotlib
+matplotlib.use('tkagg', force=True)
+import matplotlib.pyplot as plt
+import seaborn as sns
 from utils.filehandling import load_image
 from utils.foolbox_utils import advex_match_paths, get_classifier_io, get_attack
 from utils.imagenet_classnames import get_class_name
@@ -192,4 +195,20 @@ def make_weighted_mean_filter(smoothness_weight, filter_hw):
 
 
 def mean_filter_plots():
-    pass
+    sns.set_style('darkgrid')
+    sns.set_context('paper')
+    weight = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
+    img = [1069, 1027, 991, 964, 934, 895, 866, 821, 802, 780, 776]
+    adv = [0, 766, 784, 782, 779, 757, 738, 729, 708, 697, 694]
+    plt.figure()
+    plt.title('weighted mean 2x2 filter')
+
+    plt.plot(weight, img, label='images')
+    plt.plot(weight, adv, label='adversarials')
+
+    plt.xlabel('weight')
+    plt.ylabel('Correctly classified images')
+    plt.legend()
+    plt.savefig('weighted_mean_filter.png')
+    plt.show()
+    plt.close()
