@@ -30,9 +30,9 @@ pre_mse.add_loss = False
 #                       name=None, load_name=None, dir_name=None, load_tensor_names=None)
 # dropout_prior = get_default_prior('dropout1024', custom_weighting=1e-8)
 # img_prior2 = get_default_prior('full512logistic', custom_weighting=1e-2)
-layer = 'softmax'
-jitter_t = 8  # 1:1, 2:2, 3,4,5:4, 6,7,8:8
-weighting = '1e-1'
+layer = 5
+jitter_t = 4  # 1:1, 2:2, 3,4,5:4, 6,7,8:8
+weighting = '1e-4'
 make_mse = False
 restart_adam = False
 
@@ -43,7 +43,7 @@ if layer == 'softmax':
     mse = MSELoss(target='smx_img' + ':0', reconstruction='smx_rec' + ':0',
                   name='MSE_smx')
     subdir = '8x8_gc_gc_student/{}/jitter_bound_plots/'.format(weighting)
-    log_dir = '../logs/opt_inversion/alexnet/img_prior_comp/smx_to_img/'
+    log_dir = '../logs/opt_inversion/alexnet/img_prior_comp/val153_check/'
     cutoff = None
 else:
     subdir = '8x8_gc_gc_student/{}/jitter_bound_plots/'.format(weighting)
@@ -65,7 +65,7 @@ if not os.path.exists(log_path):
     os.makedirs(log_path)
 copyfile('./opt_inv_script.py', log_path + 'script.py')
 
-target_image = '../data/selected/images_resized_227/red-fox.bmp'
+target_image = '../data/selected/images_resized_227/val153.bmp'
 pre_featmap_name = 'input'
 do_plot = True
 

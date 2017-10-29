@@ -13,15 +13,19 @@ from utils.filehandling import load_image
 def run_image_opt_inversions(classifier, prior_mode):
 
     _, img_hw, layer_names = classifier_stats(classifier)
-    layer_names = [n for n in layer_names if 'lin' in n and 'fc' in n]
+    layer_names = [n for n in layer_names if 'conv5/lin' in n or 'conv1/lin' in n]
 
     tgt_paths = subset10_paths(classifier)
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
     img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
+
+    tgt_paths = tgt_paths[6:7]
+    img_subdirs = img_subdirs[6:7]
+
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
     print(layer_subdirs)
     for idx, layer_subdir in enumerate(layer_subdirs):
-        cutoff = layer_names[idx] if layer_names[idx].startswith('conv') else None
+        cutoff = None  # layer_names[idx] if layer_names[idx].startswith('conv') else None
         jitter_t, weight = get_imagerec_jitter_and_prior_weight(classifier, layer_names[idx])
         print('jitter', jitter_t, 'prior_weight', weight)
         for idy, img_subdir in enumerate(img_subdirs):
@@ -33,7 +37,7 @@ def run_image_opt_inversions(classifier, prior_mode):
             pre_featmap_name = 'input'
             do_plot = True
             mse_iterations = 5000  # 5000
-            opt_iterations = 5000  # 5000
+            opt_iterations = 1000  # 5000
             jitterations = 3200  # 3200
             summary_freq = 50
             print_freq = 500
@@ -48,7 +52,6 @@ def run_image_opt_inversions(classifier, prior_mode):
             img_mse = MSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0',
                               name='MSE_Reconstruction')
             img_mse.add_loss = False
-            prior = get_default_prior(prior_mode, custom_weighting=weight)
 
             modules = [split, feat_mse, img_mse]
             pure_mse_path = exp_log_path + 'pure_mse/'
@@ -68,6 +71,7 @@ def run_image_opt_inversions(classifier, prior_mode):
                 if isinstance(mod, LossModule):
                     mod.reset()
 
+            prior = get_default_prior(prior_mode, custom_weighting=weight)
             modules = [split, feat_mse, img_mse, prior]
             prior_path = exp_log_path + prior_mode + '/'
             ni = NetInversion(modules, prior_path, classifier=classifier, summary_freq=summary_freq,
