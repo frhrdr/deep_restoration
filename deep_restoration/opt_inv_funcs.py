@@ -13,12 +13,13 @@ from utils.filehandling import load_image
 def run_image_opt_inversions(classifier, prior_mode):
 
     _, img_hw, layer_names = classifier_stats(classifier)
-    layer_names = [n for n in layer_names if 'lin' in n]
+    layer_names = [n for n in layer_names if 'lin' in n and 'fc' in n]
+
     tgt_paths = subset10_paths(classifier)
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
     img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
-
+    print(layer_subdirs)
     for idx, layer_subdir in enumerate(layer_subdirs):
         cutoff = layer_names[idx] if layer_names[idx].startswith('conv') else None
         jitter_t, weight = get_imagerec_jitter_and_prior_weight(classifier, layer_names[idx])
@@ -39,8 +40,8 @@ def run_image_opt_inversions(classifier, prior_mode):
             log_freq = 500
             grad_clip = 10000.
             lr_lower_points = ((1e+0, 1.),)
-
-            split = SplitModule(name_to_split=cutoff + ':0', img_slice_name=layer_subdir + '_img',
+            print(layer_subdir)
+            split = SplitModule(name_to_split=layer_names[idx] + ':0', img_slice_name=layer_subdir + '_img',
                                 rec_slice_name=layer_subdir + '_rec')
             feat_mse = MSELoss(target=layer_subdir + '_img:0', reconstruction=layer_subdir + '_rec:0',
                                name='MSE_' + layer_subdir)
