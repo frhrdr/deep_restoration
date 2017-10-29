@@ -21,6 +21,20 @@ def stability_experiment_fullprior(images_file='alexnet_val_2k_top1_correct.txt'
                          log_path=log_path)
 
 
+def stability_experiment_fullprior_adaptive(images_file='alexnet_val_2k_top1_correct.txt',
+                                            advex_subdir='alexnet_val_2k_top1_correct/deepfool_adaptive_full512/'):
+    imgprior = get_default_prior(mode='full512')
+    optimizer = 'adam'
+    learning_rate = 0.6
+    n_iterations = 10
+    log_freq = 1
+    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/lr06'
+    # noinspection PyTypeChecker
+    stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
+                         optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,
+                         log_path=log_path)
+
+
 def stability_experiment_dropoutprior(images_file='alexnet_val_2k_top1_correct.txt',
                                       advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/',
                                       attack_name='deepfool',

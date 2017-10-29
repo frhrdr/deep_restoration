@@ -292,3 +292,4 @@ def img_wall(mat, save_path, rows=3):
             else:
                 img[row * h:(row+1) * h, col * w:(col+1) * w, :] = mat[row * cols + col, :, :, :]
     imsave(save_path, img)
+

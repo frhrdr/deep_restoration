@@ -19,8 +19,8 @@ def run_image_opt_inversions(classifier, prior_mode):
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
     img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
 
-    tgt_paths = tgt_paths[0:1]  # done: 6, 7, 8, 9
-    img_subdirs = img_subdirs[0:1]
+    tgt_paths = tgt_paths[1:6]  # done: 0, ... 6, 7, 8, 9
+    img_subdirs = img_subdirs[1:6]
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
     print(layer_subdirs)
     for idx, layer_subdir in enumerate(layer_subdirs):
@@ -166,3 +166,30 @@ def inv_mse_and_vgg_scores(classifier):
     print(score_mat.shape)
     print(found_layers)
     np.save('{}score_mat.npy'.format(log_path), score_mat)
+
+
+def oi_collect_rec_images(classifier, select_layers=None, select_images=None):
+    # makes one [layers, imgs, h, w, c] mat for all rec3500 images
+    tgt_paths = subset10_paths(classifier)
+    _, img_hw, layer_names = classifier_stats(classifier)
+    log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
+    layer_subdirs = select_layers or [l.replace('/', '_') for l in layer_names]
+    img_subdirs = select_images or [p.split('/')[-1].split('.')[0] for p in tgt_paths]
+
+    # tgt_images = [np.expand_dims(load_image(p), axis=0) for p in tgt_paths]
+    rec_filename = 'full512/imgs/rec_10000.png'
+    img_list = []
+    for layer_subdir in layer_subdirs:
+        layer_log_path = '{}{}/'.format(log_path, layer_subdir)
+        layer_list = []
+        for idx, img_subdir in enumerate(img_subdirs):
+            img_log_path = '{}{}/'.format(layer_log_path, img_subdir)
+            rec_image = load_image(img_log_path + rec_filename)
+            if rec_image.shape[0] == 1:
+                rec_image = np.squeeze(rec_image, axis=0)
+            layer_list.append(rec_image)
+
+        img_list.append(layer_list)
+
+    return np.asarray(img_list)
+

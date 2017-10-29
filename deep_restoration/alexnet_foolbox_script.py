@@ -10,7 +10,7 @@ from advex_experiments import adaptive_experiment_alex_top1_dropout_prior_dodrop
     stability_experiment_nodrop_adaptive, stability_experiment_dropoutprior, adaptive_experiment_alex_top1, \
     stability_experiment_fullprior, adaptive_experiment_alex_top1_dropout_prior_dodrop_train, \
     adaptive_experiment_alex_top1_dropout_prior_nodrop_train, c1l_prior_stability_experiment, \
-    c1l_prior_adaptive_experiment
+    c1l_prior_adaptive_experiment, stability_experiment_fullprior_adaptive
 from utils.mean_filter_benchmark import default_mean_filter_exp
 from modules.foe_full_prior import FoEFullPrior
 
@@ -75,7 +75,7 @@ from modules.foe_full_prior import FoEFullPrior
 
 # adaptive_experiment_alex_top1_dropout_prior_dodrop_train()
 
-read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullc1l6000/lr06/')
+# read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullc1l6000/lr06/')
 # stability_experiment_dodrop_adaptive()
 # verify_advex_claims()
 # stability_experiment_nodrop_adaptive()
@@ -96,3 +96,4 @@ read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_
 # adaptive_experiment_alex_top1_dropout_prior_dodrop_train(attack_name='gradientsign')
 # c1l_prior_stability_experiment()
 # c1l_prior_adaptive_experiment()
+stability_experiment_fullprior_adaptive()
