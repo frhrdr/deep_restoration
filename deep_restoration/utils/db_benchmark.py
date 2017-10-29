@@ -8,20 +8,7 @@ from modules.inv_default_modules import get_stacked_module
 from modules.loss_modules import NormedMSELoss, MSELoss, VggScoreLoss
 from net_inversion import NetInversion
 from utils.filehandling import load_image
-
-
-def selected_img_ids():
-    # alexnet top1 correct 53, 76, 81, 129, 160
-    # vgg16 top1 correct
-    return 53, 76, 81, 99, 106, 108, 129, 153, 157, 160
-
-
-def subset10_paths(classifier):
-    _, img_hw, _ = classifier_stats(classifier)
-    subset_dir = '../data/selected/images_resized_{}/'.format(img_hw)
-    img_ids = selected_img_ids()
-    subset_paths = ['{}val{}.bmp'.format(subset_dir, i) for i in img_ids]
-    return subset_paths
+from utils.rec_evaluation import subset10_paths, selected_img_ids
 
 
 def load_and_stack_imgs(img_paths):
@@ -82,13 +69,17 @@ def classifier_stats(classifier):
     return imagenet_mean, img_hw, layers
 
 
-def db_img_mse_and_vgg_scores(classifier):
+def db_img_mse_and_vgg_scores(classifier, select_modules=None, select_images=None, merged=True):
     tgt_paths = subset10_paths(classifier)
     _, img_hw, layer_names = classifier_stats(classifier)
     tgt_images = [load_image(p) for p in tgt_paths]
-    rec_filenames = ['img_rec_{}.png'.format(i) for i in selected_img_ids()]
-    save_subdirs = ('stacked/', 'merged/')
-    start_layers = list(range(2, 11))
+
+    _, img_hw, layer_names = classifier_stats(classifier)
+    log_path = '../logs/cnn_inversion/{}/'.format(classifier)
+
+    stack_mode = 'merged' if merged else 'stacked'
+    start_module_ids = select_modules or (1, 4, 7, 8, 9)
+    img_subdirs = select_images or selected_img_ids()
 
     tgt_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
     rec_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
@@ -107,19 +98,20 @@ def db_img_mse_and_vgg_scores(classifier):
         loss_tsr_list = [m.get_loss() for m in loss_mods]
 
         with tf.Session() as sess:
-            for start_layer in start_layers:
-                layer_list = []
-                for save_subdir in save_subdirs:
-                    load_path = cnn_inv_log_path(classifier, start_layer, rec_layer=1) + save_subdir
-                    if not os.path.exists(load_path):
-                        continue
-                    save_subdir_list = []
-                    for idx, rec_filename in enumerate(rec_filenames):
 
-                        rec_image = load_image(load_path + rec_filename)
-                        scores = sess.run(loss_tsr_list, feed_dict={tgt_pl: tgt_images[idx], rec_pl: rec_image})
-                        save_subdir_list.append(scores)
-                    layer_list.append(save_subdir_list)
+            img_list = []
+            for module_id in start_module_ids:
+                layer_log_path = '{}stack_{}_to_1/{}/'.format(log_path, module_id, stack_mode)
+                layer_list = []
+                for idx, img_subdir in enumerate(img_subdirs):
+
+                    rec_image = load_image(layer_log_path + 'img_rec_{}.png'.format(img_subdir))
+                    if rec_image.shape[0] == 1:
+                        rec_image = np.squeeze(rec_image, axis=0)
+
+                    scores = sess.run(loss_tsr_list, feed_dict={tgt_pl: tgt_images[idx], rec_pl: rec_image})
+                    layer_list.append(scores)
+
                 score_list.append(layer_list)
 
     score_mat = np.asarray(score_list)
@@ -143,3 +135,29 @@ def db_lin_to_img_gen(classifier, use_solotrain=False):
 
         run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=use_solotrain,
                            subdir_name=None)
+
+
+def db_collect_rec_images(classifier, select_modules=None, select_images=None, merged=False):
+    # makes one [layers, imgs, h, w, c] mat for all rec images
+
+    _, img_hw, layer_names = classifier_stats(classifier)
+    log_path = '../logs/cnn_inversion/{}/'.format(classifier)
+
+    stack_mode = 'merged' if merged else 'stacked'
+    start_module_ids = select_modules or (1, 4, 7, 8, 9)
+    img_subdirs = select_images or selected_img_ids()
+
+    img_list = []
+    for module_id in start_module_ids:
+        layer_log_path = '{}stack_{}_to_1/{}/'.format(log_path, module_id, stack_mode)
+        layer_list = []
+        for idx, img_subdir in enumerate(img_subdirs):
+
+            rec_image = load_image(layer_log_path + 'img_rec_{}.png'.format(img_subdir))
+            if rec_image.shape[0] == 1:
+                rec_image = np.squeeze(rec_image, axis=0)
+            layer_list.append(rec_image)
+
+        img_list.append(layer_list)
+
+    return np.asarray(img_list)

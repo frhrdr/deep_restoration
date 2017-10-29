@@ -5,7 +5,8 @@ from modules.core_modules import LossModule
 from modules.loss_modules import MSELoss, VggScoreLoss, NormedMSELoss
 from modules.split_module import SplitModule
 from net_inversion import NetInversion
-from utils.db_benchmark import subset10_paths, selected_img_ids, classifier_stats
+from utils.db_benchmark import classifier_stats
+from utils.rec_evaluation import subset10_paths, selected_img_ids
 from utils.default_priors import get_default_prior
 from utils.filehandling import load_image
 
@@ -13,14 +14,14 @@ from utils.filehandling import load_image
 def run_image_opt_inversions(classifier, prior_mode):
 
     _, img_hw, layer_names = classifier_stats(classifier)
-    layer_names = [n for n in layer_names if 'conv5' in n and 'lin' in n]
+    layer_names = [n for n in layer_names if 'lin' in n]
 
     tgt_paths = subset10_paths(classifier)
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
     img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
 
-    tgt_paths = tgt_paths[6:8]
-    img_subdirs = img_subdirs[6:8]
+    tgt_paths = tgt_paths[7:8]
+    img_subdirs = img_subdirs[7:8]
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
     print(layer_subdirs)
     for idx, layer_subdir in enumerate(layer_subdirs):
@@ -36,7 +37,7 @@ def run_image_opt_inversions(classifier, prior_mode):
             pre_featmap_name = 'input'
             do_plot = True
             mse_iterations = 5000  # 5000
-            opt_iterations = 500  # 5000
+            opt_iterations = 5000  # 5000
             jitterations = 3200  # 3200
             summary_freq = 50
             print_freq = 500
@@ -65,7 +66,7 @@ def run_image_opt_inversions(classifier, prior_mode):
                                  pre_featmap_init=pre_featmap_init, ckpt_offset=0,
                                  pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
                                  featmap_names_to_plot=(), max_n_featmaps_to_plot=10)
-            tf.reset_default_graph()
+
             for mod in modules:
                 if isinstance(mod, LossModule):
                     mod.reset()
@@ -79,11 +80,11 @@ def run_image_opt_inversions(classifier, prior_mode):
             ni.train_pre_featmap(target_image, n_iterations=opt_iterations, grad_clip=grad_clip,
                                  lr_lower_points=lr_lower_points, jitter_t=jitter_t, range_clip=False,
                                  bound_plots=True,
-                                 optim_name='adam', save_as_plot=do_plot, jitter_stop_point=mse_iterations + jitterations,
+                                 optim_name='adam', save_as_plot=do_plot,
+                                 jitter_stop_point=mse_iterations + jitterations,
                                  pre_featmap_init=pre_featmap_init, ckpt_offset=mse_iterations,
                                  pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
                                  featmap_names_to_plot=(), max_n_featmaps_to_plot=10)
-            tf.reset_default_graph()
 
 
 def get_imagerec_jitter_and_prior_weight(classifier, layer_name):

@@ -1,4 +1,6 @@
 import matplotlib
+from skimage.io import imsave
+
 matplotlib.use('tkagg', force=True)
 import xml.etree.ElementTree as ET
 from collections import defaultdict
@@ -275,3 +277,18 @@ def label_strings_to_ints(label_str_list):
             label_dict[label] = idx
 
     return [label_dict[l] for l in label_str_list]
+
+
+def img_wall(mat, save_path, rows=3):
+    if np.max(mat) > 2.:
+        mat = mat / 255.
+    n, h, w, c = mat.shape
+    cols = int(np.ceil(n / rows))
+    img = np.zeros((rows * h, cols * w, c))
+    for row in range(rows):
+        for col in range(cols):
+            if row * cols + col >= n:
+                img[row * h:(row + 1) * h, col * w:(col + 1) * w, :] = 1.
+            else:
+                img[row * h:(row+1) * h, col * w:(col+1) * w, :] = mat[row * cols + col, :, :, :]
+    imsave(save_path, img)
