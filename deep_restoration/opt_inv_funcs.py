@@ -65,7 +65,7 @@ def run_image_opt_inversions(classifier, prior_mode):
                                  pre_featmap_init=pre_featmap_init, ckpt_offset=0,
                                  pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
                                  featmap_names_to_plot=(), max_n_featmaps_to_plot=10)
-
+            tf.reset_default_graph()
             for mod in modules:
                 if isinstance(mod, LossModule):
                     mod.reset()
@@ -83,6 +83,7 @@ def run_image_opt_inversions(classifier, prior_mode):
                                  pre_featmap_init=pre_featmap_init, ckpt_offset=mse_iterations,
                                  pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
                                  featmap_names_to_plot=(), max_n_featmaps_to_plot=10)
+            tf.reset_default_graph()
 
 
 def get_imagerec_jitter_and_prior_weight(classifier, layer_name):
