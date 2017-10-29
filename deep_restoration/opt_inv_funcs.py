@@ -34,7 +34,7 @@ def run_image_opt_inversions(classifier, prior_mode):
             pre_featmap_name = 'input'
             do_plot = True
             mse_iterations = 5000  # 5000
-            opt_iterations = 1000  # 5000
+            opt_iterations = 5000  # 5000
             jitterations = 3200  # 3200
             summary_freq = 50
             print_freq = 500
