@@ -60,18 +60,19 @@ def db_img_mse_and_vgg_scores(classifier, select_modules=None, select_images=Non
     start_module_ids = select_modules or (1, 4, 7, 8, 9)
     img_subdirs = select_images or selected_img_ids()
 
-    tgt_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
-    rec_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3))
-
-    vgg_loss = VggScoreLoss((tgt_pl, rec_pl), weighting=1.0, name=None, input_scaling=1.0)
-    mse_loss = MSELoss(tgt_pl, rec_pl)
-    nmse_loss = NormedMSELoss(tgt_pl, rec_pl)
+    vgg_loss = VggScoreLoss(('tgt_224:0', 'rec_224:0'), weighting=1.0, name=None, input_scaling=1.0)
+    mse_loss = MSELoss('tgt_pl:0', 'rec_pl:0')
+    nmse_loss = NormedMSELoss('tgt_pl:0', 'rec_pl:0')
     loss_mods = [vgg_loss, mse_loss, nmse_loss]
 
     found_layers = []
     score_list = []
 
     with tf.Graph().as_default():
+        tgt_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3), name='tgt_pl')
+        rec_pl = tf.placeholder(dtype=tf.float32, shape=(1, img_hw, img_hw, 3), name='rec_pl')
+        _ = tf.slice(tgt_pl, begin=[0, 0, 0, 0], size=[-1, 224, 224, -1], name='tgt_224')
+        _ = tf.slice(rec_pl, begin=[0, 0, 0, 0], size=[-1, 224, 224, -1], name='rec_224')
         for lmod in loss_mods:
             lmod.build()
         loss_tsr_list = [m.get_loss() for m in loss_mods]
