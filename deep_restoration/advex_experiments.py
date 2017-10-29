@@ -28,7 +28,7 @@ def stability_experiment_fullprior_adaptive(images_file='alexnet_val_2k_top1_cor
     learning_rate = 0.6
     n_iterations = 10
     log_freq = 1
-    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/lr06'
+    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/lr06/'
     # noinspection PyTypeChecker
     stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
                          optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,

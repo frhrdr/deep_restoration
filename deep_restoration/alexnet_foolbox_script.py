@@ -96,4 +96,6 @@ from modules.foe_full_prior import FoEFullPrior
 # adaptive_experiment_alex_top1_dropout_prior_dodrop_train(attack_name='gradientsign')
 # c1l_prior_stability_experiment()
 # c1l_prior_adaptive_experiment()
-stability_experiment_fullprior_adaptive()
+# stability_experiment_fullprior_adaptive()
+stability_statistics('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/lr06/',
+                     plot_title='adaptive deepfool - FoE prior 512 components')

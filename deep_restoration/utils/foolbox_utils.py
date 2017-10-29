@@ -509,7 +509,8 @@ def plot_stability_tradeoff(count_preserved, count_restored, log_freq, path=None
     plt.plot(log_freq, count_restored, 'b-', label='adversarial')
     plt.xlabel('regularization steps')
     plt.ylabel('classified correctly')
-    plt.xticks(log_freq[::len(log_freq) // 15])
+    freq = int(max([len(log_freq) // 15, 1]))
+    plt.xticks(log_freq[::])
     plt.legend()
 
     if path is not None:

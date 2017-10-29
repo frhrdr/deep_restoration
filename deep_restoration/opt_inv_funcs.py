@@ -70,7 +70,7 @@ def run_image_opt_inversions(classifier, prior_mode):
                 if isinstance(mod, LossModule):
                     mod.reset()
 
-            prior = get_default_prior(prior_mode, custom_weighting=weight)
+            prior = get_default_prior(prior_mode, custom_weighting=weight, custom_target='pre_featmap:0')
             modules = [split, feat_mse, img_mse, prior]
             prior_path = exp_log_path + prior_mode + '/'
             ni = NetInversion(modules, prior_path, classifier=classifier, summary_freq=summary_freq,
