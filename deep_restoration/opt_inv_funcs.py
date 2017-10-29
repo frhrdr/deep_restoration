@@ -13,14 +13,11 @@ from utils.filehandling import load_image
 def run_image_opt_inversions(classifier, prior_mode):
 
     _, img_hw, layer_names = classifier_stats(classifier)
-    layer_names = [n for n in layer_names if 'conv5/lin' in n or 'conv1/lin' in n]
+    layer_names = [n for n in layer_names if 'conv' in n and 'lin' in n]
 
     tgt_paths = subset10_paths(classifier)
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
     img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
-
-    tgt_paths = tgt_paths[6:7]
-    img_subdirs = img_subdirs[6:7]
 
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
     print(layer_subdirs)
