@@ -8,7 +8,7 @@ from modules.inv_default_modules import get_stacked_module
 from modules.loss_modules import NormedMSELoss, MSELoss, VggScoreLoss
 from net_inversion import NetInversion
 from utils.filehandling import load_image
-from utils.rec_evaluation import subset10_paths, selected_img_ids
+from utils.rec_evaluation import subset10_paths, selected_img_ids, classifier_stats
 
 
 def load_and_stack_imgs(img_paths):
@@ -46,27 +46,6 @@ def run_stacked_module(classifier, start_layer, rec_layer, use_solotrain=False,
         image_save_paths = [log_path + 'img_rec_{}.png'.format(i) for i in image_ids]
         for path, img in zip(image_save_paths, images):
             skimage.io.imsave(path, img)
-
-
-def classifier_stats(classifier):
-    assert classifier in ('alexnet', 'vgg16')
-    if classifier == 'alexnet':
-        imagenet_mean = (123.68 + 116.779 + 103.939) / 3
-        img_hw = 227
-        layers = ['conv1/lin', 'conv1/relu', 'lrn1', 'pool1',
-                  'conv2/lin', 'conv2/relu', 'lrn2', 'pool2',
-                  'conv3/lin', 'conv3/relu', 'conv4/lin', 'conv4/relu', 'conv5/lin', 'conv5/relu', 'pool5',
-                  'fc6/lin', 'fc6/relu', 'fc7/lin', 'fc7/relu', 'fc8/lin', 'fc8/relu', 'softmax']
-    else:
-        imagenet_mean = [123.68, 116.779, 103.939]
-        img_hw = 224
-        layers = ['conv1_1/lin', 'conv1_1/relu', 'conv1_2/lin', 'conv1_2/relu', 'pool1',
-                  'conv2_1/lin', 'conv2_1/relu', 'conv2_2/lin', 'conv2_2/relu', 'pool2',
-                  'conv3_1/lin', 'conv3_1/relu', 'conv3_2/lin', 'conv3_2/relu', 'conv3_3/lin', 'conv3_3/relu', 'pool3',
-                  'conv4_1/lin', 'conv4_1/relu', 'conv4_2/lin', 'conv4_2/relu', 'conv4_3/lin', 'conv4_3/relu', 'pool4',
-                  'conv5_1/lin', 'conv5_1/relu', 'conv5_2/lin', 'conv5_2/relu', 'conv5_3/lin', 'conv5_3/relu', 'pool5',
-                  'fc6/lin', 'fc6/relu', 'fc7/lin', 'fc7/relu', 'fc8/lin', 'fc8/relu', 'softmax']
-    return imagenet_mean, img_hw, layers
 
 
 def db_img_mse_and_vgg_scores(classifier, select_modules=None, select_images=None, merged=True):

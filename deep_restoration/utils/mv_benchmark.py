@@ -7,9 +7,8 @@ from modules.loss_modules import NormedMSELoss, SoftRangeLoss, TotalVariationLos
 from modules.norm_module import NormModule
 from modules.split_module import SplitModule
 from net_inversion import NetInversion
-from utils.db_benchmark import classifier_stats
 from utils.filehandling import load_image
-from utils.rec_evaluation import subset10_paths
+from utils.rec_evaluation import subset10_paths, classifier_stats
 
 
 def mv_script_fun(src_layer, img_path, log_path, classifier,

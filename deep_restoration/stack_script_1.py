@@ -22,7 +22,7 @@
 #                     optim_name='adam', lr_lower_points=((0, 3e-6), (3000, 1e-5), (2000, 3e-6)))
 import numpy as np
 
-from utils.db_benchmark import db_collect_rec_images, db_img_mse_and_vgg_scores
+from utils.db_benchmark import db_img_mse_and_vgg_scores
 # from utils.rec_evaluation import subset10_paths, selected_img_ids
 # from utils.filehandling import img_wall, load_image
 # from utils.mv_benchmark import mv_collect_rec_images
