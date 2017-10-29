@@ -13,7 +13,7 @@ from utils.filehandling import load_image
 def run_image_opt_inversions(classifier, prior_mode):
 
     _, img_hw, layer_names = classifier_stats(classifier)
-    layer_names = [n for n in layer_names if 'conv' in n and 'lin' in n]
+    layer_names = [n for n in layer_names if 'conv5' in n and 'lin' in n]
 
     tgt_paths = subset10_paths(classifier)
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
