@@ -19,6 +19,8 @@ def run_image_opt_inversions(classifier, prior_mode):
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
     img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
 
+    tgt_paths = tgt_paths[6:8]
+    img_subdirs = img_subdirs[6:8]
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
     print(layer_subdirs)
     for idx, layer_subdir in enumerate(layer_subdirs):
@@ -34,7 +36,7 @@ def run_image_opt_inversions(classifier, prior_mode):
             pre_featmap_name = 'input'
             do_plot = True
             mse_iterations = 5000  # 5000
-            opt_iterations = 5000  # 5000
+            opt_iterations = 500  # 5000
             jitterations = 3200  # 3200
             summary_freq = 50
             print_freq = 500
@@ -59,7 +61,7 @@ def run_image_opt_inversions(classifier, prior_mode):
             ni.train_pre_featmap(target_image, n_iterations=mse_iterations, grad_clip=grad_clip,
                                  lr_lower_points=lr_lower_points, jitter_t=jitter_t, range_clip=False,
                                  bound_plots=True,
-                                 optim_name='adam', save_as_plot=do_plot, jitter_stop_point=3200,
+                                 optim_name='adam', save_as_plot=do_plot, jitter_stop_point=jitterations,
                                  pre_featmap_init=pre_featmap_init, ckpt_offset=0,
                                  pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
                                  featmap_names_to_plot=(), max_n_featmaps_to_plot=10)
@@ -113,7 +115,7 @@ def get_imagerec_jitter_and_prior_weight(classifier, layer_name):
     return jitter_t[idx], prior_weights[idx]
 
 
-def mv_mse_and_vgg_scores(classifier):
+def inv_mse_and_vgg_scores(classifier):
     tgt_paths = subset10_paths(classifier)
     _, img_hw, layer_names = classifier_stats(classifier)
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
