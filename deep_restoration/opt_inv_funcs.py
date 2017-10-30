@@ -8,7 +8,7 @@ from net_inversion import NetInversion
 from utils.rec_evaluation import subset10_paths, selected_img_ids, classifier_stats
 from utils.default_priors import get_default_prior
 from utils.filehandling import load_image
-
+from skimage.io import imsave
 
 def run_image_opt_inversions(classifier, prior_mode):
 
@@ -168,7 +168,7 @@ def inv_mse_and_vgg_scores(classifier):
     np.save('{}score_mat.npy'.format(log_path), score_mat)
 
 
-def oi_collect_rec_images(classifier, select_layers=None, select_images=None):
+def foe_collect_rec_images(classifier, select_layers=None, select_images=None, rescaled=False):
     # makes one [layers, imgs, h, w, c] mat for all rec3500 images
     tgt_paths = subset10_paths(classifier)
     _, img_hw, layer_names = classifier_stats(classifier)
@@ -177,7 +177,8 @@ def oi_collect_rec_images(classifier, select_layers=None, select_images=None):
     img_subdirs = select_images or [p.split('/')[-1].split('.')[0] for p in tgt_paths]
 
     # tgt_images = [np.expand_dims(load_image(p), axis=0) for p in tgt_paths]
-    rec_filename = 'full512/imgs/rec_10000.png'
+    scale_subdir = 'imgs_rescaled' if rescaled else 'imgs'
+    rec_filename = 'full512/{}/rec_10000.png'.format(scale_subdir)
     img_list = []
     for layer_subdir in layer_subdirs:
         layer_log_path = '{}{}/'.format(log_path, layer_subdir)
@@ -193,3 +194,22 @@ def oi_collect_rec_images(classifier, select_layers=None, select_images=None):
 
     return np.asarray(img_list)
 
+
+def foe_replot_rescaled(classifier='alexnet'):
+    _, img_hw, layer_names = classifier_stats(classifier)
+    log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
+    layer_subdirs = [l.replace('/', '_') for l in layer_names if 'lin' in l]
+    img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
+
+    load_filename = 'full512/mats/rec_10000.npy'
+    save_filename = 'full512/imgs_rescaled/rec_10000.png'
+
+    for layer_subdir in layer_subdirs:
+        layer_log_path = '{}{}/'.format(log_path, layer_subdir)
+        for idx, img_subdir in enumerate(img_subdirs):
+            img_log_path = '{}{}/'.format(layer_log_path, img_subdir)
+            if not os.path.exists(img_log_path + 'full512/imgs_rescaled/'):
+                os.makedirs(img_log_path + 'full512/imgs_rescaled/')
+            mat = np.squeeze(np.load(img_log_path + load_filename), axis=0)
+            mat = (mat - np.min(mat)) / (np.max(mat) - np.min(mat))
+            imsave(img_log_path + save_filename, mat)

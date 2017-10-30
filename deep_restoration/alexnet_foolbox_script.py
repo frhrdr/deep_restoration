@@ -1,18 +1,4 @@
-import numpy as np
-import tensorflow as tf
-from utils.foolbox_utils import make_targeted_examples, make_small_untargeted_dataset, get_prior_scores_per_image, \
-    compare_images_to_untargeted_adv_ex, eval_class_stability, stability_statistics, \
-    make_untargeted_dataset, read_adaptive_log, \
-    verify_advex_claims, compare_adams
-from utils.mean_filter_benchmark import mean_filter_benchmark, mean_log_statistics, mean_adaptive_attacks_200
-from advex_experiments import adaptive_experiment_alex_top1_dropout_prior_dodrop_train, \
-    stability_experiment_dropoutprior, ensemble_adaptive_experiment_100_dropout_prior_nodrop_train, \
-    stability_experiment_nodrop_adaptive, stability_experiment_dropoutprior, adaptive_experiment_alex_top1, \
-    stability_experiment_fullprior, adaptive_experiment_alex_top1_dropout_prior_dodrop_train, \
-    adaptive_experiment_alex_top1_dropout_prior_nodrop_train, c1l_prior_stability_experiment, \
-    c1l_prior_adaptive_experiment, stability_experiment_fullprior_adaptive
-from utils.mean_filter_benchmark import default_mean_filter_exp
-from modules.foe_full_prior import FoEFullPrior
+from advex_experiments import c1l_prior_tranferable_stability_experiment
 
 # image_dir = '../data/adversarial_examples/foolbox_images/small_dataset/lbfgs/'
 # image_names = ['val53_t844_f39.bmp',
@@ -97,5 +83,6 @@ from modules.foe_full_prior import FoEFullPrior
 # c1l_prior_stability_experiment()
 # c1l_prior_adaptive_experiment()
 # stability_experiment_fullprior_adaptive()
-stability_statistics('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/lr06/',
-                     plot_title='adaptive deepfool - FoE prior 512 components')
+# stability_statistics('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/lr06/',
+#                      plot_title='adaptive deepfool - FoE prior 512 components')
+c1l_prior_tranferable_stability_experiment()
