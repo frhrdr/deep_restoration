@@ -85,4 +85,7 @@ from advex_experiments import c1l_prior_tranferable_stability_experiment
 # stability_experiment_fullprior_adaptive()
 # stability_statistics('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/lr06/',
 #                      plot_title='adaptive deepfool - FoE prior 512 components')
-c1l_prior_tranferable_stability_experiment()
+# c1l_prior_tranferable_stability_experiment()
+from utils.mean_filter_benchmark import weighted_mean_make_adaptive_adv
+
+weighted_mean_make_adaptive_adv()
