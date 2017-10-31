@@ -42,7 +42,7 @@ def mean_filter_benchmark(classifier, filter_hw, weightings,
     with tf.Graph().as_default():
 
         smoothed_img, img_pl, mean_filter_pl, filter_feed_op = mean_filter_model(filter_hw)
-        _, logit_tsr = get_classifier_io(classifier, input_init=smoothed_img, input_type='tensor')
+        _, logit_tsr, _ = get_classifier_io(classifier, input_init=smoothed_img, input_type='tensor')
         # ref_in, ref_out = get_classifier_io(classifier, input_type='placeholder')
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
