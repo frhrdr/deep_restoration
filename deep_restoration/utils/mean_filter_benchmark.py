@@ -2,6 +2,9 @@ import foolbox
 import numpy as np
 import tensorflow as tf
 import matplotlib
+import os
+from utils.rec_evaluation import classifier_stats
+
 matplotlib.use('tkagg', force=True)
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -212,3 +215,102 @@ def mean_filter_plots():
     plt.savefig('weighted_mean_filter.png')
     plt.show()
     plt.close()
+
+
+def weighted_mean_make_adaptive_adv(attack_name='deepfool', mean_weight=0.2,
+                                    filter_hw=2, attack_keys=None, verbose=True):
+    """
+    creates adaptive adversarials for mean filter defense
+    """
+    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_mean_filter/'
+    img_log = np.load('../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior512/lr06/img_log.npy')
+    classifier = 'alexnet'
+    # _, img_hw, _ = classifier_stats(classifier)
+    images_file = 'alexnet_val_2k_top1_correct.txt',
+    advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_oblivious/',
+    advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
+    filter_mat = make_weighted_mean_filter(mean_weight, filter_hw=filter_hw)
+
+    with tf.Graph().as_default():
+
+        smoothed_img, img_pl, mean_filter_pl, filter_feed_op = mean_filter_model(filter_hw=2)
+        input_var, logit_tsr, _ = get_classifier_io(classifier, input_init=smoothed_img, input_type='tensor')
+
+        with tf.Session() as sess:
+
+            model = foolbox.models.TensorFlowModel(img_pl, logit_tsr, bounds=(0, 255))
+            criterion = foolbox.criteria.Misclassification()
+            attack = get_attack(attack_name, model, criterion)
+            if attack_keys is None:
+                if attack == 'deepfool':
+                    attack_keys = {'steps': 300}
+                else:
+                    attack_keys = dict()
+
+            init_op = tf.global_variables_initializer()
+            sess.run(init_op)
+            sess.run(filter_feed_op, feed_dict={mean_filter_pl: filter_mat})
+            noise_norms = []
+            src_invariant = []
+
+            adv_path = advex_matches[0][1]
+            adaptive_save_path = adv_path.replace('oblivious', 'adaptive_mean_filter')
+            adaptive_save_dir = '/'.join(adaptive_save_path.split('/')[:-1])
+            if not os.path.exists(adaptive_save_dir):
+                os.makedirs(adaptive_save_dir)
+
+            for idx, match in enumerate(advex_matches):
+                img_path, adv_path = match
+                src_label = img_log[idx][0]
+
+                img = load_image(img_path)
+                adv = load_image(adv_path)
+
+                oblivious_norm = np.linalg.norm((img - adv).flatten(), ord=2)
+                print('oblivious norm', oblivious_norm)
+
+                img_pred = model.predictions(img)
+                img_pred_label = np.argmax(img_pred)
+                adv_pred = model.predictions(adv)
+                adv_pred_label = np.argmax(adv_pred)
+
+                if verbose:
+                    noisy_label_name = get_class_name(img_pred_label)
+                    if img_pred_label == src_label:
+                        print('noisy label {} same as source: {}'.format(img_pred_label, noisy_label_name))
+                        src_invariant.append(1)
+                        if adv_pred_label == img_pred_label:
+                            print('oblivious attack averted')
+                        else:
+
+                            print('WARNING: oblivious attack succeeded!')
+                    else:
+                        print('image with prior misclassified as {}. (label {})'.format(noisy_label_name,
+                                                                                        img_pred_label))
+                        src_invariant.append(0)
+                try:
+                    adversarial = attack(image=img, label=img_pred_label, **attack_keys)
+                    if adversarial is None:
+                        adaptive_norm = None
+                        if verbose:
+                            print('no adversary found for source label {} using {}'.format(img_pred_label, attack_name))
+                    else:
+                        fooled_pred = model.predictions(adversarial)
+                        fooled_label = np.argmax(fooled_pred)
+                        fooled_label_name = get_class_name(fooled_label)
+                        adaptive_norm = np.linalg.norm((img - adversarial).flatten(), ord=2)
+                        if verbose:
+                            print('adversarial image classified as {}. (label {}) '
+                                  'Necessary perturbation: {}'.format(fooled_label_name, fooled_label, adaptive_norm))
+                        adaptive_save_path = adv_path.replace('oblivious', 'adaptive_mean_filter')
+                        np.save(adaptive_save_path, adversarial)
+                except AssertionError as err:
+                    adaptive_norm = -np.inf
+                    print('FoolBox failed Assertion: {}'.format(err))
+
+                noise_norms.append((oblivious_norm, adaptive_norm))
+                if idx + 1 % 100 == 0:
+                    np.save(log_path + 'noise_norms.npy', np.asarray(noise_norms))
+                    np.save(log_path + 'src_invariants.npy', np.asarray(src_invariant))
+        np.save(log_path + 'noise_norms.npy', np.asarray(noise_norms))
+        np.save(log_path + 'src_invariants.npy', np.asarray(src_invariant))
