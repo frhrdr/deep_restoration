@@ -223,6 +223,8 @@ def weighted_mean_make_adaptive_adv(attack_name='deepfool', mean_weight=0.2,
     creates adaptive adversarials for mean filter defense
     """
     log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_mean_filter/'
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
     img_log = np.load('../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior512/lr06/img_log.npy')
     classifier = 'alexnet'
     # _, img_hw, _ = classifier_stats(classifier)
