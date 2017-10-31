@@ -227,7 +227,7 @@ def weighted_mean_make_adaptive_adv(attack_name='deepfool', mean_weight=0.2,
     classifier = 'alexnet'
     # _, img_hw, _ = classifier_stats(classifier)
     images_file = 'alexnet_val_2k_top1_correct.txt',
-    advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_oblivious/',
+    advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_oblivious/'
     advex_matches = advex_match_paths(images_file=images_file, advex_subdir=advex_subdir)
     filter_mat = make_weighted_mean_filter(mean_weight, filter_hw=filter_hw)
 
