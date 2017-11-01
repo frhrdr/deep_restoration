@@ -207,7 +207,7 @@ def make_weighted_mean_filter(smoothness_weight, filter_hw):
 
 def mean_filter_plots():
     sns.set_style('darkgrid')
-    sns.set_context('paper')
+    # sns.set_context('paper')
     weight = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
     img = [1069, 1027, 991, 964, 934, 895, 866, 821, 802, 780, 776]
     adv = [0, 766, 784, 782, 779, 757, 738, 729, 708, 697, 694]
@@ -225,11 +225,34 @@ def mean_filter_plots():
     plt.close()
 
 
+def adaptive_filter_plots():
+    sns.set_style('darkgrid')
+    # sns.set_context('paper')
+    weight = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
+    img = [1068, 1026,  990,  963,  933,  894,  865,  820,  801,  779,  775]
+    adv = [0, 766, 784, 782, 779, 757, 738, 729, 708, 697, 694]
+    adapt = [609, 546,  60, 661, 685, 691, 693, 680, 675, 669, 674]
+    plt.figure()
+    plt.title('weighted mean 2x2 filter')
+
+    plt.plot(weight, img, label='images')
+    plt.plot(weight, adv, label='oblivious adversarials')
+    plt.plot(weight, adapt, label='adaptive adversarials w = 0.2')
+
+    plt.xlabel('weight')
+    plt.ylabel('Correctly classified images')
+    plt.legend()
+    plt.savefig('adaptive_weighted_mean_filter.png')
+    plt.show()
+    plt.close()
+
+
 def weighted_mean_make_adaptive_adv(attack_name='deepfool', mean_weight=0.2,
                                     filter_hw=2, attack_keys=None, verbose=True):
     """
     creates adaptive adversarials for mean filter defense
     """
+
     log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_mean_filter/'
     if not os.path.exists(log_path):
         os.makedirs(log_path)

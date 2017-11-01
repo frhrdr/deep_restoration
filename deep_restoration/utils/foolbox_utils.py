@@ -519,6 +519,59 @@ def plot_stability_tradeoff(count_preserved, count_restored, log_freq, path=None
     plt.close()
 
 
+def obliv_adapt_stability_statistics(obliv_path, adapt_path, plot_title=None):
+    # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+
+    obliv_img_log = np.load(obliv_path + 'img_log.npy')
+    obliv_adv_log = np.load(obliv_path + 'adv_log.npy')
+    adapt_img_log = np.load(adapt_path + 'img_log.npy')
+    adapt_adv_log = np.load(adapt_path + 'adv_log.npy')
+
+    min_len = min([obliv_adv_log.shape[1], adapt_adv_log.shape[1]])
+    obliv_img_log = obliv_img_log[:, :min_len]
+    obliv_adv_log = obliv_adv_log[:, :min_len]
+    adapt_img_log = adapt_img_log[:, :min_len]
+    adapt_adv_log = adapt_adv_log[:, :min_len]
+
+    obliv_src_labels = obliv_img_log[:, 0]
+    adapt_src_labels = adapt_img_log[:, 0]
+    obliv_src_found = 1 - np.minimum(np.abs(obliv_adv_log.T - obliv_src_labels).T, 1)
+    adapt_src_found = 1 - np.minimum(np.abs(adapt_adv_log.T - adapt_src_labels).T, 1)
+
+    src_preserved = 1 - np.minimum(np.abs(obliv_img_log.T - obliv_src_labels).T, 1)
+    count_preserved = np.sum(src_preserved, axis=0)
+    print('count of preserved images at each time step', list(count_preserved.astype(np.int)))
+
+    obliv_count_restored = np.sum(obliv_src_found, axis=0)
+    print('count of restored obliv advex at each time step', list(obliv_count_restored.astype(np.int)))
+
+    adapt_count_restored = np.sum(adapt_src_found, axis=0)
+    print('count of restored adapt advex at each time step', list(adapt_count_restored.astype(np.int)))
+
+    log_freq = range(min_len)
+
+    sns.set_style('darkgrid')
+    # sns.set_context('paper')
+
+    plt.figure()
+    if plot_title is not None:
+        plt.title(plot_title)
+    plt.plot(log_freq, count_preserved, label='image')
+    plt.plot(log_freq, obliv_count_restored, label='oblivious adversarial')
+    plt.plot(log_freq, adapt_count_restored, label='adaptive adversarial 4 steps')
+    plt.xlabel('regularization steps')
+    plt.ylabel('classified correctly')
+    freq = int(max([len(log_freq) // 15, 1]))
+    plt.xticks(log_freq[::freq])
+    plt.legend()
+
+    if adapt_path is not None:
+        plt.savefig(adapt_path + 'obliv_adapt_tradeoff.png')
+    plt.show()
+    plt.close()
+
+
+
 def eval_adaptive_forward_opt_dep(image, prior, learning_rate, n_iterations, attack_name, attack_keys, src_label,
                                   classifier='alexnet', verbose=False):
     """

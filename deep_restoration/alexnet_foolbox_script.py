@@ -1,4 +1,5 @@
-from advex_experiments import c1l_prior_tranferable_stability_experiment
+from advex_experiments import stability_experiment_fullprior_adaptive, stability_experiment_fullprior
+from utils.foolbox_utils import stability_statistics, obliv_adapt_stability_statistics
 
 # image_dir = '../data/adversarial_examples/foolbox_images/small_dataset/lbfgs/'
 # image_names = ['val53_t844_f39.bmp',
@@ -47,7 +48,6 @@ from advex_experiments import c1l_prior_tranferable_stability_experiment
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior/'
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/dodrop_test/lr04/'
 # path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_dropoutprior_nodrop_train1024/lr06/'
-# path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullc1l6000/lr06/'
 # stability_statistics(path, plot=True)
 # adaptive_experiment_alex_top1()
 
@@ -90,6 +90,14 @@ from advex_experiments import c1l_prior_tranferable_stability_experiment
 # c1l_prior_tranferable_stability_experiment()
 
 # weighted_mean_make_adaptive_adv()
-from utils.mean_filter_benchmark import adaptive_mean_filter_exp
+# from utils.mean_filter_benchmark import adaptive_filter_plots
 
-adaptive_mean_filter_exp()
+# adaptive_filter_plots()
+
+# opath = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior512/lr06/'
+# apath = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/lr06/'
+# obliv_adapt_stability_statistics(obliv_path=opath, adapt_path=apath, plot_title='')
+
+
+stability_experiment_fullprior()
+stability_experiment_fullprior_adaptive()
