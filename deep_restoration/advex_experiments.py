@@ -73,14 +73,15 @@ def stability_experiment_dodrop_adaptive(images_file='alexnet_val_2k_top1_correc
 
 def stability_experiment_nodrop_adaptive(images_file='alexnet_val_2k_top1_correct.txt',
                                          advex_subdir='alexnet_val_2k_top1_correct/'
-                                                      'deepfool_adaptive_dropout_nodrop_train1024/'):
+                                                      'deepfool_adaptive_dropout_nodrop_train1024/',
+                                         attack_name='deepfool'):
     imgprior = get_default_prior(mode='dropout_nodrop_train1024')
     optimizer = 'adam'
     learning_rate = 0.6
     n_iterations = 10
     log_freq = 1
     imgprior.activate_dropout = False
-    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/nodrop_test/lr06'
+    log_path = '../logs/adversarial_examples/alexnet_top1/{}/adaptive_dropoutprior_nodrop_train1024/nodrop_test/lr06/'.format(attack_name)
     # noinspection PyTypeChecker
     stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
                          optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,

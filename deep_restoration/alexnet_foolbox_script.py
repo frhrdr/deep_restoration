@@ -1,5 +1,7 @@
-from advex_experiments import stability_experiment_fullprior_adaptive, stability_experiment_fullprior
-from utils.foolbox_utils import stability_statistics, obliv_adapt_stability_statistics
+from advex_experiments import stability_experiment_fullprior_adaptive, stability_experiment_fullprior, \
+    stability_experiment_nodrop_adaptive, stability_experiment_dodrop_adaptive
+from utils.foolbox_utils import stability_statistics, obliv_adapt_stability_statistics, \
+    transferable_stability_statistics, dropout_stability_statistics
 
 # image_dir = '../data/adversarial_examples/foolbox_images/small_dataset/lbfgs/'
 # image_names = ['val53_t844_f39.bmp',
@@ -87,17 +89,29 @@ from utils.foolbox_utils import stability_statistics, obliv_adapt_stability_stat
 #
 # stability_statistics('../logs/adversarial_examples/alexnet_top1/deepfool/transfer_fullc1l6000/lr06/',
 #                      plot_title='conv1/lin prior on image prior adaptive adversarials')
+# transferable_stability_statistics(target_path='../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/lr06/',
+#                                   transfer_path='../logs/adversarial_examples/alexnet_top1/deepfool/transfer_fullc1l6000/lr06/',
+#                                   plot_title='transferability of adaptive attack vs FoE image prior')
+
 # c1l_prior_tranferable_stability_experiment()
 
 # weighted_mean_make_adaptive_adv()
 # from utils.mean_filter_benchmark import adaptive_filter_plots
+# from utils.mean_filter_benchmark import adaptive_filter_plots
 
 # adaptive_filter_plots()
 
-# opath = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior512/lr06/'
-# apath = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/lr06/'
-# obliv_adapt_stability_statistics(obliv_path=opath, adapt_path=apath, plot_title='')
+# opath = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior512/lr06long/'
+# apath = '../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/lr06long/'
+# obliv_adapt_stability_statistics(obliv_path=opath, adapt_path=apath, plot_title='FoE image prior 512 components, lr = 0.6')
 
 
-stability_experiment_fullprior()
-stability_experiment_fullprior_adaptive()
+# stability_experiment_fullprior()
+# stability_experiment_fullprior_adaptive()
+stability_experiment_dodrop_adaptive()
+stability_experiment_nodrop_adaptive()
+
+
+# dropout_stability_statistics(target_path='../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/dodrop_test/lr06/',
+#                              transfer_path='../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_dodrop_train1024/dodrop_test/lr06/',
+#                              plot_title='')

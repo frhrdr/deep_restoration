@@ -505,8 +505,8 @@ def plot_stability_tradeoff(count_preserved, count_restored, log_freq, path=None
     plt.figure()
     if title is not None:
         plt.title(title)
-    plt.plot(log_freq, count_preserved, 'r-', label='image')
-    plt.plot(log_freq, count_restored, 'b-', label='adversarial')
+    plt.plot(log_freq, count_preserved, label='image')
+    plt.plot(log_freq, count_restored, label='adversarial')
     plt.xlabel('regularization steps')
     plt.ylabel('classified correctly')
     freq = int(max([len(log_freq) // 15, 1]))
@@ -570,6 +570,109 @@ def obliv_adapt_stability_statistics(obliv_path, adapt_path, plot_title=None):
     plt.show()
     plt.close()
 
+
+def transferable_stability_statistics(target_path, transfer_path, plot_title=None):
+    # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+
+    target_img_log = np.load(target_path + 'img_log.npy')
+    target_adv_log = np.load(target_path + 'adv_log.npy')
+    transfer_img_log = np.load(transfer_path + 'img_log.npy')
+    transfer_adv_log = np.load(transfer_path + 'adv_log.npy')
+
+    min_len = min([target_adv_log.shape[1], transfer_adv_log.shape[1]])
+    target_img_log = target_img_log[:, :min_len]
+    target_adv_log = target_adv_log[:, :min_len]
+    transfer_img_log = transfer_img_log[:, :min_len]
+    transfer_adv_log = transfer_adv_log[:, :min_len]
+
+    target_src_labels = target_img_log[:, 0]
+    transfer_src_labels = transfer_img_log[:, 0]
+    target_src_found = 1 - np.minimum(np.abs(target_adv_log.T - target_src_labels).T, 1)
+    transfer_src_found = 1 - np.minimum(np.abs(transfer_adv_log.T - transfer_src_labels).T, 1)
+
+    src_preserved = 1 - np.minimum(np.abs(target_img_log.T - target_src_labels).T, 1)
+    count_preserved = np.sum(src_preserved, axis=0)
+    print('count of preserved images at each time step', list(count_preserved.astype(np.int)))
+
+    target_count_restored = np.sum(target_src_found, axis=0)
+    print('count of restored obliv advex at each time step', list(target_count_restored.astype(np.int)))
+
+    transfer_count_restored = np.sum(transfer_src_found, axis=0)
+    print('count of restored adapt advex at each time step', list(transfer_count_restored.astype(np.int)))
+
+    log_freq = range(min_len)
+
+    sns.set_style('darkgrid')
+    # sns.set_context('paper')
+
+    plt.figure()
+    if plot_title is not None:
+        plt.title(plot_title)
+    plt.plot(log_freq, count_preserved, label='image')
+    plt.plot(log_freq, target_count_restored, label='targeted FoE image prior')
+    plt.plot(log_freq, transfer_count_restored, label='FoE conv1/lin feature map prior')
+    plt.xlabel('regularization steps')
+    plt.ylabel('classified correctly')
+    freq = int(max([len(log_freq) // 15, 1]))
+    plt.xticks(log_freq[::freq])
+    plt.legend()
+
+    if transfer_path is not None:
+        plt.savefig(transfer_path + 'transfer_tradeoff.png')
+    plt.show()
+    plt.close()
+
+
+def dropout_stability_statistics(target_path, transfer_path, plot_title=None):
+    # log_freq = list(range(1, 5)) + list(range(5, 50, 5)) + list(range(50, 101, 10))
+
+    target_img_log = np.load(target_path + 'img_log.npy')
+    target_adv_log = np.load(target_path + 'adv_log.npy')
+    transfer_img_log = np.load(transfer_path + 'img_log.npy')
+    transfer_adv_log = np.load(transfer_path + 'adv_log.npy')
+
+    min_len = min([target_adv_log.shape[1], transfer_adv_log.shape[1]])
+    target_img_log = target_img_log[:, :min_len]
+    target_adv_log = target_adv_log[:, :min_len]
+    transfer_img_log = transfer_img_log[:, :min_len]
+    transfer_adv_log = transfer_adv_log[:, :min_len]
+
+    target_src_labels = target_img_log[:, 0]
+    transfer_src_labels = transfer_img_log[:, 0]
+    target_src_found = 1 - np.minimum(np.abs(target_adv_log.T - target_src_labels).T, 1)
+    transfer_src_found = 1 - np.minimum(np.abs(transfer_adv_log.T - transfer_src_labels).T, 1)
+
+    src_preserved = 1 - np.minimum(np.abs(target_img_log.T - target_src_labels).T, 1)
+    count_preserved = np.sum(src_preserved, axis=0)
+    print('count of preserved images at each time step', list(count_preserved.astype(np.int)))
+
+    target_count_restored = np.sum(target_src_found, axis=0)
+    print('count of restored obliv advex at each time step', list(target_count_restored.astype(np.int)))
+
+    transfer_count_restored = np.sum(transfer_src_found, axis=0)
+    print('count of restored adapt advex at each time step', list(transfer_count_restored.astype(np.int)))
+
+    log_freq = range(min_len)
+
+    sns.set_style('darkgrid')
+    # sns.set_context('paper')
+
+    plt.figure()
+    if plot_title is not None:
+        plt.title(plot_title)
+    plt.plot(log_freq, count_preserved, label='image')
+    plt.plot(log_freq, target_count_restored, label='targeted FoE image prior')
+    plt.plot(log_freq, transfer_count_restored, label='FoE FoE image prior, 50% dropout')
+    plt.xlabel('regularization steps')
+    plt.ylabel('classified correctly')
+    freq = int(max([len(log_freq) // 15, 1]))
+    plt.xticks(log_freq[::freq])
+    plt.legend()
+
+    if transfer_path is not None:
+        plt.savefig(transfer_path + 'dropout_tradeoff.png')
+    plt.show()
+    plt.close()
 
 
 def eval_adaptive_forward_opt_dep(image, prior, learning_rate, n_iterations, attack_name, attack_keys, src_label,
