@@ -261,7 +261,6 @@ def featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting
         log_path = log_dir + subdir
         pre_featmap_init = np.load(log_dir + 'pure_mse/mats/rec_10000.npy')
     else:
-        modules = [split_match, mse_match, pre_mse]
         log_path = log_dir + 'pure_mse/'
         pre_featmap_init = None
     ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
