@@ -231,7 +231,8 @@ def featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting
     prior_subdir = 'no_prior' if make_mse else prior_id
 
     subdir = '{}/{}/'.format(prior_subdir, prior_weighting)
-    log_dir = '../logs/opt_inversion/alexnet/featmap_rec/c{}l_to_img/{}/'.format(match_layer, pre_img_subdir)
+    log_dir = '../logs/opt_inversion/alexnet/featmap_rec/{}l_to_{}l/{}/'.format(match_layer, target_layer,
+                                                                                pre_img_subdir)
     cutoff = 'conv{}/lin'.format(match_layer) if match_layer < 6 else None
     split_match, mse_match = lin_split_and_mse(match_layer, add_loss=True, mse_name='')
 

@@ -13,6 +13,12 @@ from utils.foolbox_utils import advex_match_paths, get_classifier_io, get_attack
 from utils.imagenet_classnames import get_class_name
 
 
+def lili_mean_filter_exp():
+    weighings = (0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.)
+    mean_filter_benchmark(classifier='alexnet', filter_hw=3, weightings=weighings)
+    mean_log_statistics(plot=False)
+
+
 def default_mean_filter_exp():
     weighings = (0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.)
     mean_filter_benchmark(classifier='alexnet', filter_hw=2, weightings=weighings)
