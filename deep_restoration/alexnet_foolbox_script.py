@@ -108,10 +108,12 @@ from utils.foolbox_utils import stability_statistics, obliv_adapt_stability_stat
 
 # stability_experiment_fullprior()
 # stability_experiment_fullprior_adaptive()
-stability_experiment_dodrop_adaptive()
-stability_experiment_nodrop_adaptive()
+
+if False:
+    stability_experiment_dodrop_adaptive()
+    stability_experiment_nodrop_adaptive()
 
 
-# dropout_stability_statistics(target_path='../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/dodrop_test/lr06/',
-#                              transfer_path='../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_dodrop_train1024/dodrop_test/lr06/',
-#                              plot_title='')
+dropout_stability_statistics(target_path='../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/nodrop_test/lr06/',
+                             transfer_path='../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/dodrop_test/lr06/',
+                             plot_title='effect of dropout on adaptive adversarials')

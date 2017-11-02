@@ -36,7 +36,7 @@ weighting = '1e-4'
 make_mse = False
 restart_adam = False
 
-img_prior1 = get_default_prior('full512', custom_weighting=float(weighting))
+img_prior = get_default_prior('full512', custom_weighting=float(weighting))
 if layer == 'softmax':
     split = SplitModule(name_to_split='softmax:0', img_slice_name='smx_img',
                         rec_slice_name='smx_rec', name='Split_smx')
@@ -52,7 +52,7 @@ else:
     split, mse = lin_split_and_mse(layer, add_loss=True)
 
 if not make_mse:
-    modules = [split, mse, pre_mse, img_prior1]
+    modules = [split, mse, pre_mse, img_prior]
     log_path = log_dir + subdir
     pre_featmap_init = np.load(log_dir + 'pure_mse/mats/rec_10000.npy')
 else:
@@ -63,7 +63,7 @@ ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, prin
 
 if not os.path.exists(log_path):
     os.makedirs(log_path)
-copyfile('./opt_inv_script.py', log_path + 'script.py')
+copyfile('./foe_inv_image_script.py', log_path + 'script.py')
 
 target_image = '../data/selected/images_resized_227/val153.bmp'
 pre_featmap_name = 'input'

@@ -1,26 +1,29 @@
 import os
+from shutil import copyfile
+
 import numpy as np
 import tensorflow as tf
 from modules.core_modules import LossModule
 from modules.loss_modules import MSELoss, VggScoreLoss, NormedMSELoss
-from modules.split_module import SplitModule
+from modules.split_module import SplitModule, lin_split_and_mse
 from net_inversion import NetInversion
 from utils.rec_evaluation import subset10_paths, selected_img_ids, classifier_stats
 from utils.default_priors import get_default_prior
 from utils.filehandling import load_image
 from skimage.io import imsave
 
+
 def run_image_opt_inversions(classifier, prior_mode):
 
     _, img_hw, layer_names = classifier_stats(classifier)
-    layer_names = [n for n in layer_names if 'lin' in n]
+    layer_names = [n for n in layer_names if 'lin' not in n]
 
     tgt_paths = subset10_paths(classifier)
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
     img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
 
-    tgt_paths = tgt_paths[1:6]  # done: 0, ... 6, 7, 8, 9
-    img_subdirs = img_subdirs[1:6]
+    tgt_paths = tgt_paths[5:]  # done: 0 - 4
+    img_subdirs = img_subdirs[5:]
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
     print(layer_subdirs)
     for idx, layer_subdir in enumerate(layer_subdirs):
@@ -213,3 +216,80 @@ def foe_replot_rescaled(classifier='alexnet'):
             mat = np.squeeze(np.load(img_log_path + load_filename), axis=0)
             mat = (mat - np.min(mat)) / (np.max(mat) - np.min(mat))
             imsave(img_log_path + save_filename, mat)
+
+
+def run_featmap_opt_inversions():
+    pass
+
+
+def featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting, make_mse=False, restart_adam=False,
+                pre_image=True, do_plot=True, jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True):
+
+    do_plot = do_plot if pre_image else False
+    pre_img_subdir = 'pre_img' if pre_image else 'featmap'
+    prior_subdir = 'no_prior' if make_mse else prior_id
+
+    subdir = '{}/{}/'.format(prior_subdir, prior_weighting)
+    log_dir = '../logs/opt_inversion/alexnet/featmap_rec/c{}l_to_img/{}/'.format(match_layer, pre_img_subdir)
+    cutoff = 'conv{}/lin'.format(match_layer) if match_layer < 6 else None
+    split_match, mse_match = lin_split_and_mse(match_layer, add_loss=True, mse_name='')
+
+    modules = [split_match, mse_match]
+
+    if pre_image:
+        pre_featmap_name = 'input'
+        split_target, mse_target = lin_split_and_mse(target_layer, add_loss=False,
+                                                     mse_name='MSE_{}l_reconstruction'.format(target_layer))
+        pre_mse = MSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_pre_image')
+        pre_mse.add_loss = False
+        modules.extend([split_target, mse_target, pre_mse])
+
+        prior = get_default_prior(prior_id, custom_weighting=float(prior_weighting),
+                                  custom_target=split_target.rec_slice_name + ':0')
+    else:
+        pre_featmap_name = 'conv{}/lin'.format(target_layer) if target_layer < 6 \
+            else 'fc{}/lin'.format(target_layer)
+        pre_mse = MSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0',
+                          name='MSE_{}l_reconstruction'.format(target_layer))
+        pre_mse.add_loss = False
+        modules.extend([pre_mse])
+
+        prior = get_default_prior(prior_id, custom_weighting=float(prior_weighting), custom_target='pre_featmap/read:0')
+
+    if not make_mse:
+        modules.append(prior)
+        log_path = log_dir + subdir
+        pre_featmap_init = np.load(log_dir + 'pure_mse/mats/rec_10000.npy')
+    else:
+        modules = [split_match, mse_match, pre_mse]
+        log_path = log_dir + 'pure_mse/'
+        pre_featmap_init = None
+    ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
+
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+    copyfile('./foe_inv_featmap_script.py', log_path + 'script.py')
+
+    target_image = '../data/selected/images_resized_227/{}.bmp'.format(image_name)
+
+    first_n_iterations = 500 if restart_adam else 10000
+
+    ni.train_pre_featmap(target_image, n_iterations=first_n_iterations, grad_clip=10000.,
+                         lr_lower_points=((1e+0, lr),), jitter_t=jitter_t, range_clip=False, bound_plots=bound_plots,
+                         optim_name='adam', save_as_plot=do_plot, jitter_stop_point=jitter_stop_point,
+                         pre_featmap_init=pre_featmap_init, ckpt_offset=0,
+                         pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
+                         featmap_names_to_plot=(), max_n_featmaps_to_plot=10)
+
+    if restart_adam:
+        pre_featmap_init = np.load(ni.log_path + 'mats/rec_500.npy')
+        for mod in ni.modules:
+            if isinstance(mod, LossModule):
+                mod.reset()
+
+        ni.train_pre_featmap(target_image, n_iterations=9500, grad_clip=10000., optim_name='adam',
+                             lr_lower_points=((1e+0, lr),), jitter_t=jitter_t, range_clip=False,
+                             bound_plots=bound_plots,
+                             pre_featmap_init=pre_featmap_init, ckpt_offset=500, jitter_stop_point=jitter_stop_point,
+                             pre_featmap_name=pre_featmap_name, classifier_cutoff=cutoff,
+                             featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=do_plot)

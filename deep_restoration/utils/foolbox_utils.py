@@ -642,9 +642,13 @@ def dropout_stability_statistics(target_path, transfer_path, plot_title=None):
     target_src_found = 1 - np.minimum(np.abs(target_adv_log.T - target_src_labels).T, 1)
     transfer_src_found = 1 - np.minimum(np.abs(transfer_adv_log.T - transfer_src_labels).T, 1)
 
-    src_preserved = 1 - np.minimum(np.abs(target_img_log.T - target_src_labels).T, 1)
-    count_preserved = np.sum(src_preserved, axis=0)
-    print('count of preserved images at each time step', list(count_preserved.astype(np.int)))
+    src_preserved_nodrop = 1 - np.minimum(np.abs(target_img_log.T - target_src_labels).T, 1)
+    count_preserved_nodrop = np.sum(src_preserved_nodrop, axis=0)
+    print('count of preserved nodrop images at each time step', list(count_preserved_nodrop.astype(np.int)))
+
+    src_preserved_dodrop = 1 - np.minimum(np.abs(transfer_img_log.T - transfer_src_labels).T, 1)
+    count_preserved_dodrop = np.sum(src_preserved_dodrop, axis=0)
+    print('count of preserved dodrop images at each time step', list(count_preserved_dodrop.astype(np.int)))
 
     target_count_restored = np.sum(target_src_found, axis=0)
     print('count of restored obliv advex at each time step', list(target_count_restored.astype(np.int)))
@@ -660,14 +664,15 @@ def dropout_stability_statistics(target_path, transfer_path, plot_title=None):
     plt.figure()
     if plot_title is not None:
         plt.title(plot_title)
-    plt.plot(log_freq, count_preserved, label='image')
+    plt.plot(log_freq, count_preserved_nodrop, label='image, no dropout')
+    plt.plot(log_freq, count_preserved_dodrop, label='image, 50% dropout')
     plt.plot(log_freq, target_count_restored, label='targeted FoE image prior')
-    plt.plot(log_freq, transfer_count_restored, label='FoE FoE image prior, 50% dropout')
+    plt.plot(log_freq, transfer_count_restored, label='same image prior, 50% dropout')
     plt.xlabel('regularization steps')
     plt.ylabel('classified correctly')
     freq = int(max([len(log_freq) // 15, 1]))
     plt.xticks(log_freq[::freq])
-    plt.legend()
+    plt.legend(loc=0)
 
     if transfer_path is not None:
         plt.savefig(transfer_path + 'dropout_tradeoff.png')

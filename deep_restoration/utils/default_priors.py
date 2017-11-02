@@ -36,6 +36,11 @@ def get_default_prior(mode, custom_weighting=None, custom_target=None):
                          n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
                          load_name='FoEPrior',
                          load_tensor_names='conv1/lin:0')
+    elif mode == 'slimc3l7000':
+        p = FoEFullPrior('conv3/lin:0', 1e-9, 'alexnet', [3, 3], 1.0, n_components=7000, n_channels=384,
+                         n_features_white=3 ** 2 * 384, dist='student', mean_mode='gc', sdev_mode='gc',
+                         whiten_mode='pca',
+                         name=None, load_name=None, dir_name=None, load_tensor_names='conv3/lin:0')
     elif mode == 'slimc5l5000':
         p = FoEFullPrior('pre_featmap/read:0', 1e-7, 'alexnet', [3, 3], 1.0, n_components=5000, n_channels=256,
                          n_features_white=3**2*256, dist='student', mean_mode='gc', sdev_mode='gc',
