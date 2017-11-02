@@ -223,7 +223,8 @@ def run_featmap_opt_inversions():
 
 
 def featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting, make_mse=False, restart_adam=False,
-                pre_image=True, do_plot=True, jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True):
+                pre_image=True, do_plot=True, jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True,
+                custom_target=None):
 
     do_plot = do_plot if pre_image else False
     pre_img_subdir = 'pre_img' if pre_image else 'featmap'
@@ -244,8 +245,9 @@ def featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting
         pre_mse.add_loss = False
         modules.extend([split_target, mse_target, pre_mse])
 
+        prior_target = custom_target or split_target.rec_slice_name + ':0'
         prior = get_default_prior(prior_id, custom_weighting=float(prior_weighting),
-                                  custom_target=split_target.rec_slice_name + ':0')
+                                  custom_target=prior_target)
     else:
         pre_featmap_name = 'conv{}/lin'.format(target_layer) if target_layer < 6 \
             else 'fc{}/lin'.format(target_layer)
@@ -254,7 +256,8 @@ def featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting
         pre_mse.add_loss = False
         modules.extend([pre_mse])
 
-        prior = get_default_prior(prior_id, custom_weighting=float(prior_weighting), custom_target='pre_featmap/read:0')
+        prior_target = custom_target or 'pre_featmap/read:0'
+        prior = get_default_prior(prior_id, custom_weighting=float(prior_weighting), custom_target=prior_target)
 
     if not make_mse:
         modules.append(prior)
