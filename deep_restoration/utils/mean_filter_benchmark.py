@@ -224,7 +224,7 @@ def mean_filter_plots():
     plt.plot(weight, adv, label='adversarials')
 
     plt.xlabel('weight')
-    plt.ylabel('Correctly classified images')
+    plt.ylabel('correctly classified images')
     plt.legend()
     plt.savefig('weighted_mean_filter.png')
     plt.show()
@@ -246,9 +246,30 @@ def adaptive_filter_plots():
     plt.plot(weight, adapt, label='adaptive adversarials w = 0.2')
 
     plt.xlabel('weight')
-    plt.ylabel('Correctly classified images')
+    plt.ylabel('correctly classified images')
     plt.legend()
     plt.savefig('adaptive_weighted_mean_filter.png')
+    plt.show()
+    plt.close()
+
+
+def lili_filter_plots():
+    sns.set_style('darkgrid')
+    # sns.set_context('paper')
+    weight = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
+    img = [1069, 1022, 974, 929, 877, 815, 753, 698, 633, 606, 621]
+    adv = [0, 728, 751, 734, 717, 690, 645, 606, 567, 541, 560]
+
+    plt.figure()
+    plt.title('weighted mean 3x3 filter')
+
+    plt.plot(weight, img, label='images')
+    plt.plot(weight, adv, label='adversarials')
+
+    plt.xlabel('weight')
+    plt.ylabel('correctly classified images')
+    plt.legend()
+    plt.savefig('adaptive_weighted_mean_33filter.png')
     plt.show()
     plt.close()
 

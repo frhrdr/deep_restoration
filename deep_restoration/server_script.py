@@ -1,14 +1,36 @@
-from utils.mean_filter_benchmark import lili_mean_filter_exp
+from foe_inv_funcs import featmap_inv
 
-lili_mean_filter_exp()
+match_layer = 4
+target_layer = 1
+jitter_t = 0
+weighting = '1e-4'
+restart_adam = False
+image_name = 'val153'
+pre_image = True
+do_plot = True
 
 
+prior_id = 'fullc1l6000'
+custom_target = None
+make_mse = True
+featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=weighting, make_mse=make_mse,
+            restart_adam=restart_adam, pre_image=pre_image, do_plot=do_plot,
+            jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True, custom_target=custom_target)
+make_mse = False
+featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=weighting, make_mse=make_mse,
+            restart_adam=restart_adam, pre_image=pre_image, do_plot=do_plot,
+            jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True, custom_target=custom_target)
 
 
-
-
-
-
+pre_image = True
+make_mse = True
+featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=weighting, make_mse=make_mse,
+            restart_adam=restart_adam, pre_image=pre_image, do_plot=do_plot,
+            jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True)
+make_mse = False
+featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=weighting, make_mse=make_mse,
+            restart_adam=restart_adam, pre_image=pre_image, do_plot=do_plot,
+            jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True)
 
 
 
