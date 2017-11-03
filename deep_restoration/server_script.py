@@ -6,12 +6,12 @@ jitter_t = 0
 weighting = '1e-4'
 restart_adam = False
 image_name = 'val153'
-pre_image = False
 do_plot = True
 
 
 prior_id = 'fullc1l6000'
 custom_target = None
+pre_image = False
 make_mse = True
 featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=weighting, make_mse=make_mse,
             restart_adam=restart_adam, pre_image=pre_image, do_plot=do_plot,
@@ -21,16 +21,16 @@ featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=wei
             restart_adam=restart_adam, pre_image=pre_image, do_plot=do_plot,
             jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True, custom_target=custom_target)
 
-
-pre_image = True
-make_mse = True
-featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=weighting, make_mse=make_mse,
-            restart_adam=restart_adam, pre_image=pre_image, do_plot=do_plot,
-            jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True)
-make_mse = False
-featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=weighting, make_mse=make_mse,
-            restart_adam=restart_adam, pre_image=pre_image, do_plot=do_plot,
-            jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True)
+# custom_target = None
+# pre_image = True
+# make_mse = True
+# featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=weighting, make_mse=make_mse,
+#             restart_adam=restart_adam, pre_image=pre_image, do_plot=do_plot,
+#             jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True)
+# make_mse = False
+# featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=weighting, make_mse=make_mse,
+#             restart_adam=restart_adam, pre_image=pre_image, do_plot=do_plot,
+#             jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True)
 
 
 # resize_all_images((227, 227), 'images_resized_227')
