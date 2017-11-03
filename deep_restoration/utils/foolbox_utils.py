@@ -876,17 +876,44 @@ def read_adaptive_log(path):
 
     oblivious_norms = oblivious_norms[success_ids]
     adaptive_norms = adaptive_norms[success_ids]
+
+    not_none_ids = adaptive_norms != None
+
+    adaptive_norms = adaptive_norms[not_none_ids]
+    oblivious_norms = oblivious_norms[not_none_ids]
+
     print('maxmin of adaptive noise', np.max(adaptive_norms), np.min(adaptive_norms))
     diff = adaptive_norms - oblivious_norms
     frac = adaptive_norms / oblivious_norms
     print('meanmedian diff', np.mean(diff), np.median(diff))
     print('meanmedian frac', np.mean(frac), np.median(frac))
-    print('# adative noise > oblibious noise', np.sum(diff > 0))
-    print('# adative noise < oblibious noise', np.sum(diff < 0))
+    print('# adative noise > oblivious noise', np.sum(diff > 0))
+    print('# adative noise < oblivious noise', np.sum(diff < 0))
+
+    noise_norm_histograms(oblivious_norms, adaptive_norms, path)
 
 
-def noise_norm_histograms(noise_norms):
-    pass
+def noise_norm_histograms(oblivious_norms, adaptive_norms, savepath):
+    sns.set(style="dark", palette="dark", color_codes=True)  #
+
+    # oblivious_norms = np.log2(oblivious_norms.astype(np.float32))
+    # adaptive_norms = np.log2(adaptive_norms.astype(np.float32))
+    resoltion = 5
+    exps = [i/resoltion for i in range(-3*resoltion, 7*resoltion)]
+    bins = [0] + [np.exp(i) for i in exps]
+    # bins = [0, 1e-1, 1e+0, 1e+1, 1e+2, 1e+3, 1e+4]
+
+    sns.distplot(oblivious_norms, bins=bins, kde=False, color="r", label='oblivious')
+    sns.distplot(adaptive_norms, bins=bins, kde=False, color="b", label='adaptive')
+    sns.despine(left=True)
+    # plt.setp(axes, yticks=[])
+    plt.xscale('log')
+    plt.legend()
+    plt.xlabel('adversarial perturbation L2-norm')
+    plt.ylabel('counts')
+    plt.tight_layout()
+    plt.savefig(savepath + 'noise_norm_hist.png')
+    plt.show()
 
 
 def verify_advex_claims(advex_dir='../data/adversarial_examples/foolbox_images/alexnet_val_2k_top1_correct/'

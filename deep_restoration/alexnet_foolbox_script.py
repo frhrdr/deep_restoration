@@ -1,7 +1,7 @@
 from advex_experiments import stability_experiment_fullprior_adaptive, stability_experiment_fullprior, \
     stability_experiment_nodrop_adaptive, stability_experiment_dodrop_adaptive
 from utils.foolbox_utils import stability_statistics, obliv_adapt_stability_statistics, \
-    transferable_stability_statistics, dropout_stability_statistics
+    transferable_stability_statistics, dropout_stability_statistics, read_adaptive_log
 
 # image_dir = '../data/adversarial_examples/foolbox_images/small_dataset/lbfgs/'
 # image_names = ['val53_t844_f39.bmp',
@@ -63,7 +63,7 @@ from utils.foolbox_utils import stability_statistics, obliv_adapt_stability_stat
 
 # adaptive_experiment_alex_top1_dropout_prior_dodrop_train()
 
-# read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullc1l6000/lr06/')
+read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_mean_filter/')
 # stability_experiment_dodrop_adaptive()
 # verify_advex_claims()
 # stability_experiment_nodrop_adaptive()
