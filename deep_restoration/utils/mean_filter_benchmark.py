@@ -39,7 +39,6 @@ def fgsm_mean_filter_exp():
     mean_log_statistics(plot=False)
 
 
-
 def mean_filter_benchmark(classifier, filter_hw, weightings,
                           advex_subdir='alexnet_val_2k_top1_correct/deepfool_oblivious/'):
     """
@@ -278,6 +277,27 @@ def lili_filter_plots():
     plt.ylabel('correctly classified images')
     plt.legend()
     plt.savefig('adaptive_weighted_mean_33filter.png')
+    plt.show()
+    plt.close()
+
+
+def fgsm_filter_plots():
+    sns.set_style('darkgrid')
+    # sns.set_context('paper')
+    weight = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
+    img = [1073, 1031, 995, 968, 938, 899, 870, 825, 806, 784, 780]
+    adv = [0, 84, 211, 326, 409, 471, 514, 534, 552, 555, 567]
+
+    plt.figure()
+    plt.title('weighted mean 2x2 filter')
+
+    plt.plot(weight, img, label='images')
+    plt.plot(weight, adv, label='adversarials')
+
+    plt.xlabel('weight')
+    plt.ylabel('correctly classified images')
+    plt.legend()
+    plt.savefig('fgsm_weighted_mean_filter.png')
     plt.show()
     plt.close()
 

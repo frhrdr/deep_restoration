@@ -54,6 +54,6 @@
 # print(tgt_imgs.shape)
 # print(tgt_imgs.max())
 # np.save('../logs/rec_comparisons/tgt_imgs.npy', tgt_imgs)
-from utils.mean_filter_benchmark import fgsm_mean_filter_exp
+from utils.mean_filter_benchmark import fgsm_filter_plots
 
-fgsm_mean_filter_exp()
+fgsm_filter_plots()

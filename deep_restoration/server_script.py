@@ -6,7 +6,7 @@ jitter_t = 0
 weighting = '1e-4'
 restart_adam = False
 image_name = 'val153'
-pre_image = True
+pre_image = False
 do_plot = True
 
 
