@@ -109,11 +109,13 @@ from utils.foolbox_utils import stability_statistics, obliv_adapt_stability_stat
 # stability_experiment_fullprior()
 # stability_experiment_fullprior_adaptive()
 
-if False:
-    stability_experiment_dodrop_adaptive()
-    stability_experiment_nodrop_adaptive()
-
-
-dropout_stability_statistics(target_path='../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/nodrop_test/lr06/',
-                             transfer_path='../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/dodrop_test/lr06/',
-                             plot_title='effect of dropout on adaptive adversarials')
+# if False:
+#     stability_experiment_dodrop_adaptive()
+#     stability_experiment_nodrop_adaptive()
+#
+#
+# dropout_stability_statistics(target_path='../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/nodrop_test/lr06/',
+#                              transfer_path='../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_dropoutprior_nodrop_train1024/dodrop_test/lr06/',
+#                              plot_title='effect of dropout on adaptive adversarials')
+# stability_statistics('../logs/adversarial_examples/alexnet_top1/gradientsign/oblivious_fullprior512/lr10/',
+#                      plot_title='FoE image prior, 512 components, lr=10')

@@ -33,7 +33,6 @@ featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=wei
             jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True)
 
 
-
 # resize_all_images((227, 227), 'images_resized_227')
 
 # make_flattened_patch_data(num_patches=100000, ph=3, pw=3, classifier='alexnet', map_name='conv2/lin:0',
