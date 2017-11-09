@@ -1,5 +1,7 @@
+from modules.foe_channelwise_prior import FoEChannelwisePrior
 from modules.foe_dropout_prior import FoEDropoutPrior
 from modules.foe_full_prior import FoEFullPrior
+from modules.loss_modules import TotalVariationLoss
 
 
 def get_default_prior(mode, custom_weighting=None, custom_target=None):
@@ -46,11 +48,26 @@ def get_default_prior(mode, custom_weighting=None, custom_target=None):
                          n_features_white=3**2*256, dist='student', mean_mode='gc', sdev_mode='gc',
                          whiten_mode='pca',
                          name=None, load_name=None, dir_name=None, load_tensor_names='conv5/lin:0')
-    else:
+    elif mode == 'tv_prior':
+        p = TotalVariationLoss(tensor='pre_featmap/read:0', beta=2, weighting=1e-9)
+    elif mode == 'dropout_nodrop_train1024':
         p = FoEDropoutPrior('rgb_scaled:0', 1e-5, 'alexnet', [8, 8], 1.0, n_components=1024, n_channels=3,
                             n_features_white=8 ** 2 * 3 - 1, dist='student', mean_mode='gc', sdev_mode='gc',
                             whiten_mode='pca', dir_name='student_dropout_prior_nodrop_training',
                             activate_dropout=True, make_switch=False, dropout_prob=0.5)
+    elif mode == 'chanpriorc1l150':
+        p = FoEChannelwisePrior(tensor_names='pre_featmap/read:0', weighting=1e-4, classifier='alexnet',
+                                filter_dims=[8, 8], input_scaling=1.0, n_components=150, n_channels=96,
+                                n_features_per_channel_white=64,
+                                dist='logistic', mean_mode='gc', sdev_mode='gc', whiten_mode='zca',
+                                load_tensor_names='conv1/lin:0')
+    elif mode == 'slimc1l2000':
+        p = FoEFullPrior('pre_featmap/read:0', 1e-9, 'alexnet', [3, 3], 1.0, n_components=2000, n_channels=96,
+                         n_features_white=3 ** 2 * 96, dist='student', mean_mode='gc', sdev_mode='gc',
+                         whiten_mode='pca',
+                         name=None, load_name=None, dir_name=None, load_tensor_names='conv1/lin:0')
+    else:
+        raise ValueError
     if custom_weighting is not None:
         p.weighting = custom_weighting
     if custom_target is not None:

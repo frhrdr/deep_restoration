@@ -387,6 +387,12 @@ def eval_class_stability_rolled_out(image_files, priors, learning_rate, n_iterat
 
 
 def advex_match_paths(images_file, advex_subdir):
+    """
+    creates tuples of file paths to original images and their adversarial counterpart
+    :param images_file:
+    :param advex_subdir:
+    :return:
+    """
     data_dir = '../data/imagenet2012-validationset/'
     image_subdir = 'images_resized_227/'
     advex_dir = '../data/adversarial_examples/foolbox_images/' + advex_subdir
@@ -861,7 +867,7 @@ def adaptive_experiment(learning_rate, n_iterations, attack_name, attack_keys, p
 
 
 # noinspection PyTypeChecker
-def read_adaptive_log(path):
+def read_adaptive_log(path, plot_title=None):
     noise_norms = np.load(path + 'noise_norms.npy')
     src_invariants = np.load(path + 'src_invariants.npy')
 
@@ -878,10 +884,10 @@ def read_adaptive_log(path):
     adaptive_norms = adaptive_norms[success_ids]
 
     not_none_ids = adaptive_norms != None
-
     adaptive_norms = adaptive_norms[not_none_ids]
     oblivious_norms = oblivious_norms[not_none_ids]
 
+    print('means: oblivious', np.mean(oblivious_norms), 'adaptive', np.mean(adaptive_norms))
     print('maxmin of adaptive noise', np.max(adaptive_norms), np.min(adaptive_norms))
     diff = adaptive_norms - oblivious_norms
     frac = adaptive_norms / oblivious_norms
@@ -890,12 +896,12 @@ def read_adaptive_log(path):
     print('# adative noise > oblivious noise', np.sum(diff > 0))
     print('# adative noise < oblivious noise', np.sum(diff < 0))
 
-    noise_norm_histograms(oblivious_norms, adaptive_norms, path)
+    noise_norm_histograms(oblivious_norms, adaptive_norms, path, plot_title)
 
 
-def noise_norm_histograms(oblivious_norms, adaptive_norms, savepath):
+def noise_norm_histograms(oblivious_norms, adaptive_norms, savepath, plot_title=None):
     sns.set(style="dark", palette="dark", color_codes=True)  #
-
+    sns.set_context('poster')
     # oblivious_norms = np.log2(oblivious_norms.astype(np.float32))
     # adaptive_norms = np.log2(adaptive_norms.astype(np.float32))
     resoltion = 5
@@ -911,6 +917,8 @@ def noise_norm_histograms(oblivious_norms, adaptive_norms, savepath):
     plt.legend()
     plt.xlabel('adversarial perturbation L2-norm')
     plt.ylabel('counts')
+    if plot_title is not None:
+        plt.title(plot_title)
     plt.tight_layout()
     plt.savefig(savepath + 'noise_norm_hist.png')
     plt.show()
@@ -1152,3 +1160,9 @@ def compare_adams(advex_dir, prior_mode='dropout_nodrop_train', learning_rate=0.
                 rollout_norm = np.linalg.norm(rollout_diff)
                 iterative_norm = np.linalg.norm(iterative_diff)
                 print('diff norms: rollout {}  iterative {}'.format(rollout_norm, iterative_norm))
+
+
+def plot_image_advex_pairs(advex_subdir, images_file):
+    advex_subdir = 'alexnet_val_2k_top1_correct/gradientsign_oblivious/'
+    images_file = 'alexnet_val_2k_top1_correct.txt'
+    advex_match_paths(images_file, advex_subdir)

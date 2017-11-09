@@ -62,8 +62,11 @@ from utils.foolbox_utils import stability_statistics, obliv_adapt_stability_stat
 # read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior/')
 
 # adaptive_experiment_alex_top1_dropout_prior_dodrop_train()
+read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_mean_filter/',
+                  plot_title='2x2 mean filter, weight=0.2')
 
-read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_mean_filter/')
+# read_adaptive_log('../logs/adversarial_examples/alexnet_top1/deepfool/adaptive_fullprior512/',
+#                   plot_title='FoE Prior, 4 steps, lr=0.6')
 # stability_experiment_dodrop_adaptive()
 # verify_advex_claims()
 # stability_experiment_nodrop_adaptive()

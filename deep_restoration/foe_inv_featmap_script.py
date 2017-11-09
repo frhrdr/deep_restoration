@@ -25,10 +25,10 @@ do_plot = True
 
 pre_image = True
 prior_id = 'full512'
-weighting = '1e-4'
+weighting = '1e-5'
 custom_target = 'pre_featmap/read:0'
-match_layer = 4
-target_layer = 3
+match_layer = 2
+target_layer = 1
 featmap_inv(match_layer, target_layer, image_name, prior_id, prior_weighting=weighting, make_mse=make_mse,
             restart_adam=restart_adam, pre_image=pre_image, do_plot=do_plot,
             jitter_t=0, jitter_stop_point=3200, lr=1., bound_plots=True, custom_target=custom_target)

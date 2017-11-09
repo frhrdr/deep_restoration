@@ -13,19 +13,21 @@ from utils.filehandling import load_image
 from skimage.io import imsave
 
 
-def run_image_opt_inversions(classifier, prior_mode):
+def run_image_opt_inversions(classifier, prior_mode, layer_select=None, lr=1.):
 
     _, img_hw, layer_names = classifier_stats(classifier)
-    layer_names = [n for n in layer_names if 'lin' not in n]
+
+    if layer_select is not None:
+        layer_names = [n for n in layer_names if layer_select in n]
 
     tgt_paths = subset10_paths(classifier)
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
     img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
 
-    tgt_paths = tgt_paths[5:]  # done: 0 - 4
-    img_subdirs = img_subdirs[5:]
+    tgt_paths = tgt_paths[6:7]
+    img_subdirs = img_subdirs[6:7]
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
-    print(layer_subdirs)
+    print(layer_names)
     for idx, layer_subdir in enumerate(layer_subdirs):
         cutoff = None  # layer_names[idx] if layer_names[idx].startswith('conv') else None
         jitter_t, weight = get_imagerec_jitter_and_prior_weight(classifier, layer_names[idx])
@@ -45,7 +47,8 @@ def run_image_opt_inversions(classifier, prior_mode):
             print_freq = 500
             log_freq = 500
             grad_clip = 10000.
-            lr_lower_points = ((1e+0, 1.),)
+
+            lr_lower_points = ((1e+0, lr),)
             print(layer_subdir)
             split = SplitModule(name_to_split=layer_names[idx] + ':0', img_slice_name=layer_subdir + '_img',
                                 rec_slice_name=layer_subdir + '_rec')
@@ -104,12 +107,12 @@ def get_imagerec_jitter_and_prior_weight(classifier, layer_name):
                     4, 4, 4, 4, 4, 4, 8,
                     8, 8, 8, 8, 8, 8, 8)
     else:
-        prior_weights = (300, 300, 300, 300, 300,
-                         300, 300, 300, 300, 300,
-                         300, 300, 300, 300, 300, 300, 300,
-                         300, 300, 300, 300, 300, 300, 100,
-                         100, 100, 20, 20, 20, 20, 1,
-                         1, 1, 1, 1, 1, 1, 1)
+        prior_weights = (1e-4, 1e-4, 1e-4, 1e-4, 1e-3,
+                         1e-4, 1e-4, 1e-4, 1e-4, 1e-3,
+                         1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-3,
+                         1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-3,
+                         1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-3,
+                         1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4)
         jitter_t = (0, 0, 0, 0, 0,
                     0, 0, 0, 0, 1,
                     1, 1, 1, 1, 1, 1, 2,
