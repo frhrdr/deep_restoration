@@ -417,6 +417,65 @@ def advex_match_paths(images_file, advex_subdir):
     return advex_matches
 
 
+def advex_dual_match_paths(images_file, advex_subdir1, advex_subdir2):
+    """
+    creates tuples of file paths to original images and their adversarial counterpart
+    :param images_file:
+    :param advex_subdir1:
+    :param advex_subdir2:
+    :return:
+    """
+    data_dir = '../data/imagenet2012-validationset/'
+    image_subdir = 'images_resized_227/'
+    advex_dir1 = '../data/adversarial_examples/foolbox_images/' + advex_subdir1
+    advex_dir2 = '../data/adversarial_examples/foolbox_images/' + advex_subdir2
+    with open(data_dir + images_file) as f:
+        image_files = [k.rstrip() for k in f.readlines()]
+
+    if '/' not in image_files[0]:
+        image_paths = [data_dir + image_subdir + k[:-len('JPEG')] + 'bmp' for k in image_files]
+    else:
+        image_paths = image_files
+
+    image_stems = [k.split('/')[-1][:-len('.bmp')] for k in image_paths]
+    advex1_files = sorted(os.listdir(advex_dir1))
+    advex1_paths = [advex_dir1 + k for k in advex1_files]
+    adv1_idx = 0
+    advex2_files = sorted(os.listdir(advex_dir2))
+    advex2_paths = [advex_dir1 + k for k in advex2_files]
+    adv2_idx = 0
+    advex_matches = []
+    full = 0
+    part1 = 0
+    part2 = 0
+    nope = 0
+    for img_idx, stem in enumerate(image_stems):
+        adv1_path = None
+        adv2_path = None
+
+        if advex1_files[adv1_idx].startswith(stem):
+            adv1_path = advex1_paths[adv1_idx]
+            adv1_idx += 1
+
+        if advex2_files[adv2_idx].startswith(stem):
+            adv2_path = advex2_paths[adv2_idx]
+            adv2_idx += 1
+
+        advex_matches.append((image_paths[img_idx], adv1_path, adv2_path))
+
+        if adv1_path and adv2_path:
+            full += 1
+        elif adv1_path:
+            part1 += 1
+        elif adv2_path:
+            part2 += 1
+        else:
+            nope += 1
+
+    print('matches: full {}, p1 {}, p2 {}, none {}'.format(full, part1, part2, nope))
+    return advex_matches
+
+
 def stability_experiment(images_file, advex_subdir, imgprior, optimizer, learning_rate,
                          n_iterations, log_freq, log_path):
 
@@ -896,10 +955,10 @@ def read_adaptive_log(path, plot_title=None):
     print('# adative noise > oblivious noise', np.sum(diff > 0))
     print('# adative noise < oblivious noise', np.sum(diff < 0))
 
-    noise_norm_histograms(oblivious_norms, adaptive_norms, path, plot_title)
+    oblivious_adaptive_noise_norm_histograms(oblivious_norms, adaptive_norms, path, plot_title)
 
 
-def noise_norm_histograms(oblivious_norms, adaptive_norms, savepath, plot_title=None):
+def oblivious_adaptive_noise_norm_histograms(oblivious_norms, adaptive_norms, savepath, plot_title=None):
     sns.set(style="dark", palette="dark", color_codes=True)  #
     sns.set_context('poster')
     # oblivious_norms = np.log2(oblivious_norms.astype(np.float32))
@@ -911,6 +970,37 @@ def noise_norm_histograms(oblivious_norms, adaptive_norms, savepath, plot_title=
 
     sns.distplot(oblivious_norms, bins=bins, kde=False, color="r", label='oblivious')
     sns.distplot(adaptive_norms, bins=bins, kde=False, color="b", label='adaptive')
+    sns.despine(left=True)
+    # plt.setp(axes, yticks=[])
+    plt.xscale('log')
+    plt.legend()
+    plt.xlabel('adversarial perturbation L2-norm')
+    plt.ylabel('counts')
+    if plot_title is not None:
+        plt.title(plot_title)
+    plt.tight_layout()
+    plt.savefig(savepath + 'noise_norm_hist.png')
+    plt.show()
+
+
+def fgsm_deepfool_comp(fgsm_path, deepfool_path):
+    fgsm_norms = np.load(fgsm_path + 'noise_norms.npy')[:, 0]
+    deepfool_norms = np.load(deepfool_path + 'noise_norms.npy')[:, 0]
+    fgsm_deepfool_noise_norm_histograms(fgsm_norms, deepfool_norms, fgsm_path, plot_title=None)
+
+
+def fgsm_deepfool_noise_norm_histograms(fgsm_norms, deepfool_norms, savepath, plot_title=None):
+    sns.set(style="dark", palette="dark", color_codes=True)  #
+    sns.set_context('poster')
+    # oblivious_norms = np.log2(oblivious_norms.astype(np.float32))
+    # adaptive_norms = np.log2(adaptive_norms.astype(np.float32))
+    resoltion = 5
+    exps = [i/resoltion for i in range(-3*resoltion, 7*resoltion)]
+    bins = [0] + [np.exp(i) for i in exps]
+    # bins = [0, 1e-1, 1e+0, 1e+1, 1e+2, 1e+3, 1e+4]
+
+    sns.distplot(fgsm_norms, bins=bins, kde=False, color="r", label='FGSM')
+    sns.distplot(deepfool_norms, bins=bins, kde=False, color="b", label='Deepfool')
     sns.despine(left=True)
     # plt.setp(axes, yticks=[])
     plt.xscale('log')
@@ -1166,3 +1256,53 @@ def plot_image_advex_pairs(advex_subdir, images_file):
     advex_subdir = 'alexnet_val_2k_top1_correct/gradientsign_oblivious/'
     images_file = 'alexnet_val_2k_top1_correct.txt'
     advex_match_paths(images_file, advex_subdir)
+    # TODO
+
+
+def adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
+                                     classifier, image_shape, images_file, obliv_advex_subdir, adapt_advex_subdir):
+    """
+    compares regular noise norms in wrt. image in obliv, adapt and regularized img, obl, adapt.
+    5 scores wrt image
+    2 scores of reg adv vs adv
+
+    :param learning_rate:
+    :param n_iterations:
+    :param prior_mode:
+    :param classifier:
+    :param image_shape:
+    :param images_file:
+    :param obliv_advex_subdir:
+    :param adapt_advex_subdir:
+    :return:
+    """
+    matches = advex_dual_match_paths(images_file, obliv_advex_subdir, adapt_advex_subdir)
+    prior = get_default_prior(mode=prior_mode)
+
+    def featmap_transform_fun(x):
+        if prior.in_tensor_names != 'image':
+            output_name = prior.in_tensor_names
+            output_name = output_name[:-2] if output_name.endswith(':0') else output_name
+            return AlexNet().build_partial(in_tensor=x, input_name='input', output_name=output_name)
+        else:
+            return x
+
+    if isinstance(prior, FoEDropoutPrior):
+        prior.activate_dropout = False
+
+    with tf.Graph().as_default():
+        input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
+        featmap, _ = prior.forward_opt_adam(input_featmap, learning_rate, n_iterations,
+                                            in_to_loss_featmap_fun=featmap_transform_fun)
+        init_op = tf.global_variables_initializer()
+        with tf.Session() as sess:
+            sess.run(init_op)
+            prior.load_weights(sess)
+
+            regularized_noise_norms = []
+            for idx, match in enumerate(matches):
+                img_path, obliv_path, adapt_path = match
+
+                img = load_image(img_path)
+                adv = load_image()
+                oblivious_norm = np.linalg.norm((img - adv).flatten(), ord=2)

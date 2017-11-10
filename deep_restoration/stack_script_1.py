@@ -1,3 +1,10 @@
+from utils.foolbox_utils import advex_dual_match_paths
+
+
+matches = advex_dual_match_paths(images_file='alexnet_val_2k_top1_correct.txt',
+                                 advex_subdir1='alexnet_val_2k_top1_correct/deepfool_oblivious/',
+                                 advex_subdir2='alexnet_val_2k_top1_correct/deepfool_adaptive_full512/')
+
 # from net_inversion import NetInversion
 # from modules.inv_default_modules import get_stacked_module
 # from shutil import copyfile
