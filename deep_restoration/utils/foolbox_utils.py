@@ -1301,6 +1301,7 @@ def adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
             prior.load_weights(sess)
 
             for idx, match in enumerate(matches):
+                print(idx)
                 img_path, obliv_path, adapt_path = match
 
                 if obliv_path is None or adapt_path is None:
