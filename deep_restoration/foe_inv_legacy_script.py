@@ -70,7 +70,7 @@ ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, prin
 
 if not os.path.exists(log_path):
     os.makedirs(log_path)
-copyfile('./opt_inv_script.py', log_path + 'script.py')
+copyfile('./foe_inv_legacy_script.py', log_path + 'script.py')
 
 
 # pre_img_init = np.reshape(np.load(params['log_path'] + 'mats/rec_10500.npy'), [1, 224, 224, 3])
