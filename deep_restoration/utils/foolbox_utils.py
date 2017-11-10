@@ -961,21 +961,26 @@ def read_adaptive_log(path, plot_title=None):
                           plot_title=plot_title, a_label='oblivious', b_label='adaptive')
 
 
-def noise_norm_histograms(a_norms, b_norms, savepath, save_name, low, high, res, plot_title, a_label, b_label):
+def noise_norm_histograms(a_norms, b_norms, savepath, save_name, low, high, res, plot_title, a_label, b_label,
+                          logscale=True):
     sns.set(style="dark", palette="dark", color_codes=True)  #
     sns.set_context('poster')
     # oblivious_norms = np.log2(oblivious_norms.astype(np.float32))
     # adaptive_norms = np.log2(adaptive_norms.astype(np.float32))
 
-    exps = [i/res for i in range(low*res, high*res)]
-    bins = [0] + [np.exp(i) for i in exps]
+    if logscale:
+        exps = [i / res for i in range(low * res, high * res)]
+        bins = [0] + [np.exp(i) for i in exps]
+    else:
+        bins = [0] + list(range(low, high, res))
     # bins = [0, 1e-1, 1e+0, 1e+1, 1e+2, 1e+3, 1e+4]
 
     sns.distplot(a_norms, bins=bins, kde=False, color="r", label=a_label)
     sns.distplot(b_norms, bins=bins, kde=False, color="b", label=b_label)
     sns.despine(left=True)
     # plt.setp(axes, yticks=[])
-    plt.xscale('log')
+    if logscale:
+        plt.xscale('log')
     plt.legend()
     plt.xlabel('adversarial perturbation L2-norm')
     plt.ylabel('counts')
@@ -1300,11 +1305,15 @@ def adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
                 obliv_reg_norm = np.linalg.norm((img - obliv_reg).flatten(), ord=2)
                 adapt_reg_norm = np.linalg.norm((img - adapt_reg).flatten(), ord=2)
 
-                obliv_v_reg_norm = np.linalg.norm((obliv - obliv_reg).flatten(), ord=2)
-                adapt_v_reg_norm = np.linalg.norm((adapt - adapt_reg).flatten(), ord=2)
+                obliv_v_oreg_norm = np.linalg.norm((obliv - obliv_reg).flatten(), ord=2)
+                adapt_v_areg_norm = np.linalg.norm((adapt - adapt_reg).flatten(), ord=2)
+
+                obliv_v_imgreg_norm = np.linalg.norm((img_reg - obliv_reg).flatten(), ord=2)
+                adapt_v_imgreg_norm = np.linalg.norm((img_reg - adapt_reg).flatten(), ord=2)
 
                 regularized_noise_norms.append((obliv_norm, adapt_norm, img_reg_norm, obliv_reg_norm, adapt_reg_norm,
-                                               obliv_v_reg_norm, adapt_v_reg_norm))
+                                                obliv_v_oreg_norm, adapt_v_areg_norm,
+                                                obliv_v_imgreg_norm, adapt_v_imgreg_norm))
 
     norms = np.asarray(regularized_noise_norms)
     print(norms.shape)
@@ -1319,9 +1328,28 @@ def reg_noise_histograms(norms, path):
     img_reg_norm = norms[:, 2]
     obliv_reg_norm = norms[:, 3]
     adapt_reg_norm = norms[:, 4]
-    obliv_v_reg_norm = norms[:, 5]
-    adapt_v_reg_norm = norms[:, 6]
+    obliv_v_oreg_norm = norms[:, 5]
+    adapt_v_areg_norm = norms[:, 6]
+    obliv_v_imgreg_norm = norms[:, 7]
+    adapt_v_imgreg_norm = norms[:, 8]
 
     noise_norm_histograms(a_norms=obliv_norm, b_norms=adapt_norm, savepath=path,
                           save_name='obliv_adapt_norm_hist', low=-3, high=7, res=5,
-                          plot_title='', a_label='FGSM', b_label='Deepfool')
+                          plot_title='obl-ada-normal', a_label='oblivious', b_label='adaptive')
+
+    noise_norm_histograms(a_norms=img_reg_norm, b_norms=obliv_reg_norm, savepath=path,
+                          save_name='obliv_adapt_norm_hist', low=0, high=1200, res=25,
+                          plot_title='img obl reg', a_label='image', b_label='oblivious', logscale=False)
+
+    noise_norm_histograms(a_norms=img_reg_norm, b_norms=adapt_reg_norm, savepath=path,
+                          save_name='obliv_adapt_norm_hist', low=0, high=1200, res=25,
+                          plot_title='img ada reg', a_label='image', b_label='adaptive', logscale=False)
+
+    noise_norm_histograms(a_norms=obliv_reg_norm, b_norms=adapt_reg_norm, savepath=path,
+                          save_name='obliv_adapt_norm_hist', low=0, high=1200, res=25,
+                          plot_title='obl ada reg', a_label='oblivious', b_label='adaptive', logscale=False)
+
+    noise_norm_histograms(a_norms=obliv_v_oreg_norm, b_norms=adapt_v_areg_norm, savepath=path,
+                          save_name='obliv_adapt_norm_hist', low=0, high=1200, res=25,
+                          plot_title='obl ada wrt. normal obl ada', a_label='oblivious', b_label='adaptive',
+                          logscale=False)
