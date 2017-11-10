@@ -956,21 +956,23 @@ def read_adaptive_log(path, plot_title=None):
     print('# adative noise > oblivious noise', np.sum(diff > 0))
     print('# adative noise < oblivious noise', np.sum(diff < 0))
 
-    oblivious_adaptive_noise_norm_histograms(oblivious_norms, adaptive_norms, path, plot_title)
+    noise_norm_histograms(a_norms=oblivious_norms, b_norms=adaptive_norms, savepath=path,
+                          save_name='noise_norm_hist', low=-3, high=7, res=5,
+                          plot_title=plot_title, a_label='oblivious', b_label='adaptive')
 
 
-def oblivious_adaptive_noise_norm_histograms(oblivious_norms, adaptive_norms, savepath, plot_title=None):
+def noise_norm_histograms(a_norms, b_norms, savepath, save_name, low, high, res, plot_title, a_label, b_label):
     sns.set(style="dark", palette="dark", color_codes=True)  #
     sns.set_context('poster')
     # oblivious_norms = np.log2(oblivious_norms.astype(np.float32))
     # adaptive_norms = np.log2(adaptive_norms.astype(np.float32))
-    resoltion = 5
-    exps = [i/resoltion for i in range(-3*resoltion, 7*resoltion)]
+
+    exps = [i/res for i in range(low*res, high*res)]
     bins = [0] + [np.exp(i) for i in exps]
     # bins = [0, 1e-1, 1e+0, 1e+1, 1e+2, 1e+3, 1e+4]
 
-    sns.distplot(oblivious_norms, bins=bins, kde=False, color="r", label='oblivious')
-    sns.distplot(adaptive_norms, bins=bins, kde=False, color="b", label='adaptive')
+    sns.distplot(a_norms, bins=bins, kde=False, color="r", label=a_label)
+    sns.distplot(b_norms, bins=bins, kde=False, color="b", label=b_label)
     sns.despine(left=True)
     # plt.setp(axes, yticks=[])
     plt.xscale('log')
@@ -980,39 +982,16 @@ def oblivious_adaptive_noise_norm_histograms(oblivious_norms, adaptive_norms, sa
     if plot_title is not None:
         plt.title(plot_title)
     plt.tight_layout()
-    plt.savefig(savepath + 'noise_norm_hist.png')
+    plt.savefig(savepath + save_name + '.png')
     plt.show()
 
 
 def fgsm_deepfool_comp(fgsm_path, deepfool_path):
     fgsm_norms = np.load(fgsm_path + 'noise_norms.npy')[:, 0]
     deepfool_norms = np.load(deepfool_path + 'noise_norms.npy')[:, 0]
-    fgsm_deepfool_noise_norm_histograms(fgsm_norms, deepfool_norms, fgsm_path, plot_title=None)
-
-
-def fgsm_deepfool_noise_norm_histograms(fgsm_norms, deepfool_norms, savepath, plot_title=None):
-    sns.set(style="dark", palette="dark", color_codes=True)  #
-    sns.set_context('poster')
-    # oblivious_norms = np.log2(oblivious_norms.astype(np.float32))
-    # adaptive_norms = np.log2(adaptive_norms.astype(np.float32))
-    resoltion = 5
-    exps = [i/resoltion for i in range(-3*resoltion, 7*resoltion)]
-    bins = [0] + [np.exp(i) for i in exps]
-    # bins = [0, 1e-1, 1e+0, 1e+1, 1e+2, 1e+3, 1e+4]
-
-    sns.distplot(fgsm_norms, bins=bins, kde=False, color="r", label='FGSM')
-    sns.distplot(deepfool_norms, bins=bins, kde=False, color="b", label='Deepfool')
-    sns.despine(left=True)
-    # plt.setp(axes, yticks=[])
-    plt.xscale('log')
-    plt.legend()
-    plt.xlabel('adversarial perturbation L2-norm')
-    plt.ylabel('counts')
-    if plot_title is not None:
-        plt.title(plot_title)
-    plt.tight_layout()
-    plt.savefig(savepath + 'noise_norm_hist.png')
-    plt.show()
+    noise_norm_histograms(a_norms=fgsm_norms, b_norms=deepfool_norms, savepath=fgsm_path,
+                          save_name='noise_norm_hist', low=-3, high=7, res=5,
+                          plot_title='', a_label='FGSM', b_label='Deepfool')
 
 
 def verify_advex_claims(advex_dir='../data/adversarial_examples/foolbox_images/alexnet_val_2k_top1_correct/'
@@ -1303,7 +1282,7 @@ def adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
             for idx, match in enumerate(matches):
                 print(idx)
                 img_path, obliv_path, adapt_path = match
-
+                print(obliv_path, adapt_path)
                 if obliv_path is None or adapt_path is None:
                     continue
                 img = load_image(img_path)
@@ -1332,3 +1311,11 @@ def adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
     print(np.mean(norms, axis=0))
     print(np.mean(norms, axis=1))
     return norms
+
+
+def reg_noise_histograms(norms):
+
+
+    noise_norm_histograms(a_norms=fgsm_norms, b_norms=deepfool_norms, savepath=fgsm_path,
+                          save_name='noise_norm_hist', low=-3, high=7, res=5,
+                          plot_title='', a_label='FGSM', b_label='Deepfool')
