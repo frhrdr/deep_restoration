@@ -398,7 +398,7 @@ comp runs:
 slim: 4 x
 tv: 3   x
 full: 4 or 5, probably 4 x
-dual: 2
+dual: 2 x
 mse, momentum 3 adam 3
 chan: 2 x
 
