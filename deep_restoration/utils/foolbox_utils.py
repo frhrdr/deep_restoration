@@ -1312,9 +1312,9 @@ def adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
                 obliv_norm = np.linalg.norm((img - obliv).flatten(), ord=2)
                 adapt_norm = np.linalg.norm((img - adapt).flatten(), ord=2)
 
-                img_reg = sess.run(featmap, feed_dict={input_featmap: img})
-                obliv_reg = sess.run(featmap, feed_dict={input_featmap: obliv})
-                adapt_reg = sess.run(featmap, feed_dict={input_featmap: adapt})
+                img_reg = sess.run(featmap, feed_dict={input_featmap: np.expand_dims(img, axis=0)})
+                obliv_reg = sess.run(featmap, feed_dict={input_featmap: np.expand_dims(obliv, axis=0)})
+                adapt_reg = sess.run(featmap, feed_dict={input_featmap: np.expand_dims(adapt, axis=0)})
 
                 img_reg_norm = np.linalg.norm((img - img_reg).flatten(), ord=2)
                 obliv_reg_norm = np.linalg.norm((img - obliv_reg).flatten(), ord=2)
