@@ -77,7 +77,7 @@ class FoEChannelwisePrior(FoEFullPrior):
         extra_vals = None
         return ica_a, ica_w, extra_op, extra_vals
 
-    def build(self, scope_suffix=''):
+    def build(self, scope_suffix='', featmap_tensor=None):
         with tf.variable_scope(self.name):
 
             whitening_tensor = tf.get_variable('whiten_mat',
@@ -88,9 +88,10 @@ class FoEChannelwisePrior(FoEFullPrior):
             ica_a, ica_w, _, _ = self.make_normed_filters(trainable=False, squeeze_alpha=True)
 
             whitened_mixing = tf.matmul(whitening_tensor, ica_w, transpose_a=True)
+            featmap = self.get_tensors() if featmap_tensor is None else featmap_tensor
 
             if False and self.mean_mode in ('gc', 'gf') and self.sdev_mode in ('gc', 'gf'):
-                normed_featmap = self.norm_feat_map_directly()  # shape [1, h, w, n_channels]
+                normed_featmap = self.norm_feat_map_directly(featmap)  # shape [1, h, w, n_channels]
                 print(whitened_mixing.get_shape())  # shape [n_channels, n_features_raw, n_components]
                 whitened_mixing = tf.transpose(whitened_mixing, perm=[1, 0, 2])
                 whitened_mixing = tf.reshape(whitened_mixing, [self.ph, self.pw,
@@ -105,7 +106,7 @@ class FoEChannelwisePrior(FoEFullPrior):
                 xw = tf.transpose(xw, perm=[1, 0, 2])
 
             else:
-                normed_patches = self.shape_and_norm_featmap()  # shape [n_patches, n_channels, n_feats_per_channel]
+                normed_patches = self.shape_and_norm_featmap(featmap)  # shape [n_patches, n_channels, n_feats_per_channel]
                 xw = tf.matmul(tf.transpose(normed_patches, perm=[1, 0, 2]), whitened_mixing)
 
             self.loss = self.mrf_loss(xw, ica_a)

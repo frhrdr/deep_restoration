@@ -19,12 +19,12 @@ def prepare_scalar_logs(path):
     return scalar_logs
 
 
-def plot_opt_inv_experiment(path, exp_subdirs, log_tags, logscale=True):
+def plot_opt_inv_experiment(path, exp_subdirs, log_tags, logscale=True, log_subdir='summaries/', max_steps=None):
     sns.set_style('darkgrid')
     sns.set_context('paper')
     exp_logs = dict()
     for exp in exp_subdirs:
-        exp_path = os.path.join(path, exp_subdirs[exp], 'summaries/')
+        exp_path = os.path.join(path, exp_subdirs[exp], log_subdir)
         print(exp_path)
         exp_logs[exp] = prepare_scalar_logs(exp_path)
 
@@ -37,6 +37,9 @@ def plot_opt_inv_experiment(path, exp_subdirs, log_tags, logscale=True):
             print(log, tag, exp_logs)
             if tag in log:
                 steps, values = log[tag]
+                if max_steps is not None:
+                    steps = steps[:max_steps]
+                    values = values[:max_steps]
                 plt.plot(steps, values, label=exp)
 
         if logscale:
