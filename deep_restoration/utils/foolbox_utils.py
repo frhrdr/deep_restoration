@@ -443,7 +443,7 @@ def advex_dual_match_paths(images_file, advex_subdir1, advex_subdir2):
     advex1_paths = [advex_dir1 + k for k in advex1_files]
     adv1_idx = 0
     advex2_files = sorted(os.listdir(advex_dir2))
-    advex2_paths = [advex_dir1 + k for k in advex2_files]
+    advex2_paths = [advex_dir2 + k for k in advex2_files]
     adv2_idx = 0
     advex_matches = []
     full = 0
