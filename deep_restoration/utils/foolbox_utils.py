@@ -1309,13 +1309,19 @@ def adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
     norms = np.asarray(regularized_noise_norms)
     print(norms.shape)
     print(np.mean(norms, axis=0))
-    print(np.mean(norms, axis=1))
+    np.save('regularized_norms.npy', norms)
     return norms
 
 
-def reg_noise_histograms(norms):
+def reg_noise_histograms(norms, path):
+    obliv_norm = norms[:, 0]
+    adapt_norm = norms[:, 1]
+    img_reg_norm = norms[:, 2]
+    obliv_reg_norm = norms[:, 3]
+    adapt_reg_norm = norms[:, 4]
+    obliv_v_reg_norm = norms[:, 5]
+    adapt_v_reg_norm = norms[:, 6]
 
-
-    noise_norm_histograms(a_norms=fgsm_norms, b_norms=deepfool_norms, savepath=fgsm_path,
-                          save_name='noise_norm_hist', low=-3, high=7, res=5,
+    noise_norm_histograms(a_norms=obliv_norm, b_norms=adapt_norm, savepath=path,
+                          save_name='obliv_adapt_norm_hist', low=-3, high=7, res=5,
                           plot_title='', a_label='FGSM', b_label='Deepfool')
