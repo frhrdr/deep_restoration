@@ -396,11 +396,11 @@ meanmedian frac 0.878276097582 0.770120355151
 
 comp runs:
 slim: 4
-tv: 3
-full: 4 or 5, probably 4
+tv: 3   x
+full: 4 or 5, probably 4 x
 dual: 2
 mse, momentum 3 adam 3
-chan: 2
+chan: 2 x
 
 
 

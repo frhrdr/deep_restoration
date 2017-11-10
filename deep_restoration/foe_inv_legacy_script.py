@@ -49,13 +49,13 @@ chanprior = FoEChannelwisePrior('pre_featmap/read:0', 1e-6, 'alexnet', [5, 5], i
                                 load_name='ChannelICAPrior',
                                 load_tensor_names='conv1/lin:0')
 
-fullprior = FoEFullPrior(tensor_names='pre_featmap/read:0', weighting=1e-9, classifier='alexnet',
+fullprior = FoEFullPrior(tensor_names='pre_featmap/read:0', weighting=1e-10, classifier='alexnet',
                          filter_dims=[8, 8], input_scaling=1.0, n_components=6000, n_channels=96,
                          n_features_white=3000, dist='student', mean_mode='gc', sdev_mode='gc',
                          load_name='FoEPrior',
                          load_tensor_names='conv1/lin:0')
 
-slimprior = FoEFullPrior('pre_featmap/read:0', 1e-8, 'alexnet', [3, 3], 1.0, n_components=2000, n_channels=96,
+slimprior = FoEFullPrior('pre_featmap/read:0', 1e-9, 'alexnet', [3, 3], 1.0, n_components=2000, n_channels=96,
                          n_features_white=3**2*96, dist='student', mean_mode='gc', sdev_mode='gc', whiten_mode='pca',
                          name=None, load_name=None, dir_name=None, load_tensor_names='conv1/lin:0')
 
@@ -63,8 +63,8 @@ slimprior = FoEFullPrior('pre_featmap/read:0', 1e-8, 'alexnet', [3, 3], 1.0, n_c
 pre_mse = NormedMSELoss(target='target_featmap/read:0', reconstruction='pre_featmap/read:0', name='MSE_Reconstruction')
 pre_mse.add_loss = False
 
-modules = [split2, mse2, fullprior, pre_mse]
-log_path = '../logs/opt_inversion/alexnet/c2l_to_c1l/full_prior/adam/run_final/'
+modules = [split2, mse2, slimprior, pre_mse]
+log_path = '../logs/opt_inversion/alexnet/c2l_to_c1l/slim_prior/adam/run_final/'
 
 ni = NetInversion(modules, log_path, classifier='alexnet', summary_freq=10, print_freq=50, log_freq=500)
 
@@ -80,13 +80,13 @@ copyfile('./foe_inv_legacy_script.py', log_path + 'script.py')
 
 pre_featmap_init = None
 
-# ni.train_pre_featmap('../data/selected/images_resized_227/red-fox.bmp', n_iterations=500, optim_name='adam',
-#                      lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
-#                      pre_featmap_init=pre_featmap_init, ckpt_offset=0,
-#                      pre_featmap_name='conv1/lin',
-#                      featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=False)
-#
-# pre_featmap_init = np.load(ni.log_path + 'mats/rec_500.npy')
+ni.train_pre_featmap('../data/selected/images_resized_227/red-fox.bmp', n_iterations=500, optim_name='adam',
+                     lr_lower_points=((1e+0, 3e-1),), grad_clip=10000.,
+                     pre_featmap_init=pre_featmap_init, ckpt_offset=0,
+                     pre_featmap_name='conv1/lin',
+                     featmap_names_to_plot=(), max_n_featmaps_to_plot=10, save_as_plot=False)
+
+pre_featmap_init = np.load(ni.log_path + 'mats/rec_500.npy')
 
 # pre_featmap_init = np.random.normal(loc=0, scale=0.1, size=(1, 56, 56, 96)).astype(np.float32)
 
