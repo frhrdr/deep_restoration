@@ -425,6 +425,7 @@ def advex_dual_match_paths(images_file, advex_subdir1, advex_subdir2):
     :param advex_subdir2:
     :return:
     """
+
     data_dir = '../data/imagenet2012-validationset/'
     image_subdir = 'images_resized_227/'
     advex_dir1 = '../data/adversarial_examples/foolbox_images/' + advex_subdir1
@@ -1260,7 +1261,7 @@ def plot_image_advex_pairs(advex_subdir, images_file):
 
 
 def adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
-                                     classifier, image_shape, images_file, obliv_advex_subdir, adapt_advex_subdir):
+                                     image_shape, images_file, obliv_advex_subdir, adapt_advex_subdir):
     """
     compares regular noise norms in wrt. image in obliv, adapt and regularized img, obl, adapt.
     5 scores wrt image
@@ -1269,7 +1270,6 @@ def adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
     :param learning_rate:
     :param n_iterations:
     :param prior_mode:
-    :param classifier:
     :param image_shape:
     :param images_file:
     :param obliv_advex_subdir:
@@ -1290,6 +1290,7 @@ def adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
     if isinstance(prior, FoEDropoutPrior):
         prior.activate_dropout = False
 
+    regularized_noise_norms = []
     with tf.Graph().as_default():
         input_featmap = tf.placeholder(dtype=tf.float32, shape=image_shape)
         featmap, _ = prior.forward_opt_adam(input_featmap, learning_rate, n_iterations,
@@ -1299,10 +1300,34 @@ def adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
             sess.run(init_op)
             prior.load_weights(sess)
 
-            regularized_noise_norms = []
             for idx, match in enumerate(matches):
                 img_path, obliv_path, adapt_path = match
 
+                if obliv_path is None or adapt_path is None:
+                    continue
                 img = load_image(img_path)
-                adv = load_image()
-                oblivious_norm = np.linalg.norm((img - adv).flatten(), ord=2)
+                obliv = load_image(obliv_path)
+                adapt = load_image(adapt_path)
+
+                obliv_norm = np.linalg.norm((img - obliv).flatten(), ord=2)
+                adapt_norm = np.linalg.norm((img - adapt).flatten(), ord=2)
+
+                img_reg = sess.run(featmap, feed_dict={input_featmap: img})
+                obliv_reg = sess.run(featmap, feed_dict={input_featmap: obliv})
+                adapt_reg = sess.run(featmap, feed_dict={input_featmap: adapt})
+
+                img_reg_norm = np.linalg.norm((img - img_reg).flatten(), ord=2)
+                obliv_reg_norm = np.linalg.norm((img - obliv_reg).flatten(), ord=2)
+                adapt_reg_norm = np.linalg.norm((img - adapt_reg).flatten(), ord=2)
+
+                obliv_v_reg_norm = np.linalg.norm((obliv - obliv_reg).flatten(), ord=2)
+                adapt_v_reg_norm = np.linalg.norm((adapt - adapt_reg).flatten(), ord=2)
+
+                regularized_noise_norms.append((obliv_norm, adapt_norm, img_reg_norm, obliv_reg_norm, adapt_reg_norm,
+                                               obliv_v_reg_norm, adapt_v_reg_norm))
+
+    norms = np.asarray(regularized_noise_norms)
+    print(norms.shape)
+    print(np.mean(norms, axis=0))
+    print(np.mean(norms, axis=1))
+    return norms

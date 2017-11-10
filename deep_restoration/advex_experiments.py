@@ -1,5 +1,5 @@
 from utils.foolbox_utils import stability_experiment, adaptive_experiment, \
-    ensemble_adaptive_experiment
+    ensemble_adaptive_experiment, adaptive_regularized_noise_norms
 from utils.default_priors import get_default_prior
 
 
@@ -218,3 +218,18 @@ def c1l_prior_tranferable_stability_experiment(images_file='alexnet_val_2k_top1_
     stability_experiment(images_file=images_file, advex_subdir=advex_subdir, imgprior=imgprior,
                          optimizer=optimizer, learning_rate=learning_rate, n_iterations=n_iterations, log_freq=log_freq,
                          log_path=log_path)
+
+
+def noise_norm_fullprior_exp():
+    images_file = 'alexnet_val_2k_top1_correct.txt'
+    obliv_advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_oblivious/'
+    adapt_advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_adaptive_full512/'
+
+    prior_mode = 'full512'
+    learning_rate = 0.6
+    n_iterations = 5
+    image_shape = (1, 227, 227, 3)
+    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior512/lr06long/'
+    # noinspection PyTypeChecker
+    norms = adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
+                                             image_shape, images_file, obliv_advex_subdir, adapt_advex_subdir)
