@@ -427,7 +427,6 @@ oblivious       adaptive
 67.27068329   89.31594086 norm at regularizer output
 
 oblivious       adaptive       image
-
 655.76470947  651.06506348  648.51220703 norm at regularizer ouput wrt image at input
 648.578125    648.2677002   648.51220703 norm at regularizer ouput wrt same at input
 

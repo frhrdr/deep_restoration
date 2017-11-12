@@ -21,7 +21,7 @@ def prepare_scalar_logs(path):
 
 def plot_opt_inv_experiment(path, exp_subdirs, log_tags, logscale=True, log_subdir='summaries/', max_steps=None):
     sns.set_style('darkgrid')
-    sns.set_context('paper')
+    sns.set_context('notebook')
     exp_logs = dict()
     for exp in exp_subdirs:
         exp_path = os.path.join(path, exp_subdirs[exp], log_subdir)
@@ -45,9 +45,10 @@ def plot_opt_inv_experiment(path, exp_subdirs, log_tags, logscale=True, log_subd
         if logscale:
             plt.yscale('log')
         plt.xlabel('Iterations')
-        plt.ylabel('Mean Squared Error')
+        plt.ylabel('Normed Mean Squared Error')
         plt.legend()
-        plt.show()
+        plt.savefig('c1l_prior_comp_{}.png'.format(log_name.replace(' ', '_')))
+        # plt.show()
         plt.close()
 
 
