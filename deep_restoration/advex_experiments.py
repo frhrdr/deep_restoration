@@ -233,3 +233,18 @@ def noise_norm_fullprior_exp():
     # noinspection PyTypeChecker
     norms = adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
                                              image_shape, images_file, obliv_advex_subdir, adapt_advex_subdir)
+
+
+def noise_norm_fullprior_exp2():
+    images_file = 'alexnet_val_2k_top1_correct.txt'
+    obliv_advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_oblivious/'
+    adapt_advex_subdir = 'alexnet_val_2k_top1_correct/deepfool_adaptive_full512/'
+
+    prior_mode = 'full512'
+    learning_rate = 0.6
+    n_iterations = 15
+    image_shape = (1, 227, 227, 3)
+    log_path = '../logs/adversarial_examples/alexnet_top1/deepfool/oblivious_fullprior512/lr06long/'
+    # noinspection PyTypeChecker
+    norms = adaptive_regularized_noise_norms(learning_rate, n_iterations, prior_mode,
+                                             image_shape, images_file, obliv_advex_subdir, adapt_advex_subdir)

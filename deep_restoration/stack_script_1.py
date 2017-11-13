@@ -1,7 +1,7 @@
-from advex_experiments import noise_norm_fullprior_exp
+from advex_experiments import noise_norm_fullprior_exp2
 from utils.foolbox_utils import advex_dual_match_paths
 
-noise_norm_fullprior_exp()
+noise_norm_fullprior_exp2()
 # matches = advex_dual_match_paths(images_file='alexnet_val_2k_top1_correct.txt',
 #                                  advex_subdir1='alexnet_val_2k_top1_correct/deepfool_oblivious/',
 #                                  advex_subdir2='alexnet_val_2k_top1_correct/deepfool_adaptive_full512/')
