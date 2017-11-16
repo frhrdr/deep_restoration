@@ -1,6 +1,5 @@
 import os
 from shutil import copyfile
-
 import numpy as np
 import tensorflow as tf
 from modules.core_modules import LossModule
