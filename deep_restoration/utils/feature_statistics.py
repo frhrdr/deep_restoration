@@ -1,8 +1,11 @@
 import numpy as np
 import tensorflow as tf
-import matplotlib
-matplotlib.use('qt5agg', warn=False, force=True)
-import matplotlib.pyplot as plt
+try:
+    import matplotlib
+    matplotlib.use('qt5agg', warn=False, force=True)
+    import matplotlib.pyplot as plt
+except ImportError:
+    print('failed to load Matplotlib')
 from matplotlib.colors import LogNorm
 from utils.filehandling import get_feature_files
 from sklearn.decomposition import PCA, FastICA

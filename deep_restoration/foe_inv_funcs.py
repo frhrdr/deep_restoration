@@ -12,7 +12,9 @@ from utils.filehandling import load_image
 from skimage.io import imsave
 
 
-def run_image_opt_inversions(classifier, prior_mode, layer_select=None, lr=1.):
+def run_image_opt_inversions(classifier, prior_mode, layer_select=None, lr=1., pre_featmap_name='input',
+                             do_plot=True, mse_iterations=5000, opt_iterations=5000, jitterations=3200,
+                             summary_freq=50, print_freq=500, log_freq=500, grad_clip=10000., select_img=None):
 
     _, img_hw, layer_names = classifier_stats(classifier)
 
@@ -23,8 +25,9 @@ def run_image_opt_inversions(classifier, prior_mode, layer_select=None, lr=1.):
     layer_subdirs = [n.replace('/', '_') for n in layer_names]
     img_subdirs = ['val{}'.format(i) for i in selected_img_ids()]
 
-    tgt_paths = tgt_paths[6:7]
-    img_subdirs = img_subdirs[6:7]
+    if select_img:
+        tgt_paths = tgt_paths[select_img:select_img+1]
+        img_subdirs = img_subdirs[select_img:select_img+1]
     log_path = '../logs/opt_inversion/{}/image_rec/'.format(classifier)
     print(layer_names)
     for idx, layer_subdir in enumerate(layer_subdirs):
@@ -36,16 +39,6 @@ def run_image_opt_inversions(classifier, prior_mode, layer_select=None, lr=1.):
             exp_log_path = '{}{}/{}/'.format(log_path, layer_subdir, img_subdir)
             if not os.path.exists(log_path):
                 os.makedirs(log_path)
-
-            pre_featmap_name = 'input'
-            do_plot = True
-            mse_iterations = 5000  # 5000
-            opt_iterations = 5000  # 5000
-            jitterations = 3200  # 3200
-            summary_freq = 50
-            print_freq = 500
-            log_freq = 500
-            grad_clip = 10000.
 
             lr_lower_points = ((1e+0, lr),)
             print(layer_subdir)

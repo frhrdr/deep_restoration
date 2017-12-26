@@ -434,3 +434,44 @@ oblivious       adaptive       image
 
 norm const basically absorbed in alpha?
 alain bengio
+
+
+Thesis TODO:
+
+rename sections
+consider splitting methods into preliminaries (before related work) and methods (after)
+add thing about interpretable prior somewhere
+- cite i-RevNet jörn correctly
+
+Intro:
+- smoothe out text
+- give example in first paragraph
+
+Related Work:
+- short intro paragraph
+- smoothe out text
+
+Methods:
+- short section on whitening (ZCA only if referenced again in Separable prior)
+- short section on Adam (move both further to the back, start with imagenet
+- VGG only if any results with VGG are presented
+- Tikz figures need fixing
+- modular inverting could use a formula
+- MV explain Jitter
+- MRF ICA connection, why overcomplete, why whiten
+- fix mixing clique potentials formula by introducing weights
+- Advex finish intro and part on defenses
+
+Inversion Exps
+- inversion to feature maps
+- discussion
+- vgg
+
+Advex Exps
+- smoothe
+
+Conclusion
+- merge featmap prior sections
+
+Talk
+- get bad fox taxidermy image, run on alexnet and vgg

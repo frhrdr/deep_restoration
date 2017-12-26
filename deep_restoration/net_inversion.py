@@ -126,8 +126,8 @@ class NetInversion:
 
     def train_pre_featmap(self, image_path, n_iterations, grad_clip=100.0, lr_lower_points=((0, 1e-4),),
                           range_b=80, jitter_t=0, optim_name='adam',
-                          range_clip=False, save_as_plot=False, bound_plots=False, jitter_stop_point=-1, scale_pre_img=1.0,
-                          pre_featmap_init=None, ckpt_offset=0,
+                          range_clip=False, save_as_plot=False, bound_plots=False, jitter_stop_point=-1,
+                          scale_pre_img=1.0, pre_featmap_init=None, ckpt_offset=0,
                           pre_featmap_name='input', classifier_cutoff=None,
                           tensor_names_to_save=(), featmap_names_to_plot=(), max_n_featmaps_to_plot=5):
         """
@@ -166,8 +166,15 @@ class NetInversion:
                 jitter_x_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_x_pl')
                 jitter_y_pl = tf.placeholder(dtype=tf.int32, shape=[], name='jitter_y_pl')
 
-                rec_part = tf.slice(pre_featmap, [0, jitter_x_pl, jitter_y_pl, 0], [-1, -1, -1, -1])
-                rec_padded = tf.pad(rec_part, paddings=[[0, 0], [jitter_x_pl, 0], [jitter_y_pl, 0], [0, 0]])
+                # old jitter: always a positive offset
+                # rec_part = tf.slice(pre_featmap, [0, jitter_x_pl, jitter_y_pl, 0], [-1, -1, -1, -1])
+                # rec_padded = tf.pad(rec_part, paddings=[[0, 0], [jitter_x_pl, 0], [jitter_y_pl, 0], [0, 0]])
+                # new jitter: expected offset is 0
+                p1, p2 = (jitter_t // 2), jitter_t - (jitter_t // 2)
+                rec_padded = tf.pad(pre_featmap, paddings=[[0, 0], [p1, p2], [p1, p2], [0, 0]])
+
+                rec_padded = rec_padded[:, jitter_x_pl:jitter_x_pl + self.img_hw,
+                                        jitter_y_pl:jitter_y_pl + self.img_hw, :]
 
                 use_jitter_pl = tf.placeholder(dtype=tf.bool, shape=[], name='use_jitter')
                 rec_input = tf.cond(use_jitter_pl, lambda: rec_padded, lambda: pre_featmap, name='jitter_cond')

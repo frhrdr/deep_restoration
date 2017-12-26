@@ -1,6 +1,5 @@
 import matplotlib
 from skimage.io import imsave
-
 matplotlib.use('tkagg', force=True)
 import xml.etree.ElementTree as ET
 from collections import defaultdict
