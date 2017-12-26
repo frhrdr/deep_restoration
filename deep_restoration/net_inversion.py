@@ -10,9 +10,6 @@ import os
 import time
 import numpy as np
 from skimage.color import grey2rgb
-import matplotlib
-matplotlib.use('tkagg', force=True)
-import matplotlib.pyplot as plt
 
 
 class NetInversion:
