@@ -1,5 +1,10 @@
 import os
-import matplotlib.pyplot as plt
+try:
+    import matplotlib
+    matplotlib.use('qt5agg', warn=False, force=True)
+    import matplotlib.pyplot as plt
+except ImportError:
+    print('failed to load Matplotlib')
 import numpy as np
 import skimage
 import tensorflow as tf
