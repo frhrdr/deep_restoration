@@ -1,6 +1,10 @@
-import matplotlib
 from skimage.io import imsave
-matplotlib.use('tkagg', force=True)
+try:
+    import matplotlib
+    matplotlib.use('qt5agg', warn=False, force=True)
+    import matplotlib.pyplot as plt
+except ImportError:
+    print('failed to load Matplotlib')
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 import skimage
@@ -11,7 +15,6 @@ import time
 import warnings
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 import tensorflow as tf
 from tf_alexnet.alexnet import AlexNet
 from tf_vgg.vgg16 import Vgg16
