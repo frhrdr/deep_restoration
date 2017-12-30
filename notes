@@ -438,9 +438,9 @@ alain bengio
 
 Thesis TODO:
 
-rename sections
-consider splitting methods into preliminaries (before related work) and methods (after)
-add thing about interpretable prior somewhere
+- rename sections
+- consider splitting methods into preliminaries (before related work) and methods (after)
+- add thing about interpretable prior somewhere
 - cite i-RevNet jörn correctly
 - find and fill [citation needed] notes
 
@@ -449,19 +449,21 @@ x smoothe out text
 x give example in first paragraph
 
 Related Work:
-- short intro paragraph
-- smoothe out text
+x short intro paragraph
+x smoothe out text
 
 Methods:
-- short section on whitening (ZCA only if referenced again in Separable prior)
-- short section on Adam (move both further to the back, start with imagenet
-- VGG only if any results with VGG are presented
-- Tikz figures need fixing
-- modular inverting could use a formula
-- MV explain Jitter
-- MRF ICA connection, why overcomplete, why whiten
+x VGG score equation
+x Tikz figures need fixing
+x short section on whitening (ZCA only if referenced again in Separable prior)
+x modular inverting could use a formula
+x MV explain Jitter
+x MRF ICA connection, why overcomplete, why whiten
 - fix mixing clique potentials formula by introducing weights
 - Advex finish intro and part on defenses
+- unify feature map notation
+o VGG only if any results with VGG are presented
+o short section on Adam (move both further to the back, start with imagenet
 
 Inversion Exps
 - inversion to feature maps
