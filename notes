@@ -459,8 +459,8 @@ x short section on whitening (ZCA only if referenced again in Separable prior)
 x modular inverting could use a formula
 x MV explain Jitter
 x MRF ICA connection, why overcomplete, why whiten
+x Advex finish intro and part on defenses
 - fix mixing clique potentials formula by introducing weights
-- Advex finish intro and part on defenses
 - unify feature map notation
 o VGG only if any results with VGG are presented
 o short section on Adam (move both further to the back, start with imagenet
