@@ -36,7 +36,7 @@ def vgg_rec_collage(save_path, rescale=False):
     for l, r in layer_choices:
         col = []
         for n in img_numbers:
-            mat = np.load(path.format(l, n, r))[:, ...]
+            mat = np.load(path.format(l, n, r))[0, ...]
             if rescale:
                 mat = (mat - np.min(mat)) / (np.max(mat) - np.min(mat))
             else:
