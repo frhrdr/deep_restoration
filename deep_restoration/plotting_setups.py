@@ -24,7 +24,7 @@ def plot_c1l_prior_comp():
 
 
 def vgg_rec_collage():
-    path = '../logs/opt_inversion/vgg16/image_rec/{}/val{}/full512/mats/rec_{}.png'
+    path = '../logs/opt_inversion/vgg16/image_rec/{}/val{}/full512/mats/rec_{}.npy'
 
     layer_choices = [('pool1', '25000'), ('pool2', '25000'), ('pool3', '25000'), ('pool4', '25000'), ('pool5', '25000'),
                      ('fc6/lin', '17000'), ('fc7/lin', '17000'), ('fc8/lin', '17000')]
