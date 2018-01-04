@@ -51,3 +51,31 @@ def vgg_rec_collage(save_path, rescale=False):
     img = np.concatenate(cols, axis=1)
     print(img.shape)
     imsave(save_path, img)
+
+
+def alex_rec_collage(save_path, rescale=False):
+    path = '../logs/opt_inversion/alexnet/image_rec/{}/val{}/full512/mats/rec_10000.npy'
+
+    layer_choices = ['conv1_lin', 'conv2_lin', 'conv3_lin', 'conv4_lin', 'conv5_lin', 'fc6_lin', 'fc7_lin', 'fc8_lin']
+
+    img_numbers = [53, 76, 81, 99, 106, 108, 129, 153, 157, 160]
+
+    cols = []
+    for l in layer_choices:
+        col = []
+        for n in img_numbers:
+            mat = np.load(path.format(l, n))[0, ...]
+            if rescale is 'perc':
+                p5 = np.percentile(mat, 1)
+                p95 = np.percentile(mat, 99)
+                mat = np.minimum(np.maximum(mat, p5), p95)
+                mat = (mat - np.min(mat)) / (np.max(mat) - np.min(mat))
+            elif rescale is True:
+                mat = (mat - np.min(mat)) / (np.max(mat) - np.min(mat))
+            else:
+                mat = np.minimum(np.maximum(mat, 0.), 255.) / 255.
+            col.append(mat)
+        cols.append(np.concatenate(col, axis=0))
+    img = np.concatenate(cols, axis=1)
+    print(img.shape)
+    imsave(save_path, img)

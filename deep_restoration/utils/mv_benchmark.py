@@ -44,10 +44,11 @@ def mv_script_fun(src_layer, img_path, log_path, classifier,
                          pre_featmap_init=pre_img_init, ckpt_offset=0, save_as_plot=True)
 
 
-def run_mv_scripts(classifier):
+def run_mv_scripts(classifier, custom_layers=None):
     _, img_hw, layer_names = classifier_stats(classifier)
+    layer_names = custom_layers or layer_names
     img_paths = subset10_paths(classifier)
-    img_paths = img_paths[3:]  # to continue previous run
+    # img_paths = img_paths[3:]  # to continue previous run
     for img_path in img_paths:
         for layer_name in layer_names:
             layer_subdir = layer_name.replace('/', '_')
