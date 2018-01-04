@@ -462,13 +462,16 @@ x MRF ICA connection, why overcomplete, why whiten
 x Advex finish intro and part on defenses
 - fix mixing clique potentials formula by introducing weights
 - unify feature map notation
-o VGG only if any results with VGG are presented
+x VGG only if any results with VGG are presented
 o short section on Adam (move both further to the back, start with imagenet
 
 Inversion Exps
-- inversion to feature maps
+x inversion to feature maps
+- implicit priors: plot, cite ulyanov2017
 - discussion
 - vgg
+
+
 
 Advex Exps
 - smoothe

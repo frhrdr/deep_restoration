@@ -1,7 +1,8 @@
-from plotting_setups import vgg_rec_collage, alex_rec_collage
+from plotting_setups import vgg_rec_collage, alex_rec_collage, vgg_mv_collage
 from utils.mv_benchmark import run_mv_scripts
 
-run_mv_scripts('vgg16', ('pool1', 'pool2', 'pool3', 'pool4', 'pool5', 'fc6/lin', 'fc7/lin', 'fc8/lin'))
+vgg_mv_collage('../logs/mahendran_vedaldi/2016/vgg16/image_rec/collage_rescaled.png', rescale=True)
+# run_mv_scripts('vgg16', ('pool1', 'pool2', 'pool3', 'pool4', 'pool5', 'fc6/lin', 'fc7/lin', 'fc8/lin'))
 # vgg_rec_collage('../logs/opt_inversion/vgg16/image_rec/collage_2123.png', rescale=False)
 # vgg_rec_collage('../logs/opt_inversion/vgg16/image_rec/collage_2123_rescaled.png', rescale='perc')
 # alex_rec_collage('../logs/opt_inversion/alexnet/image_rec/collage.png', rescale=False)
