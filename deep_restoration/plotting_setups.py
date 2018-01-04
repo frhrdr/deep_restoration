@@ -29,7 +29,7 @@ def vgg_rec_collage():
     layer_choices = [('pool1', '25000'), ('pool2', '25000'), ('pool3', '25000'), ('pool4', '25000'), ('pool5', '25000'),
                      ('fc6/lin', '17000'), ('fc7/lin', '17000'), ('fc8/lin', '17000')]
 
-    img_numbers = [53, 78, 81, 99, 106, 108, 129, 153, 157, 160]
+    img_numbers = [53, 76, 81, 99, 106, 108, 129, 153, 157, 160]
 
     cols = []
     for l, r in layer_choices:
