@@ -28,7 +28,7 @@ def vgg_rec_collage(save_path, rescale=False):
     path = '../logs/opt_inversion/vgg16/image_rec/{}/val{}/full512/mats/rec_{}.npy'
 
     layer_choices = [('pool1', '25000'), ('pool2', '25000'), ('pool3', '25000'), ('pool4', '25000'), ('pool5', '25000'),
-                     ('fc6_lin', '17000'), ('fc7_lin', '17000'), ('fc8_lin', '17000')]
+                     ('fc6_lin', '21000'), ('fc7_lin', '23000'), ('fc8_lin', '23000')]
 
     img_numbers = [53, 76, 81, 99, 106, 108, 129, 153, 157, 160]
 
