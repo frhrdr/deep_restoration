@@ -40,7 +40,7 @@ def vgg_rec_collage(save_path, rescale=False):
             if rescale:
                 mat = (mat - np.min(mat)) / (np.max(mat) - np.min(mat))
             else:
-                mat = np.minimum(np.maximum(mat, 0.), 1.)
+                mat = np.minimum(np.maximum(mat, 0.), 255.) / 255.
             col.append(mat)
         cols.append(np.concatenate(col, axis=0))
     img = np.concatenate(cols, axis=1)
