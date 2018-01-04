@@ -37,7 +37,12 @@ def vgg_rec_collage(save_path, rescale=False):
         col = []
         for n in img_numbers:
             mat = np.load(path.format(l, n, r))[0, ...]
-            if rescale:
+            if rescale is 'perc':
+                p5 = np.percentile(mat, 5)
+                p95 = np.percentile(mat, 95)
+                mat = np.minimum(np.maximum(mat, p5), p95)
+                mat = (mat - np.min(mat)) / (np.max(mat) - np.min(mat))
+            elif rescale is True:
                 mat = (mat - np.min(mat)) / (np.max(mat) - np.min(mat))
             else:
                 mat = np.minimum(np.maximum(mat, 0.), 255.) / 255.
