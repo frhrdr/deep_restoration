@@ -1,6 +1,7 @@
 from plotting_setups import vgg_rec_collage
 
-vgg_rec_collage()
+vgg_rec_collage('../logs/opt_inversion/vgg16/image_rec/collage_17.png', rescale=False)
+vgg_rec_collage('../logs/opt_inversion/vgg16/image_rec/collage_17_rescaled.png', rescale=True)
 # from net_inversion import NetInversion
 # from modules.inv_default_modules import default_deconv_conv_module, get_stacked_module
 # from shutil import copyfile
