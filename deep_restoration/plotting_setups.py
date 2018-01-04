@@ -82,7 +82,7 @@ def alex_rec_collage(save_path, rescale=False):
 
 
 def vgg_mv_collage(save_path, rescale=False):
-    path = '../logs/mahendran_vedaldi/2016/vgg16/{}/val{}/full512/mats/rec_3500.npy'
+    path = '../logs/mahendran_vedaldi/2016/vgg16/{}/val{}/mats/rec_3500.npy'
 
     layer_choices = [('pool1', '25000'), ('pool2', '25000'), ('pool3', '25000'), ('pool4', '25000'), ('pool5', '25000'),
                      ('fc6_lin', '21000'), ('fc7_lin', '23000'), ('fc8_lin', '23000')]
