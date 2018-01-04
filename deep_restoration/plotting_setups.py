@@ -1,4 +1,5 @@
 from utils.tb_log_readers import plot_opt_inv_experiment
+import numpy as np
 
 
 def plot_example_exp():
@@ -21,3 +22,21 @@ def plot_c1l_prior_comp():
                 'Matching error': 'MSE_conv2_1'}
     plot_opt_inv_experiment(path, exp_subdirs, log_tags, log_subdir='summaries')
 
+
+def vgg_rec_collage():
+    path = '../logs/opt_inversion/vgg16/image_rec/{}/val{}/full512/mats/rec_{}.png'
+
+    layer_choices = [('pool1', '25000'), ('pool2', '25000'), ('pool3', '25000'), ('pool4', '25000'), ('pool5', '25000'),
+                     ('fc6/lin', '17000'), ('fc7/lin', '17000'), ('fc8/lin', '17000')]
+
+    img_numbers = [53, 78, 81, 99, 106, 108, 129, 153, 157, 160]
+
+    cols = []
+    for l, r in layer_choices:
+        col = []
+        for n in img_numbers:
+            mat = np.load(path.format(l, n, r))
+            col.append(mat)
+        cols.append(np.concatenate(col, axis=0))
+    img = np.concatenate(cols, axis=1)
+    print(img.shape)

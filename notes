@@ -476,5 +476,20 @@ Advex Exps
 Conclusion
 - merge featmap prior sections
 
+
+
+
+
 Talk
 - get bad fox taxidermy image, run on alexnet and vgg
+- make vgg16 pool5 lr=3 5kmse rec
+
+VGG-16 vis choices:
+pool1: 25k
+pool2: 25k
+pool3: 25k
+pool4: 25k
+pool5: 25k
+fc6: weird purple shift, 17k or 21k
+fc7: 15500 - 17000 sharp, color is off. 23000 - 25000 blurry, better color
+fc8: 15500 - 17000 sharp, color is off. 23000 - 25000 blurry, better color
